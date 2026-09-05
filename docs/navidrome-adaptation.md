@@ -136,3 +136,36 @@ LX 歌单拉取 → LX 下载（标签/封面/歌词）→ file-manager 落盘 <
 4. **Navidrome 端歌曲清理**：回收站移走后 Navidrome 需 PurgeMissing 才清 record？还是仅标 missing？确认期望行为（影响查重历史/播放列表残留）
 5. **查重范围**：Navidrome 单根即全库——UI 直接整库，去掉媒体库勾选？
 6. **Roadmap 排期**：M5-0 纯重构先行（低风险）？还是直接先 M5-1 起 Navidrome 实例探 API 实测（更快验证可行性）？
+
+---
+
+## 附录：Navidrome 0.63.2 API 实测结论（2026-09-05，本机 60233 端口）
+
+> 全部端点已对本机 Navidrome（deluan/navidrome:latest，版本 0.63.2）实测验证。
+
+| 操作 | 端点 | 说明 |
+|---|---|---|
+| 登录 | `POST /auth/login` body `{"username","password"}` | 返回 `{token(JWT), username, isAdmin, subsonicToken...}`；token 24h（ND_SESSIONTIMEOUT） |
+| **认证头** | **`X-ND-Authorization: Bearer <jwt>`** | ⚠️ 唯一有效形式：裸 token 放 X-ND 头、标准 `Authorization: Bearer` 均 401（实测） |
+| 媒体库列表 | `GET /api/library` | `[{id, name, path, totalSongs...}]`；本机「LX同步音乐」id=2，path=`/D8/.../LXSERVER/king`（容器视角，与 downloadRoot 同源） |
+| 歌曲分页 | `GET /api/song?_start=0&_end=50` | 每首含 `id(22位base62)/path(相对库根)/title/artist/album/bitRate/sampleRate/bitDepth/suffix/size/duration/lyrics(JSON)` |
+| 歌曲过滤 | `GET /api/song?title=终于` | **title LIKE 部分匹配**（大小写不敏感）；artist/album/name/orderArtistName 过滤均无效（实测 0 或全量）→ 用 title 粗查 + 本地 artist 归一过滤 |
+| 播放列表列表 | `GET /api/playlist` | 数组；每项含 id/name/size/duration |
+| 建播放列表 | `POST /api/playlist` JSON `{"name"}` | 返回 `{id,...}`（含 name 等字段，响应为完整 playlist 对象） |
+| 加歌 | `POST /api/playlist/{pid}/tracks` JSON `{"ids":["<songId>",...]}` | 响应 `{"added":N}`；ids 是**歌曲 id** |
+| 查列表条目 | `GET /api/playlist/{pid}/tracks` | 条目 `{id(关系id,数字), mediaFileId(歌曲id), title, artist...}`；⚠️ 勿带 `accept: audio/x-mpegurl`（会返回 m3u） |
+| **删歌** | **`DELETE /api/playlist/{pid}/tracks?id=<关系id>`** | ⚠️ 参数是 **playlist_tracks 关系 id（数字）**，不是歌曲 id；逗号串不拆分（实测），多删用重复参数 `?id=1&id=2` 或循环单删；对应 Emby 的 entryId 语义 |
+| 删播放列表 | `DELETE /api/playlist/{pid}` | 返回 `{}` |
+
+**入库机制确认**：ND_SCANSCHEDULE=1m（本机配置每分钟定时扫描兜底）+ watcher（inotify，5s 去抖）。新文件落盘后 1 分钟内可见；「LX同步音乐」库 path 即 SongFerry downloadRoot 的容器视角——本地路径推算 = downloadRoot + song.path 相对路径，直接可用。
+
+**与 Emby adapter 的方法映射（接口设计锚点）**：
+- listPlaylists → `GET /api/playlist`
+- createPlaylist(name) → `POST /api/playlist`
+- addItems(pid, songIds) → `POST /api/playlist/{pid}/tracks`（songId）
+- listPlaylistItems → `GET /api/playlist/{pid}/tracks`（取关系 id + mediaFileId）
+- removeItems(entryIds) → `DELETE /api/playlist/{pid}/tracks?id=` 循环（entryId = 关系 id）
+- findSong(title) → `GET /api/song?title=` + 本地 artist 过滤
+- 全库列歌 → `GET /api/song` 分页拉全量（libraryId 过滤待验证）
+- scanLibrary → no-op（watcher/ND_SCANSCHEDULE 自动入库）
+- 音质判定 → song.bitRate/sampleRate/bitDepth/suffix 直接映射 QUALITY_ORDER
