@@ -3,7 +3,7 @@ import type { AppConfig, Quality } from '../config.js'
 import { QUALITY_ORDER, QUALITY_LABELS } from '../config.js'
 import { saveConfig } from '../config.js'
 import { LxServerAdapter } from '../adapters/lxserver.js'
-import { EmbyAdapter } from '../adapters/emby.js'
+import type { MediaServerAdapter } from '../adapters/media-server.js'
 import * as repo from '../store/repo.js'
 import { SyncEngine } from '../core/sync-engine.js'
 import { Scheduler } from '../scheduler/index.js'
@@ -24,7 +24,7 @@ const bool = (v: unknown) => v === '1' || v === true || v === 1
 export function apiRouter(
   cfg: AppConfig,
   lx: LxServerAdapter,
-  emby: EmbyAdapter,
+  emby: MediaServerAdapter,
   engine: SyncEngine,
   scheduler: Scheduler,
 ): Router {
@@ -80,7 +80,7 @@ export function apiRouter(
 
   r.post('/emby/probe', async (_req, res) => {
     try {
-      const libs = await emby.listMusicLibraries()
+      const libs = await emby.listLibraries()
       if (!libs.length) return res.send(err('未找到音乐类媒体库'))
       const id = await emby.resolveLibraryId()
       if (id) {
@@ -360,7 +360,7 @@ export function apiRouter(
       lines.push('<p class="hint">Emby 未连接，跳过媒体库匹配检查</p>')
     } else {
       try {
-        const libs = await emby.listMusicLibraries()
+        const libs = await emby.listLibraries()
         const root = cfg.emby.libraryRoot?.replace(/\/+$/, '')
         const hit = libs.find((l) => l.locations.some((p) => (p.replace(/\/+$/, '') === root) || p.replace(/\/+$/, '').startsWith(root + '/') || (root && root.startsWith(p.replace(/\/+$/, '') + '/'))))
         if (hit) {
@@ -699,7 +699,7 @@ export function apiRouter(
 
   r.get('/emby/music-libs/options', async (_req, res) => {
     try {
-      const libs = await emby.listMusicLibraries()
+      const libs = await emby.listLibraries()
       if (!libs.length) return res.send('<span class="hint">未找到音乐媒体库</span>')
       const libRoot = cfg.emby.libraryRoot?.replace(/\/+$/, '')
       res.send(

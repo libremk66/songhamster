@@ -5,7 +5,7 @@ import type { AppConfig, Quality } from '../config.js'
 import { HIGH_RES_FLAC, QUALITY_ORDER } from '../config.js'
 import type { LxSong } from '../adapters/lxserver.js'
 import { LxServerAdapter } from '../adapters/lxserver.js'
-import { EmbyAdapter } from '../adapters/emby.js'
+import type { MediaServerAdapter } from '../adapters/media-server.js'
 import { moveToPlaylistDir, renderFilename } from './file-manager.js'
 import { validateFile, sniffFlacBits } from './validator.js'
 import * as repo from '../store/repo.js'
@@ -25,7 +25,7 @@ export class SyncEngine {
   constructor(
     private cfg: () => AppConfig,
     private lx: LxServerAdapter,
-    private emby: EmbyAdapter,
+    private emby: MediaServerAdapter,
   ) {}
 
   get isRunning(): boolean {

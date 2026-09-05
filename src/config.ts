@@ -71,6 +71,17 @@ export interface AppConfig {
     /** 媒体库 Id（连接后自动探测填入） */
     mediaLibraryId?: string
   }
+  navidrome: {
+    baseUrl: string
+    username: string
+    password: string
+    /** 媒体库根路径（Navidrome 视角，用于匹配库；如 /D8/.../LXSERVER/king） */
+    libraryRoot: string
+    /** 媒体库 Id（连接后自动探测填入） */
+    libraryId?: string
+  }
+  /** 媒体服务器目标（M5-2 接入切换）：emby | navidrome */
+  target: 'emby' | 'navidrome'
   download: {
     /** 勾选的音质，按高→低尝试；未勾选绝不使用 */
     qualities: Quality[]
@@ -144,6 +155,8 @@ export interface UpgradeConfig {
 export const DEFAULT_CONFIG: AppConfig = {
   lxserver: { baseUrl: 'http://127.0.0.1:19527', apiKey: '', username: 'king', downloadRoot: '' },
   emby: { baseUrl: 'http://127.0.0.1:8096', apiKey: '', libraryRoot: '' },
+  navidrome: { baseUrl: '', username: '', password: '', libraryRoot: '' },
+  target: 'emby',
   download: {
     qualities: ['flac24bit', 'flac'],
     filenameTemplate: '[歌手] - [歌曲名] ([音质])',
@@ -221,6 +234,7 @@ export function loadConfig(): AppConfig {
     ...fileCfg,
     lxserver: { ...DEFAULT_CONFIG.lxserver, ...fileCfg?.lxserver },
     emby: { ...DEFAULT_CONFIG.emby, ...fileCfg?.emby },
+    navidrome: { ...DEFAULT_CONFIG.navidrome, ...fileCfg?.navidrome },
     download: {
       ...DEFAULT_CONFIG.download,
       ...fileCfg?.download,

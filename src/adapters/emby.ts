@@ -1,18 +1,16 @@
 import type { AppConfig } from '../config.js'
+import type {
+  FoundSong,
+  MediaLibrary,
+  MediaPlaylist,
+  MediaPlaylistItem,
+  MediaServerAdapter,
+  MediaSong,
+} from './media-server.js'
 
-export interface EmbyPlaylist {
-  id: string
-  name: string
-  itemCount?: number
-}
+export class EmbyAdapter implements MediaServerAdapter {
+  readonly kind = 'emby' as const
 
-export interface EmbySong {
-  id: string
-  name: string
-  artists: string[]
-}
-
-export class EmbyAdapter {
   constructor(private cfg: () => AppConfig) {}
 
   private get c() {
@@ -46,7 +44,7 @@ export class EmbyAdapter {
   }
 
   /** 现有播放列表（映射表"加入已有歌单"数据源） */
-  async listPlaylists(): Promise<EmbyPlaylist[]> {
+  async listPlaylists(): Promise<MediaPlaylist[]> {
     const data = await this.request('/Items?IncludeItemTypes=Playlist&Recursive=true&Fields=ChildCount')
     return (data?.Items ?? []).map((it: any) => ({
       id: String(it.Id),
@@ -77,7 +75,7 @@ export class EmbyAdapter {
   }
 
   /** 列出音乐类媒体库（供界面下拉/探测辅助） */
-  async listMusicLibraries(): Promise<{ id: string; name: string; locations: string[] }[]> {
+  async listLibraries(): Promise<MediaLibrary[]> {
     const data = await this.request('/Library/VirtualFolders')
     return (data ?? [])
       .filter((vf: any) => vf?.CollectionType === 'music')
@@ -112,9 +110,9 @@ export class EmbyAdapter {
   }
 
   /** 搜索已入库的歌曲（幂等映射的重搜；Emby 重扫后 Id 会变） */
-  async findSong(title: string, artist?: string): Promise<EmbySong | null> {
+  async findSong(title: string, artist?: string): Promise<MediaSong | null> {
     const found = await this.findSongWithQuality(title, artist)
-    return found ? { id: found.id, name: found.name, artists: found.artists } : null
+    return found ? { ...found, path: '', size: 0 } : null
   }
 
   /**
@@ -122,10 +120,7 @@ export class EmbyAdapter {
    * 判定来源：MediaSources.Container + MediaStreams(BitRate/BitsPerSample/SampleRate)
    * quality: master/atmos_plus/atmos/hires/flac24bit/flac/320k/192k/128k/null(未知)
    */
-  async findSongWithQuality(
-    title: string,
-    artist?: string,
-  ): Promise<{ id: string; name: string; artists: string[]; quality: string | null } | null> {
+  async findSongWithQuality(title: string, artist?: string): Promise<FoundSong | null> {
     const qs = new URLSearchParams({
       SearchTerm: title,
       IncludeItemTypes: 'Audio',
@@ -173,7 +168,7 @@ export class EmbyAdapter {
   }
 
   /** 歌单当前条目（含 PlaylistItemId，供 removeItems） */
-  async listPlaylistItems(playlistId: string): Promise<{ itemId: string; entryId?: string; name: string }[]> {
+  async listPlaylistItems(playlistId: string): Promise<MediaPlaylistItem[]> {
     const data = await this.request(`/Playlists/${playlistId}/Items`)
     return (data?.Items ?? []).map((it: any) => ({
       itemId: String(it.Id),
@@ -184,12 +179,10 @@ export class EmbyAdapter {
 
   /**
    * 分页拉取媒体库全部歌曲（含 MediaSources 音质信息）
-   * 返回条目：{id,name,artists,path,quality,size}
+   * 返回条目：MediaSong {id,name,artists,path,quality,size}
    */
-  async listLibrarySongs(
-    libraryId: string,
-  ): Promise<{ id: string; name: string; artists: string[]; path: string; quality: string | null; size: number }[]> {
-    const out: { id: string; name: string; artists: string[]; path: string; quality: string | null; size: number }[] = []
+  async listLibrarySongs(libraryId: string): Promise<MediaSong[]> {
+    const out: MediaSong[] = []
     let start = 0
     const PAGE = 500
     for (;;) {

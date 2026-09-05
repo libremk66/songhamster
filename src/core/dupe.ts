@@ -1,5 +1,5 @@
 import { QUALITY_ORDER } from '../config.js'
-import type { EmbyAdapter } from '../adapters/emby.js'
+import type { MediaServerAdapter } from '../adapters/media-server.js'
 
 /** 库内歌曲条目（扫描结果） */
 export interface DupeItem {
@@ -32,7 +32,7 @@ function norm(s: string): string {
 /** 扫描所选媒体库 → 返回重复组（同名同歌手 ≥2 份）
  * mode: per=每个库独立查重（跨库同名不算重复）；merged=多库合并查重（跨库同名也算） */
 export async function scanDuplicates(
-  emby: EmbyAdapter,
+  emby: MediaServerAdapter,
   libraryIds: string[],
   mode: 'per' | 'merged' = 'merged',
 ): Promise<{ groups: DupeGroup[]; scannedCount: number; scannedLibraries: string[] }> {

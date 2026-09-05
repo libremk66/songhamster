@@ -2,7 +2,7 @@ import { Router, type Request } from 'express'
 import type { AppConfig } from '../config.js'
 import { QUALITY_ORDER, QUALITY_LABELS } from '../config.js'
 import { LxServerAdapter } from '../adapters/lxserver.js'
-import { EmbyAdapter } from '../adapters/emby.js'
+import type { MediaServerAdapter } from '../adapters/media-server.js'
 import { renderPage, VERSION } from '../views/render.js'
 import { currentUser } from '../auth.js'
 
@@ -17,7 +17,7 @@ export const NAV = [
   { id: 'settings', label: '设置' },
 ] as const
 
-export function pagesRouter(getCfg: () => AppConfig, lx: LxServerAdapter, emby: EmbyAdapter): Router {
+export function pagesRouter(getCfg: () => AppConfig, lx: LxServerAdapter, emby: MediaServerAdapter): Router {
   const r = Router()
   const base = (page: string, req: Request) => ({
     nav: NAV,
@@ -72,7 +72,7 @@ export function pagesRouter(getCfg: () => AppConfig, lx: LxServerAdapter, emby: 
   r.get('/library', async (_req, res) => {
     let musicLibs: { id: string; name: string; locations: string[]; isProject: boolean }[] = []
     try {
-      const libs = await emby.listMusicLibraries()
+      const libs = await emby.listLibraries()
       const libRoot = getCfg().emby.libraryRoot?.replace(/\/+$/, '')
       musicLibs = libs.map((l) => ({
         ...l,
