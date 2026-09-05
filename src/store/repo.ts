@@ -1,0 +1,256 @@
+import { getDb, type BatchResult, type SongStatus, type SyncMode, type SyncTaskRow } from './db.js'
+
+// ===== sync_task =====
+
+export interface SyncTask extends SyncTaskRow {
+  embyTargetPlaylistIdsParsed: string[]
+}
+
+function rowToTask(r: SyncTaskRow): SyncTask {
+  let ids: string[] = []
+  try {
+    ids = JSON.parse(r.embyTargetPlaylistIds || '[]')
+  } catch {
+    ids = []
+  }
+  return { ...r, embyTargetPlaylistIdsParsed: ids }
+}
+
+export function listTasks(): SyncTask[] {
+  const rows = getDb().prepare('SELECT * FROM sync_task ORDER BY id').all() as SyncTaskRow[]
+  return rows.map(rowToTask)
+}
+
+export function getTask(id: number): SyncTask | null {
+  const r = getDb().prepare('SELECT * FROM sync_task WHERE id = ?').get(id) as SyncTaskRow | undefined
+  return r ? rowToTask(r) : null
+}
+
+export function createTask(input: {
+  lxPlaylistKey: string
+  lxPlaylistName: string
+  embyTargetPlaylistIds?: string[]
+  createSameNamePlaylist?: boolean
+  cronExpr?: string | null
+  syncMode?: SyncMode
+  dedupCheck?: boolean
+  dedupMinQuality?: string | null
+}): number {
+  const stmt = getDb().prepare(
+    `INSERT INTO sync_task (lxPlaylistKey, lxPlaylistName, enabled, embyTargetPlaylistIds, createSameNamePlaylist, cronExpr, syncMode, dedupCheck, dedupMinQuality)
+     VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?)`,
+  )
+  const info = stmt.run(
+    input.lxPlaylistKey,
+    input.lxPlaylistName,
+    JSON.stringify(input.embyTargetPlaylistIds ?? []),
+    input.createSameNamePlaylist !== false ? 1 : 0,
+    input.cronExpr ?? null,
+    input.syncMode ?? 'incremental',
+    input.dedupCheck ? 1 : 0,
+    input.dedupMinQuality ?? null,
+  )
+  return Number(info.lastInsertRowid)
+}
+
+export function updateTask(id: number, patch: Partial<SyncTaskRow>): void {
+  const cur = getTask(id)
+  if (!cur) throw new Error(`任务不存在: ${id}`)
+  const next = { ...cur, ...patch }
+  getDb()
+    .prepare(
+      `UPDATE sync_task SET lxPlaylistName=?, enabled=?, embyTargetPlaylistIds=?, createSameNamePlaylist=?, cronExpr=?, syncMode=?, lastRunAt=?, lastResult=?, dedupCheck=?, dedupMinQuality=? WHERE id=?`,
+    )
+    .run(
+      next.lxPlaylistName,
+      next.enabled,
+      next.embyTargetPlaylistIds,
+      next.createSameNamePlaylist,
+      next.cronExpr,
+      next.syncMode,
+      next.lastRunAt,
+      next.lastResult,
+      next.dedupCheck,
+      next.dedupMinQuality,
+      id,
+    )
+}
+
+export function deleteTask(id: number): void {
+  getDb().prepare('DELETE FROM sync_task WHERE id = ?').run(id)
+}
+
+// ===== current_song_status（进度页矩阵 + 增量 diff 依据） =====
+
+export interface SongStatusRow {
+  taskId: number
+  songKey: string
+  songName: string
+  singer: string
+  status: SongStatus
+  quality?: string
+  errorReason?: string
+  updatedAt: string
+}
+
+export function listSongStatus(taskId: number): SongStatusRow[] {
+  return getDb().prepare('SELECT * FROM current_song_status WHERE taskId = ?').all(taskId) as SongStatusRow[]
+}
+
+export function upsertSongStatus(row: Omit<SongStatusRow, 'updatedAt'>): void {
+  getDb()
+    .prepare(
+      `INSERT INTO current_song_status (taskId, songKey, songName, singer, status, quality, errorReason, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(taskId, songKey) DO UPDATE SET songName=excluded.songName, singer=excluded.singer,
+         status=excluded.status, quality=excluded.quality, errorReason=excluded.errorReason, updatedAt=excluded.updatedAt`,
+    )
+    .run(row.taskId, row.songKey, row.songName, row.singer, row.status, row.quality ?? null, row.errorReason ?? null, new Date().toISOString())
+}
+
+// ===== history_batch / history_item =====
+
+export interface BatchRow {
+  id: number
+  taskId: number
+  trigger: string
+  startedAt: string
+  finishedAt: string | null
+  result: BatchResult | null
+  okCount: number
+  failCount: number
+  unsatisfiedCount: number
+  removedCount: number
+  dupCount: number
+  dedupCount: number
+  detail: string | null
+}
+
+export function createBatch(input: { taskId: number; trigger: string }): number {
+  const info = getDb()
+    .prepare(`INSERT INTO history_batch (taskId, trigger, startedAt) VALUES (?, ?, ?)`)
+    .run(input.taskId, input.trigger, new Date().toISOString())
+  return Number(info.lastInsertRowid)
+}
+
+export function finishBatch(batchId: number, patch: Partial<Omit<BatchRow, 'id'>>): void {
+  const sets: string[] = []
+  const vals: unknown[] = []
+  for (const [k, v] of Object.entries(patch)) {
+    sets.push(`${k} = ?`)
+    vals.push(v)
+  }
+  if (!sets.length) return
+  vals.push(batchId)
+  getDb().prepare(`UPDATE history_batch SET ${sets.join(', ')} WHERE id = ?`).run(...vals)
+}
+
+export function listBatches(taskId?: number, limit = 30): BatchRow[] {
+  const sql = taskId
+    ? 'SELECT * FROM history_batch WHERE taskId = ? ORDER BY id DESC LIMIT ?'
+    : 'SELECT * FROM history_batch ORDER BY id DESC LIMIT ?'
+  return (taskId ? getDb().prepare(sql).all(taskId, limit) : getDb().prepare(sql).all(limit)) as BatchRow[]
+}
+
+export function insertHistoryItem(item: {
+  batchId: number
+  taskId: number
+  songKey: string
+  songName: string
+  singer?: string
+  status: SongStatus
+  quality?: string
+  filePath?: string
+  errorReason?: string
+}): void {
+  getDb()
+    .prepare(
+      `INSERT INTO history_item (batchId, taskId, songKey, songName, singer, status, quality, filePath, errorReason)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      item.batchId,
+      item.taskId,
+      item.songKey,
+      item.songName,
+      item.singer ?? null,
+      item.status,
+      item.quality ?? null,
+      item.filePath ?? null,
+      item.errorReason ?? null,
+    )
+}
+
+// ===== song_files / task_song_ref（引用计数） =====
+
+export interface SongFileRow {
+  id: number
+  songKey: string
+  quality: string
+  fileName: string
+  filePath: string
+  size?: number
+  verifiedQuality?: string
+}
+
+export function findSongFile(songKey: string, quality: string): SongFileRow | null {
+  const r = getDb().prepare('SELECT * FROM song_files WHERE songKey = ? AND quality = ?').get(songKey, quality) as SongFileRow | undefined
+  return r ?? null
+}
+
+export function registerFile(input: { songKey: string; quality: string; fileName: string; filePath: string; size?: number }): number {
+  const existing = findSongFile(input.songKey, input.quality)
+  if (existing) return existing.id
+  const info = getDb()
+    .prepare(`INSERT INTO song_files (songKey, quality, fileName, filePath, size, firstDownloadedAt) VALUES (?, ?, ?, ?, ?, ?)`)
+    .run(input.songKey, input.quality, input.fileName, input.filePath, input.size ?? null, new Date().toISOString())
+  return Number(info.lastInsertRowid)
+}
+
+/** 任务引用某文件（幂等）；返回是否新增引用 */
+export function refTaskFile(taskId: number, songKey: string, fileId: number): void {
+  getDb()
+    .prepare(`INSERT OR IGNORE INTO task_song_ref (taskId, songKey, fileId) VALUES (?, ?, ?)`)
+    .run(taskId, songKey, fileId)
+}
+
+/** 文件当前被哪些任务引用 */
+export function fileRefCount(fileId: number): number {
+  const r = getDb().prepare('SELECT COUNT(*) AS n FROM task_song_ref WHERE fileId = ?').get(fileId) as { n: number }
+  return r.n
+}
+
+// ===== emby_song_map =====
+
+export function getEmbyMap(songKey: string): { embySongId: string; lastVerifiedAt: string } | null {
+  const r = getDb().prepare('SELECT * FROM emby_song_map WHERE songKey = ?').get(songKey) as
+    | { embySongId: string; lastVerifiedAt: string }
+    | undefined
+  return r ?? null
+}
+
+export function setEmbyMap(songKey: string, embySongId: string): void {
+  getDb()
+    .prepare(`INSERT INTO emby_song_map (songKey, embySongId, lastVerifiedAt) VALUES (?, ?, ?)
+              ON CONFLICT(songKey) DO UPDATE SET embySongId=excluded.embySongId, lastVerifiedAt=excluded.lastVerifiedAt`)
+    .run(songKey, embySongId, new Date().toISOString())
+}
+
+// ===== playlist_snapshot（完全同步 diff 依据） =====
+
+export function getSnapshot(taskId: number): string[] | null {
+  const r = getDb().prepare('SELECT songKeys FROM playlist_snapshot WHERE taskId = ?').get(taskId) as { songKeys: string } | undefined
+  if (!r) return null
+  try {
+    return JSON.parse(r.songKeys)
+  } catch {
+    return []
+  }
+}
+
+export function setSnapshot(taskId: number, songKeys: string[]): void {
+  getDb()
+    .prepare(`INSERT INTO playlist_snapshot (taskId, songKeys, updatedAt) VALUES (?, ?, ?)
+              ON CONFLICT(taskId) DO UPDATE SET songKeys=excluded.songKeys, updatedAt=excluded.updatedAt`)
+    .run(taskId, JSON.stringify(songKeys), new Date().toISOString())
+}

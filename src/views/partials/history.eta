@@ -1,0 +1,30 @@
+<% for (const b of batches) { %>
+<article style="padding:.6rem .9rem;margin-bottom:.7rem">
+  <div class="batch-head">
+    <strong><%= b.startedAt.slice(5, 19).replace('T', ' ') %></strong>
+    <span class="hint">
+      歌单：<%= b.taskName %>
+      · 触发：<%= b.trigger === 'cron' ? '定时' : b.trigger === 'retry' ? '重试' : '手动' %>
+    </span>
+    <button class="btn-sm secondary" style="float:right" hx-get="/api/history/batch/<%= b.id %>" hx-target="#batch-<%= b.id %>" hx-swap="innerHTML">查看明细</button>
+  </div>
+  <div class="batch-stats">
+    <span class="st-ok">✅ 成功 <%= b.okCount %></span>
+    <span class="st-bad">❌ 失败 <%= b.failCount %></span>
+    <span class="st-warn">⏭ 未满足 <%= b.unsatisfiedCount %></span>
+    <span class="st-skip">⏭ 已下载跳过 <%= b.dupCount %></span>
+    <span class="st-skip">🔍 查重跳过 <%= b.dedupCount %></span>
+    <span class="st-skip">🗑 移除 <%= b.removedCount %></span>
+    <span class="batch-result">
+      结果：
+      <% if (b.result === 'success') { %><b class="ok">成功</b>
+      <% } else if (b.result === 'partial') { %><b style="color:#e8590c">部分成功</b>
+      <% } else if (b.result === 'failed') { %><b class="bad">失败</b>
+      <% } else { %><%= b.result %><% } %>
+    </span>
+  </div>
+  <% if (b.detail) { %><p class="bad" style="margin:.3rem 0 0;font-size:.85em"><%= b.detail %></p><% } %>
+  <div id="batch-<%= b.id %>"></div>
+</article>
+<% } %>
+<% if (!batches.length) { %><p class="hint">暂无同步历史</p><% } %>

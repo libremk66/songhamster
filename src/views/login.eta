@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SongFerry - 登录</title>
+  <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+  <link rel="stylesheet" href="/static/pico.css">
+  <script src="/static/htmx.min.js"></script>
+  <style>
+    :root { --pico-form-element-spacing-vertical: .2rem; --pico-form-element-spacing-horizontal: .4rem; }
+    body { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+    .login-card { width: 100%; max-width: 360px; }
+    .brand-row { display: flex; align-items: center; gap: .6rem; justify-content: center; margin-bottom: 1rem; }
+    .brand-row img { width: 44px; height: 44px; border-radius: 8px; }
+    .brand-row .t { font-weight: 800; font-size: 1.5rem; }
+    label { margin-bottom: .15rem; }
+    input {
+      height: 1.45rem !important;
+      min-height: 1.45rem !important;
+      padding: 0 .4rem !important;
+      font-size: .9em !important;
+    }
+    button[type="submit"] {
+      width: 100% !important;
+      height: 1.8rem !important;
+      min-height: 1.8rem !important;
+      padding: 0 !important;
+      background: #000 !important;
+      border-color: #000 !important;
+      color: #fff !important;
+      font-weight: 500 !important;
+    }
+    button[type="submit"]:hover { background: #222 !important; border-color: #222 !important; }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="brand-row"><img src="/static/logo.svg" alt="logo"><span class="t">SongFerry</span></div>
+    <% if (!authEnabled) { %>
+      <article style="text-align:center">
+        <p>当前未启用账号认证，无需登录即可访问。</p>
+        <p class="hint">可在登录后的 <b>设置 → 账号安全</b> 中启用。</p>
+        <a role="button" href="/sync-setup">进入系统</a>
+      </article>
+    <% } else { %>
+      <article>
+        <form method="post" action="/api/auth/login" hx-post="/api/auth/login" hx-target="#login-msg" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful){ window.location.href='/sync-setup' }">
+          <label>用户名<input name="username" autocomplete="username" required></label>
+          <label>密码<input type="password" name="password" autocomplete="current-password" required></label>
+          <button type="submit">登 录</button>
+          <p id="login-msg" style="margin-top:.5rem"></p>
+        </form>
+      </article>
+    <% } %>
+  </div>
+</body>
+</html>

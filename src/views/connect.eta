@@ -1,0 +1,95 @@
+<h2>连接容器</h2>
+
+<form method="post" action="/api/config/lx" hx-post="/api/config/lx" hx-target="#lx-save-msg">
+  <article>
+    <h3>连接 LXSyncServer</h3>
+    <div class="grid2">
+      <div><label>服务地址<input name="baseUrl" value="<%= cfg.lxserver.baseUrl %>" placeholder="http://127.0.0.1:19527"></label></div>
+      <div>
+        <label>API key</label>
+        <div class="key-wrap">
+          <input type="password" name="apiKey" id="lx-key" value="<%= cfg.lxserver.apiKey %>" autocomplete="off">
+          <button type="button" class="btn-sm secondary key-eye" onclick="toggleKey('lx-key', this)" title="显示/隐藏">👁</button>
+        </div>
+      </div>
+      <div><label>下载用户名（x-user-name）<input name="username" value="<%= cfg.lxserver.username %>"></label></div>
+      <div>
+        <label>LX 下载目录（本项目视角路径）
+          <input name="downloadRoot" value="<%= cfg.lxserver.downloadRoot %>" placeholder="容器部署: /data/music；本机直跑: 宿主机路径">
+        </label>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button type="submit">保存</button>
+      <button type="button" class="secondary" hx-post="/api/test/lx" hx-target="#lx-test-result">测试连接</button>
+      <span id="lx-test-result" class="msg"></span>
+      <span id="lx-save-msg" class="msg"></span>
+    </div>
+  </article>
+</form>
+
+<form method="post" action="/api/config/emby" hx-post="/api/config/emby" hx-target="#emby-save-msg">
+  <article>
+    <h3>连接 Emby</h3>
+    <div class="grid2">
+      <div><label>服务地址<input name="baseUrl" value="<%= cfg.emby.baseUrl %>" placeholder="http://127.0.0.1:8096"></label></div>
+      <div>
+        <label>API key</label>
+        <div class="key-wrap">
+          <input type="password" name="apiKey" id="emby-key" value="<%= cfg.emby.apiKey %>" autocomplete="off">
+          <button type="button" class="btn-sm secondary key-eye" onclick="toggleKey('emby-key', this)" title="显示/隐藏">👁</button>
+        </div>
+      </div>
+      <div style="grid-column: span 2">
+        <label>Emby 媒体库根路径（Emby 视角）
+          <input name="libraryRoot" value="<%= cfg.emby.libraryRoot %>" placeholder="容器部署: /media/music；本机直跑: Emby 里显示的库路径">
+        </label>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button type="submit">保存</button>
+      <button type="button" class="secondary" hx-post="/api/test/emby" hx-target="#emby-test-result">测试连接</button>
+      <button type="button" class="secondary" hx-post="/api/emby/probe" hx-target="#emby-probe-result">探测媒体库</button>
+      <span id="emby-test-result" class="msg"></span>
+      <span id="emby-probe-result" class="msg"></span>
+      <span id="emby-save-msg" class="msg"></span>
+    </div>
+    <% if (cfg.emby.mediaLibraryId) { %>
+      <p class="hint" style="margin:0">当前媒体库 Id: <code><%= cfg.emby.mediaLibraryId %></code></p>
+    <% } %>
+  </article>
+</form>
+
+<article>
+  <h3>路径自检</h3>
+  <div class="btn-row">
+    <button type="button" class="secondary" hx-post="/api/paths/check" hx-target="#paths-result" hx-swap="innerHTML">运行路径自检</button>
+    <span class="hint">检查下载目录可写、媒体库匹配情况，并给出路径关系提示</span>
+  </div>
+  <div id="paths-result" style="margin-top:.5rem"></div>
+</article>
+
+<details class="match-details">
+  <summary>路径关系说明（部署必读）</summary>
+  <div class="match-body">
+    <p>SongFerry 与 LXSyncServer、Emby 三方共享<b>同一个音乐数据目录</b>，只是各容器内看到的路径不同：</p>
+    <pre style="font-size:.82em;line-height:1.5;margin:.4rem 0"><code>宿主机 music-data（唯一真相源）
+  ├── 挂给 lxserver → /server/music     LX 下载写这里
+  ├── 挂给 Emby    → /media/music    媒体库扫描这里
+  └── 挂给 本项目  → /data/music     本项目读/移动/洗版</code></pre>
+    <p>界面里两个路径字段填的是<b>不同容器视角</b>的名字：</p>
+    <ul class="match-rules">
+      <li><b>LX 下载目录</b>：本项目容器内看到的路径（本项目要读写它）——Docker 填 <code>/data/music</code></li>
+      <li><b>Emby 媒体库根</b>：你在 Emby 后台给该音乐媒体库选的<b>文件夹路径</b>（Emby 容器内视角，如 <code>/media/music/歌单同步</code>）——Emby 需先挂载共享目录并在后台建媒体库指向它，SongFerry 仅用于探测匹配</li>
+      <li>下载目录与媒体库文件夹是同一目录的两个名字；漏挂任一方卷或媒体库指向别处，文件就不会出现在对应端</li>
+    </ul>
+    <p class="hint">本机直接运行（npm run dev）无容器视角差异，两处填宿主机实际路径即可。完整示例见 <code>docker-compose.example.yml</code>。</p>
+  </div>
+</details>
+<script>
+function toggleKey(id, btn) {
+  var el = document.getElementById(id)
+  if (el.type === 'password') { el.type = 'text'; btn.textContent = '🙈' }
+  else { el.type = 'password'; btn.textContent = '👁' }
+}
+</script>

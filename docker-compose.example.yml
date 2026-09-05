@@ -1,0 +1,61 @@
+# SongFerry 部署路径约定示例
+#
+# 核心思想：三方共享同一个「音乐数据目录」，只是各自容器内看到的路径不同。
+#
+#   宿主机 ./music-data（唯一真相源）
+#      ├── 挂给 lxserver → 容器内 /server/music    （LX 下载写这里）
+#      ├── 挂给 Emby    → 容器内 /media/music   （媒体库扫描这里）
+#      └── 挂给 songferry → 容器内 /data/music    （本项目读/移动/洗版）
+#
+# 界面配置时（web 设置 → 连接容器）：
+#   · LX 下载目录 downloadRoot  = /data/music          （本项目容器内路径）
+#   · Emby 媒体库根 libraryRoot = /media/music         （Emby 容器内路径，用于探测匹配）
+#   · 曲库洗版输出目录          = /data/music/曲库洗版   （自动默认）
+#
+# 本机直接运行（npm run dev）时没有容器视角差异，downloadRoot/libraryRoot 都填
+# 宿主机真实路径即可（如 /media/hxsy/.../LXSERVER/king）。
+
+services:
+  # --- LX Music Sync Server（音乐下载引擎） ---
+  lxserver:
+    image: xcq0607/lxserver:latest
+    container_name: lxserver
+    restart: unless-stopped
+    ports:
+      - "19527:9527"            # 端口按你的部署调整
+    volumes:
+      - ./lxserver-data:/server/data    # lxserver 配置/数据库
+      - ./lxserver-logs:/server/logs
+      - ./lxserver-cache:/server/cache
+      - ./music-data:/server/music      # ← 共享音乐目录（下载落盘，关键卷）
+
+  # --- Emby（媒体库 / 播放列表目标） ---
+  emby:
+    image: emby/embyserver:latest
+    container_name: emby
+    restart: unless-stopped
+    ports:
+      - "8096:8096"
+    volumes:
+      - ./emby-config:/config
+      - ./music-data:/media/music   # ← 同一目录挂进来，作为音乐媒体库根
+      # 其它媒体目录按需挂载
+
+  # --- SongFerry（本项目：同步调度 / 文件整理 / 洗版） ---
+  # 镜像尚未发布时可用 npm run dev 或自行构建（见 README）
+  songferry:
+    image: your-registry/songferry:latest    # 替换为你的镜像地址
+    container_name: songferry
+    restart: unless-stopped
+    ports:
+      - "8935:8935"
+    environment:
+      SONGFERRY_AUTH_USER: admin            # 初始账号（首次启动自动启用认证）
+      SONGFERRY_AUTH_PASSWORD: change-me
+      SONGFERRY_LXSERVER_URL: http://lxserver:9527
+      SONGFERRY_LXSERVER_KEY: <lx用户token>
+      SONGFERRY_EMBY_URL: http://emby:8096
+      SONGFERRY_EMBY_KEY: <emby api key>
+    volumes:
+      - ./music-data:/data/music        # ← 同一目录：本项目下载根 + 歌单目录 + 曲库洗版
+      - ./songferry-data:/data            #   配置(config.yaml)与数据库放这里

@@ -1,0 +1,240 @@
+<h2>曲库管理</h2>
+
+<div class="btn-row" style="margin-bottom:.6rem">
+  <button type="button" class="hist-tab active" id="lib-tab-wash"
+    onclick="var a=document.getElementById('lib-panel-wash'),b=document.getElementById('lib-panel-dupe');a.style.display='';b.style.display='none';this.classList.add('active');document.getElementById('lib-tab-dupe').classList.remove('active')">安全洗版</button>
+  <button type="button" class="hist-tab" id="lib-tab-dupe"
+    onclick="var a=document.getElementById('lib-panel-wash'),b=document.getElementById('lib-panel-dupe');a.style.display='none';b.style.display='';this.classList.add('active');document.getElementById('lib-tab-wash').classList.remove('active')">查重清理</button>
+</div>
+
+<!-- ==================== 标签 1：安全洗版 ==================== -->
+<div id="lib-panel-wash">
+<p class="hint">扫描本地低码率歌曲，匹配高音质候选并下载到独立目录。不会删除、覆盖或移动旧歌曲；旧记录和歌单关系始终保留。</p>
+
+<article>
+  <h3>步骤 1 · 探测能力</h3>
+  <p class="hint" style="margin:0">
+    内置探测器：FLAC 精确解析（位深/采样率/时长）、MP3 帧扫描（CBR 精确 / VBR 统计平均码率）。
+    无法精确读取时按文件大小估算并标记 <b>~</b>（估算）。格式换壳（.flac 实为 mp3）会被纠正判定。
+  </p>
+</article>
+
+<form method="post" action="/api/upgrade/settings" hx-post="/api/upgrade/settings" hx-target="#upgrade-msg">
+  <article>
+    <h3>步骤 2 · 洗版规则</h3>
+    <div class="prot-field">
+      <div class="row1"><span>低于此码率则洗版</span>
+        <select name="thresholdKbps" style="width:8rem">
+          <% for (const t of [128, 192, 256, 320, 500]) { %>
+          <option value="<%= t %>" <%= cfg.upgrade.thresholdKbps === t ? 'selected' : '' %>><%= t %> kbps</option>
+          <% } %>
+        </select>
+      </div>
+      <p class="hint">低于该码率的有损文件（如 128k/192k mp3）将被扫描为待洗；无损文件不参与</p>
+    </div>
+    <div class="prot-field">
+      <div class="row1"><span>新版最低音质</span>
+        <select name="minQuality" id="up-min-q" style="width:14rem">
+          <% for (const q of qOrder) { %>
+          <option value="<%= q %>" <%= cfg.upgrade.minQuality === q ? 'selected' : '' %>><%= qLabels[q] %></option>
+          <% } %>
+        </select>
+      </div>
+      <p class="hint" id="up-min-q-hint"></p>
+    </div>
+    <div class="prot-field">
+      <div class="row1"><span>最大时长误差</span>
+        <input type="number" name="maxDurDiffSec" value="<%= cfg.upgrade.maxDurDiffSec %>" min="1" max="30" style="width:6rem">
+        <span>秒</span>
+      </div>
+    </div>
+    <div class="prot-field">
+      <div class="row1"><span>扫描目录</span><input name="scanDir" value="<%= cfg.upgrade.scanDir %>" placeholder="如 <downloadRoot>/歌单同步" style="width:30rem"></div>
+      <p class="hint">递归扫描该目录下所有音频文件（歌单同步目录可直接填其根）</p>
+    </div>
+    <div class="prot-field">
+      <div class="row1"><span>新版保存目录</span><input name="outputDir" value="<%= cfg.upgrade.outputDir || (cfg.lxserver.downloadRoot ? cfg.lxserver.downloadRoot + '/曲库洗版' : '') %>" placeholder="默认：downloadRoot/曲库洗版" style="width:30rem"></div>
+      <p class="hint">独立目录，高音质新版只写这里，绝不触碰原歌曲</p>
+    </div>
+    <div class="btn-row">
+      <button type="submit">保存规则</button>
+      <span id="upgrade-msg" class="msg"></span>
+    </div>
+  </article>
+</form>
+
+<details class="match-details">
+  <summary>匹配分如何计算？</summary>
+  <div class="match-body">
+    <div class="match-item">
+      <div class="match-title">歌名（最高 100 分）</div>
+      <ul class="match-rules">
+        <li>完全一致 <b>+100</b>；一方包含另一方 <b>+60</b>。</li>
+      </ul>
+    </div>
+    <div class="match-item">
+      <div class="match-title">歌手（最高 60 分）</div>
+      <ul class="match-rules">
+        <li>完全一致 <b>+60</b>；一方包含另一方 <b>+35</b>。</li>
+      </ul>
+    </div>
+    <div class="match-item">
+      <div class="match-title">时长（最高 30 分）</div>
+      <ul class="match-rules">
+        <li>完全一致 <b>+30</b>；每相差 1 秒扣 1 分，最低为 0。</li>
+      </ul>
+    </div>
+    <p class="match-note">满分 190 分。原歌曲有歌手信息时至少需要 130 分，没有歌手信息时至少需要 90 分；超过上方"最大时长误差"的候选会直接排除。同分时优先选择时长差更小的歌曲。格式、容量、码率和目标音质不参与匹配分。</p>
+  </div>
+</details>
+
+<article>
+  <h3>步骤 3 · 扫描与洗版</h3>
+  <% if (!cfg.upgrade.scanDir) { %>
+    <p class="hint">请先在步骤 2 设置扫描目录并保存</p>
+  <% } else { %>
+  <div class="btn-row">
+    <button hx-get="/api/upgrade/scan" hx-target="#upgrade-scan" hx-swap="innerHTML">扫描低码率歌曲</button>
+    <span class="hint">扫描目录：<code><%= cfg.upgrade.scanDir %></code>（低于 <%= cfg.upgrade.thresholdKbps %>kbps）</span>
+  </div>
+  <% } %>
+  <div id="upgrade-scan" style="margin-top:.6rem"></div>
+  <div id="upgrade-result" style="margin-top:.6rem"></div>
+</article>
+</div>
+
+<!-- ==================== 标签 2：查重清理 ==================== -->
+<div id="lib-panel-dupe" style="display:none">
+<p class="hint">在所选 Emby 音乐媒体库内查找重复歌曲（同名同歌手），保留高音质版本。可自动清理低质副本，或仅查重后逐条手动删除。</p>
+
+<form hx-post="/api/dupe/scan" hx-target="#dupe-result" hx-swap="innerHTML" hx-indicator="#dupe-loading">
+  <article>
+    <h3>查重范围</h3>
+    <div style="display:flex;gap:.6rem;align-items:flex-end">
+      <div class="svc-icon-col" style="width:auto">
+        <img src="/static/emby.svg" alt="Emby" style="width:34px;height:34px;border-radius:7px">
+        <button type="button" class="btn-sm secondary" hx-get="/api/emby/music-libs/options" hx-target="#dupe-libs-box" hx-swap="innerHTML">刷新</button>
+      </div>
+      <div style="flex:1">
+        <label>Emby 音乐媒体库（可多选）</label>
+        <div id="dupe-libs-box" class="multi-box" style="max-height:9em">
+          <% if (musicLibs && musicLibs.length) { %>
+            <% for (const lib of musicLibs) { %>
+            <label class="lib-check">
+              <input type="checkbox" name="libraryIds" value="<%= lib.id %>" checked>
+              <span class="lc-name"><%= lib.name %><% if (lib.isProject) { %><span style="color:#2f9e44;font-size:.78em">（在映射目录内，可回收）</span><% } else { %><span style="color:#e8590c;font-size:.78em">（文件不在本项目映射目录，回收受限，仅查重可看）</span><% } %></span>
+              <span class="lc-path"><%= lib.locations[0] || '' %></span>
+            </label>
+            <% } %>
+          <% } else { %>
+            <span class="hint">未找到音乐媒体库（点刷新重试）</span>
+          <% } %>
+        </div>
+      </div>
+      <div style="width:14rem">
+        <label>查重方式
+          <select name="scanMode">
+            <option value="per">各库独立查重</option>
+            <option value="merged" selected>跨库合并查重</option>
+          </select>
+        </label>
+        <p class="hint" style="margin:0">独立=只算同一库内的重复；合并=所选多个库整体查重（跨库同名也计入）</p>
+      </div>
+    </div>
+  </article>
+  <article>
+    <h3>清理设置</h3>
+    <div class="prot-field">
+      <div class="row1"><span>自动清理</span>
+        <select name="threshold" style="width:22rem">
+          <option value="">仅查重（不自动清理，逐条手动删除）</option>
+          <% for (const q of qOrder) { %>
+          <option value="<%= q %>">清理 <%= qLabels[q] %> 以下的重复副本</option>
+          <% } %>
+          <option value="strict">每组仅保留最高一份（同音质重复副本也清理）</option>
+        </select>
+      </div>
+      <p class="hint">"清理 XX 以下"：低于所选档位的重复副本自动清理（整组最高低于门槛时不删，防误删唯一版本）；<br>"每组仅保留最高一份"：应对两个副本音质相同（如双 FLAC）的情况——每组留最高音质那份，其余副本（含同音质）一并清理</p>
+    </div>
+    <div class="btn-row">
+      <button type="submit" id="dupe-btn">开始查重</button>
+      <span id="dupe-loading" style="display:none">⏳ 扫描中…（媒体库较大时可能需要一些时间，请勿关闭页面）</span>
+    </div>
+  </article>
+</form>
+
+<div id="dupe-hist-box" style="margin-top:.8rem">
+  <strong style="display:block;margin-bottom:.2rem">历史查重记录（可翻查后处理）</strong>
+  <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin:.1rem 0 .2rem">
+    <button type="button" class="btn-sm" hx-post="/api/dupe/scan-library" hx-target="#dupe-op-msg2" hx-swap="innerHTML">手动扫库</button>
+    <span class="hint">移入回收站/恢复文件后点此，让 Emby 清理缺失条目（不自动扫描，避免大库频繁全扫）</span>
+  </div>
+  <div id="dupe-history" hx-get="/api/dupe/history/partial" hx-trigger="load">加载中…</div>
+  <div id="dupe-op-msg2" style="margin-top:.3rem"></div>
+  <div id="dupe-result" style="margin-top:.4rem"></div>
+</div>
+
+<details style="margin-top:.6rem">
+  <summary>🗑 回收站（删除缓冲：移入可恢复）</summary>
+  <div class="btn-row" style="margin:.3rem 0">
+    <button type="button" class="btn-sm secondary" hx-get="/api/trash/partial" hx-target="#trash-panel" hx-swap="innerHTML">刷新回收站</button>
+    <span class="hint">移入/恢复/彻底删除后自动刷新；如未更新请点此刷新</span>
+  </div>
+  <div id="trash-panel" hx-get="/api/trash/partial" hx-trigger="load">加载中…</div>
+</details>
+</div>
+
+<script>
+// 新查重结果写入 #dupe-result 后自动展开显示
+document.body.addEventListener('htmx:afterSwap', function (ev) {
+  var t = ev.detail && ev.detail.target
+  if (t && t.id === 'dupe-result') t.style.display = ''
+})
+// 历史记录行内：展开查看（先显示该行 body，再拉取当时的结果）
+function dupeRowExpand(btn, id) {
+  if (!btn) return
+  var rec = btn.closest('.dup-rec')
+  var body = rec && rec.querySelector('.dup-body')
+  if (!body) return
+  body.style.display = ''
+  htmx.ajax('GET', '/api/dupe/history/' + id, { target: body, swap: 'innerHTML' })
+}
+// 历史记录行内：收起（隐藏并清空该行已展开的结果）
+function dupeRowCollapse(btn) {
+  if (!btn) return
+  var rec = btn.closest('.dup-rec')
+  var body = rec && rec.querySelector('.dup-body')
+  if (body) { body.style.display = 'none'; body.innerHTML = '' }
+}
+function dupeMarkTrash(btn) {
+  var tr = btn.closest('tr')
+  if (!tr) return
+  tr.style.background = '#fdf0f0'
+  var c = tr.cells && tr.cells[0]
+  if (c) c.innerHTML = '<span class="bad" style="font-weight:600">🗑 已移入回收站</span>'
+}
+function dupeClearRow(btn) {
+  var tr = btn.closest('tr')
+  if (!tr) return
+  var isKeep = tr.getAttribute('data-keep') === '1'
+  tr.style.background = isKeep ? '#f0f8f0' : ''
+  var c = tr.cells && tr.cells[0]
+  if (c) c.innerHTML = isKeep ? '<span class="ok">⭐ 保留（建议）</span>' : ''
+}
+(function () {
+  var HIGH_TIP = ['atmos_plus', 'atmos', 'master']
+  var LABELS = <%~ JSON.stringify(qLabels) %>;
+  var sel = document.getElementById('up-min-q')
+  var hint = document.getElementById('up-min-q-hint')
+  function upd() {
+    if (sel && HIGH_TIP.includes(sel.value)) {
+      hint.textContent = '⚠️ ' + LABELS[sel.value] + ' 音质过高，音源支持少，匹配成功率更低。'
+      hint.style.color = '#e03131'
+    } else if (hint) {
+      hint.textContent = '洗版目标从该档起向下尝试（候选实际可用为准）'
+      hint.style.color = ''
+    }
+  }
+  if (sel) { sel.onchange = upd; upd() }
+})()
+</script>

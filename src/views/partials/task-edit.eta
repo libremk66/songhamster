@@ -1,0 +1,52 @@
+<tr class="edit-row">
+  <td colspan="8">
+    <form class="task-edit-form" hx-post="/api/task/<%= t.id %>/update" hx-target="#task-table" hx-swap="innerHTML">
+      <div class="add-flow">
+        <div class="lx-col">
+          <label>LX 歌单</label>
+          <input type="text" value="<%= t.lxPlaylistName %>" disabled>
+        </div>
+        <div class="arrow-col">
+          <span class="arrow-label">同步到 Emby 中的<br>播放列表（歌单）</span>
+          <span class="arrow-icon"><img src="/static/logo.svg" alt="→"></span>
+        </div>
+        <div class="target-col">
+          <label class="opt"><input type="checkbox" name="createSameNamePlaylist" value="1" <%= t.createSameNamePlaylist ? 'checked' : '' %>> 同步到新建 Emby 播放列表（歌单）</label>
+          <label class="opt"><input type="checkbox" id="to-existing-<%= t.id %>" onchange="toggleExistingId(this, '-<%= t.id %>')" <%= t.embyTargetPlaylistIdsParsed.length ? 'checked' : '' %>> 同步到现有 Emby 播放列表（歌单）</label>
+          <div class="existing-box" id="existing-box-<%= t.id %>" style="display:<%= t.embyTargetPlaylistIdsParsed.length ? '' : 'none' %>">
+            <% if (embyPlaylists.length) { %>
+              <% for (const p of embyPlaylists) { %>
+              <label style="display:flex;align-items:center;gap:.3rem;margin:.15rem 0">
+                <input type="checkbox" name="embyTarget" value="<%= p.id %>" <%= t.embyTargetPlaylistIdsParsed.includes(p.id) ? 'checked' : '' %>> <%= p.name %>
+              </label>
+              <% } %>
+            <% } else { %>
+              <span class="hint">连接 Emby 后可选择</span>
+            <% } %>
+          </div>
+        </div>
+      </div>
+      <div class="line"><span>同步方式</span>
+        <select name="syncMode" id="sel-<%= t.id %>" onchange="showModeDescId(this, '-<%= t.id %>')">
+          <option value="incremental" <%= t.syncMode === 'incremental' ? 'selected' : '' %>>增量（只加新歌）</option>
+          <option value="full" <%= t.syncMode === 'full' ? 'selected' : '' %>>完全（Emby 向 LX 看齐：增+删）</option>
+        </select>
+        <span class="mode-desc" id="mode-desc-<%= t.id %>"></span>
+      </div>
+<div class="line"><span>定时 cron（空 = 仅手动）</span>
+        <input name="cronExpr" value="<%= t.cronExpr || '' %>" placeholder="0 6 * * *">
+        <small class="hint">分 时 日 月 周</small>
+      </div>
+      <div class="btn-row">
+        <button type="submit">保存</button>
+        <button type="button" class="secondary" hx-get="/api/tasks/table" hx-target="#task-table" hx-swap="innerHTML">取消</button>
+      </div>
+    </form>
+    <script>
+      (function () {
+        var sel = document.getElementById('sel-<%= t.id %>')
+        if (sel && window.showModeDescId) showModeDescId(sel, '-<%= t.id %>')
+      })()
+    </script>
+  </td>
+</tr>

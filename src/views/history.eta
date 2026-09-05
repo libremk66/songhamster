@@ -1,0 +1,21 @@
+<h2>历史记录</h2>
+
+<div class="btn-row" style="margin-bottom:.6rem">
+  <button type="button" class="hist-tab active" id="tab-sync"
+    hx-get="/api/history/partial" hx-target="#hist-content" hx-swap="innerHTML"
+    onclick="switchHistTab('tab-sync')">同步任务历史记录</button>
+  <button type="button" class="hist-tab" id="tab-upgrade"
+    hx-get="/api/upgrade/history/partial" hx-target="#hist-content" hx-swap="innerHTML"
+    onclick="switchHistTab('tab-upgrade')">洗版历史记录</button>
+</div>
+
+<div id="hist-content" hx-get="/api/history/partial" hx-trigger="load">
+  加载中…
+</div>
+
+<script>
+function switchHistTab(id) {
+  document.querySelectorAll('.hist-tab').forEach(function (b) { b.classList.remove('active') })
+  document.getElementById(id).classList.add('active')
+}
+</script>

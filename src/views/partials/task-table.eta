@@ -1,0 +1,34 @@
+<table>
+  <thead>
+    <tr>
+      <th>LX 歌单</th><th>加入已有 Emby 歌单</th><th>同名新建</th><th>模式</th>
+      <th>cron</th><th>启用</th><th>上次结果</th><th>操作</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% if (!tasks.length) { %>
+    <tr><td colspan="8" class="hint">暂无任务 —— 在上方"新增同步任务"中添加</td></tr>
+    <% } %>
+    <% for (const t of tasks) { %>
+    <tr>
+      <td><%= t.lxPlaylistName %></td>
+      <td>
+        <% if (t.embyTargetPlaylistIdsParsed.length) { %>
+          <small><% for (const pid of t.embyTargetPlaylistIdsParsed) { %><%= (idToName && idToName[pid]) || pid %>、<% } %></small>
+        <% } else { %>—<% } %>
+      </td>
+      <td><%= t.createSameNamePlaylist ? '✅' : '—' %></td>
+      <td><%= t.syncMode === 'full' ? '完全' : '增量' %></td>
+      <td><small><%= t.cronExpr || '仅手动' %></small></td>
+      <td><%= t.enabled ? '🟢' : '⚪' %></td>
+      <td><%= t.lastResult ?? '—' %></td>
+      <td>
+        <button class="btn-sm" hx-post="/api/task/<%= t.id %>/run" hx-target="closest td" hx-swap="outerHTML">▶ 同步</button>
+        <button class="btn-sm secondary" hx-get="/api/task/<%= t.id %>/edit" hx-target="closest tr" hx-swap="outerHTML">编辑</button>
+        <button class="btn-sm secondary" hx-post="/api/task/<%= t.id %>/toggle" hx-target="#task-table" hx-swap="innerHTML"><%= t.enabled ? '停用' : '启用' %></button>
+        <button class="btn-sm secondary" hx-post="/api/task/<%= t.id %>/delete" hx-confirm="确认删除该同步任务？" hx-target="#task-table" hx-swap="innerHTML">删除</button>
+      </td>
+    </tr>
+    <% } %>
+  </tbody>
+</table>

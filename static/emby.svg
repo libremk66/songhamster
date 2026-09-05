@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Emby（媒体库）：深绿底 + 白色 播放+列表 -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5c8a69"/>
+      <stop offset="1" stop-color="#41674f"/>
+    </linearGradient>
+  </defs>
+  <rect x="3" y="3" width="58" height="58" rx="14" fill="url(#g)"/>
+  <path d="M22 20 L46 32 L22 44 Z" fill="#fff"/>
+  <path d="M14 50 H50" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+  <path d="M14 56 H38" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+</svg>

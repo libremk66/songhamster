@@ -1,0 +1,25 @@
+<table>
+  <thead><tr><th>歌曲</th><th>状态</th><th>音质</th><th>原因</th><th></th></tr></thead>
+  <tbody>
+    <% for (const it of items) { %>
+    <tr>
+      <td><%= it.songName %><br><small class="hint"><%= it.singer %></small></td>
+      <td>
+        <% if (it.status === 'success') { %><span class="ok">✅ 成功</span>
+        <% } else if (it.status === 'unsatisfied') { %><span class="bad">⏭ 未满足</span>
+        <% } else if (it.status === 'removed') { %><span>🗑 移除</span>
+        <% } else if (it.status === 'skipped_dup') { %><span class="hint">⏭ 已下载跳过</span>
+        <% } else if (it.status === 'dedup') { %><span class="hint">🔍 查重跳过</span>
+        <% } else { %><span class="bad">❌ 失败</span><% } %>
+      </td>
+      <td><%= it.quality ?? '—' %></td>
+      <td><small class="hint"><%= it.errorReason ?? '' %></small></td>
+      <td>
+        <% if (it.status === 'failed' || it.status === 'unsatisfied') { %>
+        <button class="btn-sm" hx-post="/api/history/item/<%= it.id %>/retry" hx-target="closest tr" hx-swap="outerHTML">重试</button>
+        <% } %>
+      </td>
+    </tr>
+    <% } %>
+  </tbody>
+</table>

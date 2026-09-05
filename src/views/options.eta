@@ -1,0 +1,47 @@
+<h2>下载选项（全局）</h2>
+
+<form method="post" action="/api/config/download" hx-post="/api/config/download" hx-target="#dl-save-msg">
+  <article>
+    <h3>音质偏好</h3>
+    <p class="hint" style="margin-top:0">按高→低依次尝试，未勾选绝不使用</p>
+    <div class="checkbox-row">
+      <% for (const q of qOrder) { %>
+      <label><input type="checkbox" name="qualities" value="<%= q %>" <%= cfg.download.qualities.includes(q) ? 'checked' : '' %>> <%= qLabels[q] %></label>
+      <% } %>
+    </div>
+    <p class="hint" style="margin-top:.3rem">实际能拿到哪一档取决于音源支持（按 LX 搜索结果自动识别）；勾选范围均拿不到的歌会标记"未满足"。Atmos 系为多声道沉浸式，体积较大。</p>
+  </article>
+
+  <article>
+    <h3>文件命名</h3>
+    <div class="grid2">
+      <div>
+        <label>命名模板（占位符：[歌手] [专辑名] [歌曲名] [音质]）
+          <input name="filenameTemplate" value="<%= cfg.download.filenameTemplate %>">
+        </label>
+      </div>
+      <div><label>&nbsp;</label><p class="hint" style="margin:0;padding-top:.55rem">示例：后海大鲨鱼 - 心要野 (flac24bit).flac</p></div>
+    </div>
+  </article>
+
+  <article>
+    <h3>写入文件信息</h3>
+    <div class="checkbox-row">
+      <label><input type="checkbox" name="writeId3" value="1" <%= cfg.download.writeId3 ? 'checked' : '' %>> ID3 标签（标题/歌手/专辑）</label>
+      <label><input type="checkbox" name="writeCover" value="1" <%= cfg.download.writeCover ? 'checked' : '' %>> 封面</label>
+      <label><input type="checkbox" name="embedLyric" value="1" <%= cfg.download.embedLyric ? 'checked' : '' %>> 内嵌歌词</label>
+      <label><input type="checkbox" name="cacheLyric" value="1" <%= cfg.download.cacheLyric ? 'checked' : '' %>> 外置歌词 (.lrc)</label>
+    </div>
+  </article>
+
+  <article>
+    <h3>下载行为</h3>
+    <div class="inline-field"><span>并发下载数</span><input type="number" name="concurrency" value="<%= cfg.download.concurrency %>" min="1" max="10"></div>
+    <div class="inline-field"><span>失败自动重试次数</span><input type="number" name="retries" value="<%= cfg.download.retries %>" min="0" max="5"></div>
+  </article>
+
+  <div class="btn-row" style="margin-top:.6rem">
+    <button type="submit">保存全部设置</button>
+    <span id="dl-save-msg" class="msg"></span>
+  </div>
+</form>

@@ -1,0 +1,101 @@
+# ============================================================
+# SongFerry 配置模板（示例）
+# 复制为 data/config.yaml 后按需修改；服务首次启动也会自动生成默认配置。
+# 运行数据（config.yaml + songferry.db）位于 data/ 目录，不入库、不备份请自备。
+# Docker 部署可用环境变量覆盖部分字段（见下表），优先级高于本文件。
+# ============================================================
+
+lxserver:
+  # LX Sync Server（落雪同步服务）地址——容器部署时填 http://lxserver:9527
+  baseUrl: http://127.0.0.1:19527
+  # 用户 token（界面可配，属敏感信息）
+  apiKey: ""
+  # 下载归属用户名（lxserver 的多用户下载身份）
+  username: king
+  # 下载根目录（LX 落盘目录，SongFerry 会读写/移动文件；与 Emby 媒体库同源时查重可回收）
+  downloadRoot: ""
+
+emby:
+  baseUrl: http://127.0.0.1:8096
+  apiKey: ""
+  # 本项目音乐媒体库根路径（Emby 容器内视角）；探测按钮可自动匹配
+  libraryRoot: ""
+
+download:
+  # 目标音质链（按优先级）：128k / 320k / flac / flac24bit / hires / atmos / atmos_plus / master
+  qualities:
+    - flac24bit
+    - flac
+  filenameTemplate: "[歌手] - [歌曲名] ([音质])"
+  # 写入标签 / 内嵌封面 / 内嵌歌词 / 外置 .lrc 歌词
+  writeId3: true
+  writeCover: true
+  embedLyric: true
+  cacheLyric: false
+  # 并发与失败重试
+  concurrency: 3
+  retries: 2
+  # 批量下载保护（防音源限流）：请求间隔/解析间隔（秒）
+  protection:
+    enabled: true
+    downloadIntervalSec: 5
+    resolveIntervalSec: 2
+
+general:
+  # LX 自建歌单出现后自动纳入同步（需要配合自动新增任务区设置）
+  autoIncludeNewPlaylists: false
+  # 同步时清理歌单目录里的孤儿文件（谨慎）
+  cleanupOrphanFiles: false
+  # 一键暂停全部定时任务
+  pauseAll: false
+  logRetentionDays: 30
+  # 自动新增同步任务（设置页可配，基线快照 + 忽略列表）
+  autoadd:
+    enabled: false
+    baselineDate: ""
+    checkCron: "0 6 * * *"
+    createSameNamePlaylist: true
+    # 自动任务的目标 Emby 播放列表 id（多选）
+    embyTargetPlaylistIds: []
+    syncMode: incremental   # incremental | full
+    taskCron: ""
+    dedupCheck: false
+    dedupMinQuality: null
+  # 侧栏帮助链接（GitHub）
+  githubUrl: ""
+
+notify:
+  # 飞书机器人通知（可选）
+  enabled: false
+  feishuWebhook: ""
+
+server:
+  port: 8935
+
+auth:
+  # 账号认证（界面设置页开启；Docker 用 SONGFERRY_AUTH_USER/PASSWORD 首启自动开启）
+  enabled: false
+  username: ""
+  passwordHash: ""   # scrypt 哈希，界面设置生成，勿手填
+
+# 曲库管理 · 安全洗版
+upgrade:
+  thresholdKbps: 320     # 低于此码率视为待洗
+  minQuality: flac       # 新版最低音质（洗版目标从该档向下尝试）
+  maxDurDiffSec: 3       # 新旧歌曲最大时长误差（秒）
+  scanDir: ""            # 扫描目录（如 <downloadRoot>/歌单同步）
+  outputDir: ""          # 新版保存目录（默认 downloadRoot/曲库洗版）
+
+# 高级设置（默认关闭）
+advanced:
+  dedupCheck: false
+  dedupMinQuality: null
+
+# ------------------------------------------------------------
+# Docker 环境变量覆盖（可选，优先级最高）
+#   SONGFERRY_AUTH_USER / SONGFERRY_AUTH_PASSWORD  首启自动启用登录
+#   SONGFERRY_LXSERVER_URL / SONGFERRY_LXSERVER_KEY / SONGFERRY_LXSERVER_USER
+#   SONGFERRY_EMBY_URL / SONGFERRY_EMBY_KEY
+#   SONGFERRY_PORT
+#   SONGFERRY_DATA_DIR / SONGFERRY_CONFIG / SONGFERRY_DB（数据路径，一般不覆盖）
+# ------------------------------------------------------------

@@ -1,0 +1,61 @@
+<% if (!items.length) { %><p class="hint">暂无洗版记录</p><% } else { %>
+<div style="overflow-x:auto">
+<table style="font-size:.82em;min-width:1100px">
+  <thead>
+    <tr>
+      <th rowspan="2">时间</th>
+      <th rowspan="2">歌手</th>
+      <th rowspan="2">歌曲名</th>
+      <th rowspan="2">版本</th>
+      <th rowspan="2">音质</th>
+      <th rowspan="2">平均码率</th>
+      <th rowspan="2">采样率</th>
+      <th rowspan="2">位深</th>
+      <th rowspan="2">格式</th>
+      <th rowspan="2">时长</th>
+      <th rowspan="2">大小</th>
+      <th rowspan="2" style="min-width:180px">文件路径</th>
+      <th rowspan="2">结果</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% items.forEach((r) => { %>
+    <tr class="hist-old">
+      <td rowspan="2"><small><%= r.timeStr %></small></td>
+      <td rowspan="2"><%= r.singer || '—' %></td>
+      <td rowspan="2"><%= r.songName %></td>
+      <td class="hist-tag">旧版</td>
+      <td><%= r.oldLevelLabel %></td>
+      <td><%= r.oldBitStr %></td>
+      <td><%= r.oldSrStr %></td>
+      <td><%= r.oldBitsStr %></td>
+      <td><%= r.oldFmt %></td>
+      <td><%= r.oldDurStr %></td>
+      <td><%= r.oldSizeStr %></td>
+      <td style="width:300px;word-break:break-all"><small><%= r.oldPath || '' %></small></td>
+      <td rowspan="2">
+        <% if (r.status === 'success') { %><span class="ok">✅ 洗版成功</span>
+        <% } else if (r.status === 'no_candidate') { %><span class="bad">⏭ 无匹配候选</span>
+        <% } else if (r.status === 'has_higher') { %><span class="hint">⏭ 已有高质</span>
+        <% } else { %><span class="bad">❌ 失败</span><% } %>
+        <% if (r.matchScore) { %><br><small class="hint">匹配分 <%= r.matchScore %>/190</small><% } %>
+        <% if (r.errorReason) { %><br><small class="bad"><%= r.errorReason %></small><% } %>
+      </td>
+    </tr>
+    <tr class="hist-new">
+      <td class="hist-tag">新版</td>
+      <td><%= r.newLevelLabel %></td>
+      <td><%= r.newBitStr %></td>
+      <td><%= r.newSrStr %></td>
+      <td><%= r.newBitsStr %></td>
+      <td><%= r.newFmt %></td>
+      <td><%= r.newDurStr %></td>
+      <td><%= r.newSizeStr %></td>
+      <td style="width:300px;word-break:break-all"><small><%= r.newPath || '' %></small></td>
+    </tr>
+    <% }) %>
+  </tbody>
+</table>
+<p class="hint" style="margin-top:.3rem">采样率/位深为文件头精确解析；FLAC 平均码率随内容波动，显示为 ~ 估算值。文件被移动后参数回退显示记录值或 —。</p>
+</div>
+<% } %>

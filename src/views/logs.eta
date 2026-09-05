@@ -1,0 +1,4 @@
+<h2>日志</h2>
+<div id="log-area" hx-get="/api/logs/partial" hx-trigger="load, every 3s" hx-swap="innerHTML">
+  <pre style="max-height:70vh;overflow:auto"><%= logs %></pre>
+</div>

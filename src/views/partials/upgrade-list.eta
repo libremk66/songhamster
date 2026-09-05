@@ -1,0 +1,20 @@
+<table>
+  <thead>
+    <tr><th>#</th><th>文件</th><th>解析歌曲</th><th>探测音质</th><th>时长</th></tr>
+  </thead>
+  <tbody>
+    <% items.forEach((it, idx) => { %>
+    <tr>
+      <td><%= idx + 1 %></td>
+      <td style="max-width:300px;word-break:break-all"><small><%= it.fileName %></small></td>
+      <td><%= it.title %><% if (it.artist) { %> <small class="hint">- <%= it.artist %></small><% } %></td>
+      <td><%= it.probe.estimate ? '~' : '' %><%= it.probe.bitrateKbps %>kbps <code><%= it.probe.format %></code><% if (it.probe.estimate) { %> <small class="hint">(估算)</small><% } %></td>
+      <td><%= Math.floor(it.probe.durationSec / 60) %>:<%= String(Math.round(it.probe.durationSec % 60)).padStart(2, '0') %></td>
+    </tr>
+    <% }) %>
+  </tbody>
+</table>
+<div class="btn-row" style="margin-top:.5rem">
+  <button hx-post="/api/upgrade/run" hx-target="#upgrade-result" hx-swap="innerHTML" hx-confirm="将自动为以上 <%= items.length %> 首匹配 LX 高音质候选并下载到独立目录（不动旧文件）。继续？">开始洗版（自动）</button>
+  <span class="hint">匹配候选 → 下载最高可用音质 → 旧文件/歌单关系不动</span>
+</div>

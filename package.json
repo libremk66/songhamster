@@ -1,0 +1,33 @@
+{
+  "name": "songferry",
+  "version": "0.1.0",
+  "description": "LX 歌单同步到 Emby：下载（完整标签/封面/歌词）+ 入库 + Emby 歌单增量",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "cookie-parser": "^1.4.7",
+    "cron-parser": "^5.10.0",
+    "eta": "^4.6.0",
+    "express": "^5.2.1",
+    "node-cron": "^4.6.0",
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.4.1",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
+  }
+}
