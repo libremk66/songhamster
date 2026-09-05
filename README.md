@@ -59,7 +59,18 @@ docker-compose.example.yml  部署路径约定模板
 docker build -t songferry .
 ```
 
-镜像运行目录 `/app`，数据卷挂到 `/app/data`（首次启动自动生成默认 config.yaml）。更完整的镜像/容器参数直接参考下方 compose 模板。
+> 构建说明：better-sqlite3 原生模块在构建阶段编译（自动装 python3/make/g++），运行镜像保持精简。
+
+镜像运行目录 `/app`，数据卷挂到 `/app/data`（首次启动自动生成默认 config.yaml）。快速验证镜像：
+
+```bash
+docker run --rm -d --name songferry-smoke -p 8936:8935 \
+  -e SONGFERRY_AUTH_USER=admin -e SONGFERRY_AUTH_PASSWORD=change-me songferry
+curl -s http://127.0.0.1:8936/healthz   # → {"ok":true,...}
+docker rm -f songferry-smoke
+```
+
+更完整的镜像/容器参数直接参考下方 compose 模板。
 
 ### 与 LX Sync Server、Emby 三容器联动
 

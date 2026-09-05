@@ -8,6 +8,12 @@
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
 
+# better-sqlite3 原生模块编译工具链（apt 源换阿里云加速；仅在构建层需要）
+RUN printf 'Types: deb\nURIs: http://mirrors.aliyun.com/debian\nSuites: bookworm bookworm-updates\nComponents: main\nSigned-By: /usr/share/keyrings/debian-archive-keyring.gpg\n\nTypes: deb\nURIs: http://mirrors.aliyun.com/debian-security\nSuites: bookworm-security\nComponents: main\nSigned-By: /usr/share/keyrings/debian-archive-keyring.gpg\n' > /etc/apt/sources.list.d/debian.sources \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends python3 make g++ \
+ && rm -rf /var/lib/apt/lists/*
+
 # 1) 先装依赖（利用层缓存；better-sqlite3 原生模块在此编译）
 COPY package.json package-lock.json ./
 RUN npm ci
