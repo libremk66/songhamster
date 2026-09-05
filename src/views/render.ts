@@ -97,10 +97,10 @@ export const LAYOUT = `<!doctype html>
       border-right: 1px solid var(--pico-muted-border-color, #e2e2e2);
     }
     aside.sidebar .brand {
-      font-weight: 800; font-size: 2.4rem; line-height: 1.1; margin-bottom: .3rem;
-      display: flex; align-items: center; gap: .6rem;
+      font-weight: 800; font-size: 1.75rem; line-height: 1.1; margin-bottom: .3rem;
+      display: flex; align-items: center; gap: .5rem;
     }
-    aside.sidebar .brand img { width: 3rem; height: 3rem; border-radius: .4em; flex-shrink: 0; }
+    aside.sidebar .brand img { width: 2.1rem; height: 2.1rem; border-radius: .35em; flex-shrink: 0; }
     aside.sidebar .brand-sub { font-size: 1.35rem; color: #8a8a8a; margin-bottom: 2rem; }
     aside.sidebar nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; }
     aside.sidebar nav a {
