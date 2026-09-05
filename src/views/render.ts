@@ -41,7 +41,7 @@ export const LAYOUT = `<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SongFerry - LX 歌单同步入库 Emby</title>
+  <title>SongFerry - LX 歌单自动同步入库</title>
   <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
   <link rel="stylesheet" href="/static/pico.css">
   <script src="/static/htmx.min.js"></script>
@@ -263,7 +263,7 @@ export const LAYOUT = `<!doctype html>
   <aside class="sidebar">
     <div>
       <div class="brand"><img src="/static/logo.svg" alt="logo">SongFerry</div>
-      <div class="brand-sub">LX 歌单同步入库 Emby</div>
+      <div class="brand-sub">LX 歌单自动同步入库</div>
       <nav>
         <ul>
           <% for (const item of it.nav) { %>

@@ -35,7 +35,7 @@
     <%~ it.content %>
   </main>
   <footer class="container hint">
-    songferry v0.1.0 · LX → Emby 歌单同步
+    songferry v0.1.0 · LX 歌单自动同步入库
   </footer>
 </body>
 </html>
