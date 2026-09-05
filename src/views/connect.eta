@@ -1,18 +1,5 @@
 <h2>连接容器</h2>
 
-<form method="post" action="/api/config/target" hx-post="/api/config/target" hx-target="#target-msg">
-  <article>
-    <h3>媒体服务器目标</h3>
-    <div style="display:flex;align-items:center;gap:1.2rem;flex-wrap:wrap">
-      <label style="display:flex;align-items:center;gap:.3rem"><input type="radio" name="target" value="emby" <%= cfg.target === 'emby' ? 'checked' : '' %>> Emby</label>
-      <label style="display:flex;align-items:center;gap:.3rem"><input type="radio" name="target" value="navidrome" <%= cfg.target === 'navidrome' ? 'checked' : '' %>> Navidrome</label>
-      <button type="submit">切换目标</button>
-      <span id="target-msg" class="msg"></span>
-    </div>
-    <p class="hint" style="margin:.4rem 0 0">同步入库 / 播放列表操作将指向所选服务器；下方两套连接配置可并存。切换后旧任务的目标播放列表来自另一服务器（会失效），建议切换前暂停任务、切换后重建任务。</p>
-  </article>
-</form>
-
 <form method="post" action="/api/config/lx" hx-post="/api/config/lx" hx-target="#lx-save-msg">
   <article>
     <h3>连接 LXSyncServer</h3>
@@ -40,10 +27,21 @@
     </div>
   </article>
 </form>
+<div id="target-box" style="margin-top:.6rem">
+  <h3>媒体服务器目标</h3>
+  <div style="display:flex;align-items:center;gap:1.2rem;flex-wrap:wrap">
+    <label style="display:flex;align-items:center;gap:.3rem"><input type="radio" name="target" value="emby" <%= cfg.target === 'emby' ? 'checked' : '' %> onclick="pickTarget('emby')"> Emby</label>
+    <label style="display:flex;align-items:center;gap:.3rem"><input type="radio" name="target" value="navidrome" <%= cfg.target === 'navidrome' ? 'checked' : '' %> onclick="pickTarget('navidrome')"> Navidrome</label>
+    <span id="target-msg" class="msg"></span>
+  </div>
+  <p class="hint" style="margin:.4rem 0 0">同步入库 / 播放列表操作将指向所选服务器，下方仅显示对应连接框（两套配置均可保存）。切换后旧任务的目标播放列表来自另一服务器（会失效），建议切换前暂停任务、切换后重建任务。</p>
+</div>
 
+
+<div id="emby-box" style="display:<%= cfg.target === 'emby' ? '' : 'none' %>">
 <form method="post" action="/api/config/emby" hx-post="/api/config/emby" hx-target="#emby-save-msg">
   <article>
-    <h3>连接 Emby <% if (cfg.target === 'emby') { %><span class="ok" style="font-size:.8em">· 当前目标</span><% } %></h3>
+    <h3>连接 Emby</h3>
     <div class="grid2">
       <div><label>服务地址<input name="baseUrl" value="<%= cfg.emby.baseUrl %>" placeholder="http://127.0.0.1:8096"></label></div>
       <div>
@@ -72,10 +70,12 @@
     <% } %>
   </article>
 </form>
+</div>
 
+<div id="nd-box" style="display:<%= cfg.target === 'navidrome' ? '' : 'none' %>">
 <form method="post" action="/api/config/navidrome" hx-post="/api/config/navidrome" hx-target="#nd-save-msg">
   <article>
-    <h3>连接 Navidrome <% if (cfg.target === 'navidrome') { %><span class="ok" style="font-size:.8em">· 当前目标</span><% } %></h3>
+    <h3>连接 Navidrome</h3>
     <div class="grid2">
       <div><label>服务地址<input name="baseUrl" value="<%= cfg.navidrome.baseUrl %>" placeholder="http://127.0.0.1:4533"></label></div>
       <div>
@@ -106,6 +106,7 @@
     <% } %>
   </article>
 </form>
+</div>
 
 <article>
   <h3>路径自检</h3>
@@ -134,6 +135,20 @@
   </div>
 </details>
 <script>
+function pickTarget(t) {
+  var m = document.getElementById('target-msg')
+  document.getElementById('emby-box').style.display = t === 'emby' ? '' : 'none'
+  document.getElementById('nd-box').style.display = t === 'navidrome' ? '' : 'none'
+  if (m) m.innerHTML = '<span class="hint">切换中…</span>'
+  fetch('/api/config/target', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'target=' + t,
+  })
+    .then(function (r) { return r.text() })
+    .then(function (html) { if (m) m.innerHTML = html })
+    .catch(function (e) { if (m) m.innerHTML = '<span class="bad">切换失败：' + e + '</span>' })
+}
 function toggleKey(id, btn) {
   var el = document.getElementById(id)
   if (el.type === 'password') { el.type = 'text'; btn.textContent = '🙈' }
