@@ -4,6 +4,7 @@ import { QUALITY_ORDER, QUALITY_LABELS } from '../config.js'
 import { saveConfig } from '../config.js'
 import { LxServerAdapter } from '../adapters/lxserver.js'
 import type { MediaServerAdapter } from '../adapters/media-server.js'
+import { NavidromeAdapter } from '../adapters/navidrome.js'
 import * as repo from '../store/repo.js'
 import { SyncEngine } from '../core/sync-engine.js'
 import { Scheduler } from '../scheduler/index.js'
@@ -21,6 +22,7 @@ const ok = (msg: string) => `<span class="ok">✅ ${msg}</span>`
 const err = (msg: string) => `<span class="bad">❌ ${msg}</span>`
 const bool = (v: unknown) => v === '1' || v === true || v === 1
 
+
 export function apiRouter(
   cfg: AppConfig,
   lx: LxServerAdapter,
@@ -29,6 +31,19 @@ export function apiRouter(
   scheduler: Scheduler,
 ): Router {
   const r = Router()
+
+  /** 服务器视角路径 → 宿主机可操作路径（按 target 分支；映射不了返回 null）
+   * Navidrome：path 相对媒体库根（约定库根 = downloadRoot 同源）；绝对路径走 Emby 逻辑兜底 */
+  const localizePath = (serverPath: string): string | null => {
+    if (!serverPath) return null
+    const dl = cfg.lxserver.downloadRoot?.replace(/\/+$/, '')
+    if (!dl) return null
+    if (cfg.target === 'navidrome') {
+      if (!serverPath.startsWith('/')) return dl + '/' + serverPath
+      return serverPath.startsWith(dl) ? serverPath : localizeEmbyPath(cfg, serverPath)
+    }
+    return localizeEmbyPath(cfg, serverPath)
+  }
 
   // ===== 配置保存 =====
   r.post('/config/lx', (req, res) => {
@@ -90,6 +105,40 @@ export function apiRouter(
       } else {
         const list = libs.map((l) => `${l.name}(${l.id})`).join('、')
         res.send(err(`libraryRoot 未匹配到库，现有音乐库: ${list}（请修正路径后重试）`))
+      }
+    } catch (e) {
+      res.send(err((e as Error).message))
+    }
+  })
+
+  // ===== Navidrome 连接（target=navidrome 时作为同步目标） =====
+  r.post('/config/navidrome', (req, res) => {
+    const b = req.body ?? {}
+    cfg.navidrome.baseUrl = String(b.baseUrl ?? '').trim()
+    cfg.navidrome.username = String(b.username ?? '').trim()
+    cfg.navidrome.password = String(b.password ?? '').trim()
+    cfg.navidrome.libraryRoot = String(b.libraryRoot ?? '').trim()
+    saveConfig(cfg)
+    res.send(ok('Navidrome 连接配置已保存'))
+  })
+
+  r.post('/test/navidrome', async (_req, res) => {
+    const t = await new NavidromeAdapter(() => cfg).test()
+    res.send(t.ok ? ok('Navidrome 连接正常') : err(`Navidrome ${t.error}`))
+  })
+
+  r.post('/navidrome/probe', async (_req, res) => {
+    try {
+      const nd = new NavidromeAdapter(() => cfg)
+      const id = await nd.resolveLibraryId()
+      if (id) {
+        cfg.navidrome.libraryId = id
+        saveConfig(cfg)
+        res.send(ok(`已识别媒体库 Id=${id}`))
+      } else {
+        const libs = await nd.listLibraries()
+        const list = libs.map((l) => `${l.name}(${l.id})`).join('、')
+        res.send(err(`libraryRoot 未匹配到库，现有媒体库: ${list}（请先保存配置并核对路径）`))
       }
     } catch (e) {
       res.send(err((e as Error).message))
@@ -592,7 +641,7 @@ export function apiRouter(
     const data = groups.map((g) => ({
       ...g,
       items: g.items.map((it) => {
-        const local = localizeEmbyPath(cfg, it.path)
+        const local = localizePath(it.path)
         const trashRel = local ? trashByLocal.get(local) || null : null
         return {
           ...it,
@@ -625,7 +674,12 @@ export function apiRouter(
 
   r.post('/dupe/scan', async (req, res) => {
     const b = req.body ?? {}
-    const ids = Array.isArray(b.libraryIds) ? b.libraryIds.map(String) : b.libraryIds ? [String(b.libraryIds)] : []
+    let ids = Array.isArray(b.libraryIds) ? b.libraryIds.map(String) : b.libraryIds ? [String(b.libraryIds)] : []
+    if (!ids.length && cfg.target === 'navidrome') {
+      // Navidrome：单根整库查重，无需勾选——自动取目标库
+      const libId = (await emby.resolveLibraryId().catch(() => null)) ?? '0'
+      ids = [libId]
+    }
     if (!ids.length) return res.send(err('请至少勾选一个媒体库'))
     const scanMode: 'per' | 'merged' = b.scanMode === 'per' ? 'per' : 'merged'
     const rawTh = String(b.threshold ?? '').trim()
@@ -741,7 +795,7 @@ export function apiRouter(
       const snapshotPath = paths[i] || ''
       try {
         // ① 优先用快照路径直接定位本地文件（条目被 Emby 清理但文件仍在的场景）
-        let local = snapshotPath ? localizeEmbyPath(cfg, snapshotPath) : null
+        let local = snapshotPath ? localizePath(snapshotPath) : null
         if (local) {
           const { existsSync } = await import('node:fs')
           if (!existsSync(local)) local = null
@@ -749,7 +803,7 @@ export function apiRouter(
         // ② 兜底：从 Emby 条目实时取路径
         if (!local) {
           const embyPath = await emby.getItemPath(id)
-          local = localizeEmbyPath(cfg, embyPath)
+          local = localizePath(embyPath)
         }
         if (!local) {
           skipped.push(snapshotPath || id)
@@ -764,7 +818,7 @@ export function apiRouter(
     if (ids.length === 1) {
       // 单条（行内操作）：返回"已移入+恢复"状态按钮
       const embyPath = paths[0] || (await emby.getItemPath(ids[0]).catch(() => ''))
-      const local = embyPath ? localizeEmbyPath(cfg, embyPath) : null
+      const local = embyPath ? localizePath(embyPath) : null
       const { files } = listTrash(cfg)
       const dl = cfg.lxserver.downloadRoot.replace(/\/+$/, '')
       const rel = local
@@ -803,7 +857,7 @@ export function apiRouter(
     const id = String(b.id ?? '')
     const embyPath = String(b.path ?? '')
     try {
-      const local = localizeEmbyPath(cfg, embyPath)
+      const local = localizePath(embyPath)
       if (!local) return res.send(err('无法定位本地文件'))
       const { files } = listTrash(cfg)
       const dl = cfg.lxserver.downloadRoot.replace(/\/+$/, '')
