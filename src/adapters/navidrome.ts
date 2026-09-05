@@ -21,6 +21,8 @@ import type {
 export class NavidromeAdapter implements MediaServerAdapter {
   readonly kind = 'navidrome' as const
   private token: string | null = null
+  private subsonicToken: string | null = null
+  private subsonicSalt: string | null = null
 
   constructor(private cfg: () => AppConfig) {}
 
@@ -47,6 +49,9 @@ export class NavidromeAdapter implements MediaServerAdapter {
     if (!res.ok) throw new Error(`Navidrome 登录失败 ${res.status}: ${String(data?.error ?? text).slice(0, 200)}`)
     const t = String(data?.token ?? '')
     if (!t) throw new Error('Navidrome 登录响应缺少 token')
+    // 缓存 Subsonic 凭证（startScan 触发扫描用；需要 admin）
+    this.subsonicToken = data?.subsonicToken ? String(data.subsonicToken) : null
+    this.subsonicSalt = data?.subsonicSalt ? String(data.subsonicSalt) : null
     return t
   }
 
@@ -218,9 +223,36 @@ export class NavidromeAdapter implements MediaServerAdapter {
     return libs[0].id
   }
 
-  /** Navidrome watcher（5s 去抖）+ ND_SCANSCHEDULE 自动入库，无需触发扫描 */
+  /**
+   * 触发扫描：Subsonic startScan（quick-selective 增量）
+   * ⚠️ 必要性：NTFS/网络挂载目录无 inotify 事件，Navidrome watcher 不触发，
+   *    只能靠 ND_SCANSCHEDULE（默认 1m）被动扫描——引擎的入库等待窗口（6×5s）会错过。
+   *    startScan 强制立即扫描，让下载完成的文件在窗口内入库。
+   * 需要 admin 账号（Subsonic 凭证从登录响应缓存）。
+   */
   async scanLibrary(_libraryId: string): Promise<void> {
-    // no-op
+    if (!this.subsonicToken || !this.subsonicSalt) {
+      // 凭证未缓存（老 token 场景）→ 重新登录一次
+      this.token = null
+      await this.ensureToken()
+    }
+    const qs = new URLSearchParams({
+      u: this.c.username,
+      t: this.subsonicToken ?? '',
+      s: this.subsonicSalt ?? '',
+      v: '1.16.1',
+      c: 'SongFerry',
+      fullScan: 'false',
+    })
+    const res = await fetch(`${this.c.baseUrl}/rest/startScan?${qs}`)
+    if (!res.ok) {
+      throw new Error(`Navidrome startScan 失败 ${res.status}`)
+    }
+    // 返回 <subsonic-response status="ok" ...><scanStatus scanning="true" ...>
+  }
+
+  private async ensureToken(): Promise<void> {
+    if (!this.token) this.token = await this.login()
   }
 
   /** 分页拉取全库歌曲（path 为相对库根路径） */

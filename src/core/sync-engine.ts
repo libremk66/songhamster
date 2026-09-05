@@ -359,7 +359,9 @@ export class SyncEngine {
       if (task.createSameNamePlaylist) {
         const same = await this.findPlaylistByName(task.lxPlaylistName)
         if (same) {
-          logger.warn(`[emby] 同名歌单已存在(${task.lxPlaylistName})，行为B：不自动追加，请用户在界面处理`)
+          // 同名列表即本任务自动管理的同步目标 → 追加。
+          // （旧"行为B不追加"会导致单次多首新歌的任务只加第一首——已修复；不需要自动管理时取消勾选"创建同名歌单"即可）
+          playlistIds.push(same.id)
         } else {
           const np = await this.emby.createPlaylist(task.lxPlaylistName)
           playlistIds.push(np.id)
