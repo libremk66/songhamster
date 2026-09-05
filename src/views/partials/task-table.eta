@@ -1,7 +1,7 @@
 <table>
   <thead>
     <tr>
-      <th>LX 歌单</th><th>加入已有 Emby 歌单</th><th>同名新建</th><th>模式</th>
+      <th>LX 歌单</th><th>加入已有 <%= targetName %> 歌单</th><th>同名新建</th><th>模式</th>
       <th>cron</th><th>启用</th><th>上次结果</th><th>操作</th>
     </tr>
   </thead>

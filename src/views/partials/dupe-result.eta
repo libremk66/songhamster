@@ -7,7 +7,7 @@
   <button hx-post="/api/dupe/delete" hx-vals='{"ids":"<%= autoIds.join(',') %>"}' hx-target="closest .dup-result-view .dup-op-msg" hx-swap="innerHTML"
     hx-on::after-request="htmx.ajax('GET','/api/trash/partial',{target:'#trash-panel'})"
     hx-confirm="将把 <%= autoIds.length %> 首候选移入回收站（可恢复，非物理删除）。确认执行？">移入回收站（<%= autoIds.length %> 首）</button>
-  <span class="hint">删除安全缓冲：文件移入回收站可恢复；移入/恢复后点"手动扫库"让 Emby 清理条目</span>
+  <span class="hint">删除安全缓冲：文件移入回收站可恢复；移入/恢复后点"手动扫库"让 <%= targetName %> 清理条目</span>
 </div>
 <div class="dup-op-msg"></div>
 <% } %>

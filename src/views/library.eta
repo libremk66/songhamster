@@ -173,7 +173,7 @@
   <strong style="display:block;margin-bottom:.2rem">历史查重记录（可翻查后处理）</strong>
   <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin:.1rem 0 .2rem">
     <button type="button" class="btn-sm" hx-post="/api/dupe/scan-library" hx-target="#dupe-op-msg2" hx-swap="innerHTML">手动扫库</button>
-    <span class="hint">移入回收站/恢复文件后点此，让 Emby 清理缺失条目（不自动扫描，避免大库频繁全扫）</span>
+    <span class="hint">移入回收站/恢复文件后点此，让 <%= targetName %> 清理缺失条目（不自动扫描，避免大库频繁全扫）</span>
   </div>
   <div id="dupe-history" hx-get="/api/dupe/history/partial" hx-trigger="load">加载中…</div>
   <div id="dupe-op-msg2" style="margin-top:.3rem"></div>

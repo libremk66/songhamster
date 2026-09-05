@@ -193,7 +193,7 @@ export function apiRouter(
       const looksKey = !t.lxPlaylistName || t.lxPlaylistName === t.lxPlaylistKey || t.lxPlaylistName.startsWith('user:') || t.lxPlaylistName === 'loveList'
       return { ...t, lxPlaylistName: looksKey ? keyToName[t.lxPlaylistKey] ?? t.lxPlaylistKey : t.lxPlaylistName }
     })
-    return renderBody('partials/task-table', { tasks, idToName })
+    return renderBody('partials/task-table', { tasks, idToName, targetName: cfg.target === 'navidrome' ? 'Navidrome' : 'Emby', })
   }
 
   r.get('/tasks/table', async (_req, res) => {
@@ -252,7 +252,7 @@ export function apiRouter(
     try {
       embyPlaylists = await emby.listPlaylists()
     } catch { /* 未连接 */ }
-    res.send(renderBody('partials/task-edit', { t, embyPlaylists, qOrder: QUALITY_ORDER, qLabels: QUALITY_LABELS }))
+    res.send(renderBody('partials/task-edit', { t, embyPlaylists, qOrder: QUALITY_ORDER, qLabels: QUALITY_LABELS, targetName: cfg.target === 'navidrome' ? 'Navidrome' : 'Emby', }))
   })
 
   // 保存编辑
@@ -719,7 +719,7 @@ export function apiRouter(
       else head = `仅查重（不自动清理，候选手动删除 <b>${plan.manualCandidates.length}</b> 首）`
       res.send(
         `<p class="ok">扫描完成（${modeTxt}）：${scannedCount} 首 ｜ 重复组 ${groups.length} ｜ 保留 ${plan.keep.length} ｜ ${head}</p>` +
-          renderBody('partials/dupe-result', { groups: data, autoIds: [...autoIds], keepIds: [...keepIds], threshold: rawTh }),
+          renderBody('partials/dupe-result', { groups: data, autoIds: [...autoIds], keepIds: [...keepIds], threshold: rawTh, targetName: cfg.target === 'navidrome' ? 'Navidrome' : 'Emby', }),
       )
     } catch (e) {
       res.send(err('查重失败：' + escapeHtml((e as Error).message)))
@@ -745,7 +745,7 @@ export function apiRouter(
     try {
       const sm = JSON.parse(row.summary)
       const { groups } = buildDupeView((sm.groups || []).map((g: any) => ({ ...g, items: g.items.map((it: any) => ({ ...it, quality: it.quality || null })) })))
-      res.send(renderBody('partials/dupe-result', { groups, autoIds: sm.autoIds || [], keepIds: sm.keepIds || [], threshold: sm.threshold || '' }))
+      res.send(renderBody('partials/dupe-result', { groups, autoIds: sm.autoIds || [], keepIds: sm.keepIds || [], threshold: sm.threshold || '', targetName: cfg.target === 'navidrome' ? 'Navidrome' : 'Emby', }))
     } catch (e) {
       res.send('<p class="bad">记录解析失败</p>')
     }

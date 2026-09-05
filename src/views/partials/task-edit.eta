@@ -7,12 +7,12 @@
           <input type="text" value="<%= t.lxPlaylistName %>" disabled>
         </div>
         <div class="arrow-col">
-          <span class="arrow-label">同步到 Emby 中的<br>播放列表（歌单）</span>
+          <span class="arrow-label">同步到 <%= targetName %> 中的<br>播放列表（歌单）</span>
           <span class="arrow-icon"><img src="/static/logo.svg" alt="→"></span>
         </div>
         <div class="target-col">
-          <label class="opt"><input type="checkbox" name="createSameNamePlaylist" value="1" <%= t.createSameNamePlaylist ? 'checked' : '' %>> 同步到新建 Emby 播放列表（歌单）</label>
-          <label class="opt"><input type="checkbox" id="to-existing-<%= t.id %>" onchange="toggleExistingId(this, '-<%= t.id %>')" <%= t.embyTargetPlaylistIdsParsed.length ? 'checked' : '' %>> 同步到现有 Emby 播放列表（歌单）</label>
+          <label class="opt"><input type="checkbox" name="createSameNamePlaylist" value="1" <%= t.createSameNamePlaylist ? 'checked' : '' %>> 同步到新建 <%= targetName %> 播放列表（歌单）</label>
+          <label class="opt"><input type="checkbox" id="to-existing-<%= t.id %>" onchange="toggleExistingId(this, '-<%= t.id %>')" <%= t.embyTargetPlaylistIdsParsed.length ? 'checked' : '' %>> 同步到现有 <%= targetName %> 播放列表（歌单）</label>
           <div class="existing-box" id="existing-box-<%= t.id %>" style="display:<%= t.embyTargetPlaylistIdsParsed.length ? '' : 'none' %>">
             <% if (embyPlaylists.length) { %>
               <% for (const p of embyPlaylists) { %>
@@ -29,7 +29,7 @@
       <div class="line"><span>同步方式</span>
         <select name="syncMode" id="sel-<%= t.id %>" onchange="showModeDescId(this, '-<%= t.id %>')">
           <option value="incremental" <%= t.syncMode === 'incremental' ? 'selected' : '' %>>增量（只加新歌）</option>
-          <option value="full" <%= t.syncMode === 'full' ? 'selected' : '' %>>完全（Emby 向 LX 看齐：增+删）</option>
+          <option value="full" <%= t.syncMode === 'full' ? 'selected' : '' %>>完全（<%= targetName %> 向 LX 看齐：增+删）</option>
         </select>
         <span class="mode-desc" id="mode-desc-<%= t.id %>"></span>
       </div>

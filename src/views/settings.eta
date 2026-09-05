@@ -3,7 +3,7 @@
 <form method="post" action="/api/config/general" hx-post="/api/config/general" hx-target="#gen-msg">
   <article>
     <h3>通用</h3>
-    <label><input type="checkbox" name="autoIncludeNewPlaylists" value="1" <%= cfg.general.autoIncludeNewPlaylists ? 'checked' : '' %>> 自动纳入 LX 新建的歌单（默认：同名文件夹+同名 Emby 歌单）</label>
+    <label><input type="checkbox" name="autoIncludeNewPlaylists" value="1" <%= cfg.general.autoIncludeNewPlaylists ? 'checked' : '' %>> 自动纳入 LX 新建的歌单（默认：同名文件夹+同名 <%= targetName %> 歌单）</label>
     <label><input type="checkbox" name="cleanupOrphanFiles" value="1" <%= cfg.general.cleanupOrphanFiles ? 'checked' : '' %>> 完全同步时清理无引用的孤立文件（默认关）</label>
     <label><input type="checkbox" name="pauseAll" value="1" <%= cfg.general.pauseAll ? 'checked' : '' %>> 暂停所有同步（总开关）</label>
     <div class="row-inline">
@@ -90,8 +90,8 @@
     <label style="display:flex;align-items:center;gap:.35rem">
       <input type="checkbox" name="dedupCheck" value="1" id="adv-dd" onchange="toggleAdvQ()" <%= cfg.advanced.dedupCheck ? 'checked' : '' %>> 同步前查重
     </label>
-    <p class="hint" style="margin-top:.2rem">默认关闭，开启后每首歌都需查一次 Emby，耗时增加</p>
-    <p class="hint" style="margin-top:.2rem">同步歌单前先检查 Emby 曲库：已存在对应歌曲则跳过该曲的 LX 搜索下载，仅执行歌单加入（全库查重）。适用于"库中已有高音质不想重复下载"的场景。</p>
+    <p class="hint" style="margin-top:.2rem">默认关闭，开启后每首歌都需查一次 <%= targetName %>，耗时增加</p>
+    <p class="hint" style="margin-top:.2rem">同步歌单前先检查 <%= targetName %> 曲库：已存在对应歌曲则跳过该曲的 LX 搜索下载，仅执行歌单加入（全库查重）。适用于"库中已有高音质不想重复下载"的场景。</p>
     <div class="prot-field" id="adv-dedup-q" style="display:<%= cfg.advanced.dedupCheck ? '' : 'none' %>">
       <div class="row1"><span>查重音质门槛</span>
         <select name="dedupMinQuality" style="width:16rem">

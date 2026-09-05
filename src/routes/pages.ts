@@ -27,6 +27,7 @@ export function pagesRouter(getCfg: () => AppConfig, lx: LxServerAdapter, emby: 
     githubUrl: getCfg().general.githubUrl || '',
     authEnabled: getCfg().auth.enabled,
     authUser: currentUser(req),
+    targetName: getCfg().target === 'navidrome' ? 'Navidrome' : 'Emby',
   })
 
   r.get('/', (_req, res) => res.redirect('/connect'))
