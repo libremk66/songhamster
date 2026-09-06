@@ -232,6 +232,7 @@ export class SyncEngine {
     taskId: number,
     task: ReturnType<typeof repo.getTask> & {},
     song: LxSong,
+    opts?: { dirName?: string; skipIngest?: boolean },
   ): Promise<{ status: 'success' | 'failed' | 'unsatisfied' | 'dup'; quality?: string; reason?: string }> {
     const cfg = this.cfg()
     // 尝试链 = 勾选档 ∩ 该歌实际可用档（types 未声明的不白试）；裁剪为空则退回全勾选
@@ -241,11 +242,12 @@ export class SyncEngine {
       if (intersect.length) qualities = intersect
     }
 
+    const dirName = opts?.dirName ?? task.lxPlaylistName
     for (const quality of qualities) {
       // 已有文件（该歌+该音质）→ dup 直接走 Emby 侧
       const existing = repo.findSongFile(song.songKey, quality)
       if (existing) {
-        await this.ensureInEmby(taskId, task, song)
+        if (!opts?.skipIngest) await this.ensureInEmby(taskId, task, song)
         repo.upsertSongStatus({
           taskId, songKey: song.songKey, songName: song.name, singer: song.singer,
           status: 'success', quality,
@@ -269,7 +271,7 @@ export class SyncEngine {
         const moved = moveToPlaylistDir({
           downloadRoot: cfg.lxserver.downloadRoot,
           srcFilename: file.filename,
-          taskPlaylistName: task.lxPlaylistName,
+          taskPlaylistName: dirName,
           song,
           quality,
           template: cfg.download.filenameTemplate,
@@ -326,8 +328,8 @@ export class SyncEngine {
           size: file.size,
         })
         repo.refTaskFile(taskId, song.songKey, fileId)
-        // Emby 入库 + 入歌单
-        const embyOk = await this.ensureInEmby(taskId, task, song)
+        // Emby 入库 + 入歌单（手动下载 skipIngest：仅落盘，媒体库扫描自然入库）
+        const embyOk = opts?.skipIngest ? true : await this.ensureInEmby(taskId, task, song)
         repo.upsertSongStatus({
           taskId, songKey: song.songKey, songName: song.name, singer: song.singer,
           status: embyOk ? 'success' : 'failed', quality: effectiveQuality,
@@ -410,6 +412,74 @@ export class SyncEngine {
   private async findPlaylistByName(name: string) {
     const list = await this.emby.listPlaylists()
     return list.find((p) => p.name === name) ?? null
+  }
+
+  /**
+   * 手动下载（榜单浏览页"下载所选"）：不入任何播放列表/订阅，落盘 歌单同步/手动下载/
+   * 挂载单例任务「手动下载」记录历史与进度；完成后触发一次媒体库扫描（帮助入库）
+   */
+  async runManualDownload(songs: LxSong[]): Promise<{ ok: number; fail: number; dup: number; unsatisfied: number }> {
+    if (this.runningTaskId !== null) throw new Error('已有任务在运行，稍后再试')
+    if (!songs.length) return { ok: 0, fail: 0, dup: 0, unsatisfied: 0 }
+    const taskId = repo.ensureManualTask()
+    const task = repo.getTask(taskId)!
+    this.runningTaskId = taskId
+    const batchId = repo.createBatch({ taskId, trigger: 'manual' })
+    this.emit('batch-start', taskId, batchId)
+    let ok = 0
+    let fail = 0
+    let dup = 0
+    let unsatisfied = 0
+    const prot = this.cfg().download.protection
+    try {
+      logger.info(`[engine] 手动下载 ${songs.length} 首（落盘 歌单同步/手动下载/，不入歌单）`)
+      for (let idx = 0; idx < songs.length; idx++) {
+        const song = songs[idx]
+        const outcome = await this.downloadOne(taskId, task, song, { dirName: '手动下载', skipIngest: true })
+        if (outcome.status === 'success') ok++
+        else if (outcome.status === 'dup') dup++
+        else if (outcome.status === 'unsatisfied') unsatisfied++
+        else fail++
+        if (prot?.enabled && prot.downloadIntervalSec > 0 && idx < songs.length - 1) {
+          await sleep(prot.downloadIntervalSec * 1000)
+        }
+        repo.insertHistoryItem({
+          batchId, taskId, songKey: song.songKey, songName: song.name, singer: song.singer,
+          status: outcome.status === 'dup' ? 'skipped_dup' : outcome.status,
+          quality: outcome.quality,
+          errorReason: outcome.reason,
+        })
+        this.emit('song-status', taskId, {
+          songKey: song.songKey, songName: song.name, status: outcome.status,
+          quality: outcome.quality, errorReason: outcome.reason,
+        })
+      }
+      const result = fail > 0 || unsatisfied > 0 ? (ok > 0 ? 'partial' : 'failed') : 'success'
+      repo.finishBatch(batchId, {
+        finishedAt: new Date().toISOString(), result,
+        okCount: ok, failCount: fail, unsatisfiedCount: unsatisfied, dupCount: dup, dedupCount: 0, removedCount: 0,
+      })
+      repo.updateTask(taskId, { lastRunAt: new Date().toISOString(), lastResult: result })
+      repo.setSnapshot(taskId, songs.map((s) => s.songKey))
+      logger.info(`[engine] 手动下载完成: ok=${ok} fail=${fail} dup=${dup} unsatisfied=${unsatisfied}`)
+      // 触发一次媒体库扫描帮助入库（Navidrome no-op；Emby 索引新文件）
+      try {
+        const libId = await this.emby.resolveLibraryId()
+        if (libId) await this.emby.scanLibrary(libId)
+      } catch { /* 扫描失败不阻断 */ }
+      return { ok, fail, dup, unsatisfied }
+    } catch (e) {
+      const msg = (e as Error).message
+      logger.warn(`[engine] 手动下载异常: ${msg}`)
+      repo.finishBatch(batchId, {
+        finishedAt: new Date().toISOString(), result: 'failed',
+        okCount: ok, failCount: fail, unsatisfiedCount: unsatisfied, dupCount: dup, dedupCount: 0, removedCount: 0,
+      })
+      throw new Error(msg)
+    } finally {
+      this.runningTaskId = null
+      this.emit('batch-finish', taskId, batchId, 'success')
+    }
   }
 
   /**

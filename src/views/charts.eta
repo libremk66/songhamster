@@ -7,21 +7,64 @@
 
 <!-- ==================== 标签 1：榜单浏览 ==================== -->
 <div id="ch-panel-browse">
-  <article>
-    <div style="display:flex;gap:.6rem;align-items:flex-end;flex-wrap:wrap">
-      <div>
-        <label>平台</label>
-        <select id="ch-source" style="width:11rem" onchange="chLoadBoards()">
-          <% for (const p of [{k:'tx',n:'QQ音乐'},{k:'kw',n:'酷我音乐'},{k:'wy',n:'网易云音乐'},{k:'kg',n:'酷狗音乐'},{k:'mg',n:'咪咕音乐'},{k:'bd',n:'百度音乐'}]) { %>
-          <option value="<%= p.k %>"><%= p.n %></option>
-          <% } %>
-        </select>
-      </div>
-      <span class="hint">榜单实时来自 lxserver（10 分钟缓存）。榜单每天/每周在变——浏览页始终显示<b>当下榜单</b>；订阅任务按频率拉取并只下载范围内<b>新上榜</b>的歌。</span>
+  <div style="display:flex;gap:.8rem;align-items:flex-start;flex-wrap:wrap">
+    <div style="flex:1 1 26rem;min-width:24rem">
+      <article style="margin-bottom:0">
+        <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
+          <label style="margin:0">平台
+            <select id="ch-source" style="width:10rem" onchange="function chSelCount() {
+  var box = document.getElementById('ch-songs-box')
+  var btns = box ? box.querySelectorAll('.ch-sel:checked') : []
+  var btn = document.getElementById('ch-dl-btn')
+  if (btn) {
+    btn.disabled = btns.length === 0
+    btn.textContent = '⬇ 下载所选（' + btns.length + '）'
+  }
+}
+function chManualDownload(source, bangid) {
+  var box = document.getElementById('ch-songs-box')
+  var checks = box ? Array.from(box.querySelectorAll('.ch-sel:checked')) : []
+  if (!checks.length) return
+  var keys = checks.map(function (c) { return c.value })
+  var btn = document.getElementById('ch-dl-btn')
+  var msg = document.getElementById('ch-dl-msg')
+  if (btn) { btn.disabled = true; btn.textContent = '下载中…' }
+  if (msg) msg.innerHTML = '<span class="hint">⏳ 下载中（落盘 手动下载 目录，不进歌单）…</span>'
+  fetch('/api/charts/manual-download', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ source: source, bangid: bangid, songKeys: keys }),
+  })
+    .then(function (r) { return r.text() })
+    .then(function (html) {
+      if (msg) msg.innerHTML = html
+      // 刷新 ✅ 标记
+      setTimeout(function () {
+        var sel = document.getElementById('ch-source')
+        var cur = box && box.querySelector('h3')
+        if (msg) { msg.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) }
+      }, 300)
+    })
+    .catch(function (e) { if (msg) msg.innerHTML = '<span class="bad">下载请求失败：' + e + '</span>' })
+}
+chLoadBoards()">
+              <% for (const p of [{k:'tx',n:'QQ音乐'},{k:'kw',n:'酷我音乐'},{k:'wy',n:'网易云音乐'},{k:'kg',n:'酷狗音乐'},{k:'mg',n:'咪咕音乐'},{k:'bd',n:'百度音乐'}]) { %>
+              <option value="<%= p.k %>"><%= p.n %></option>
+              <% } %>
+            </select>
+          </label>
+          <button type="button" class="btn-sm secondary" onclick="chLoadBoards(true)">🔄 刷新榜单</button>
+        </div>
+        <p class="hint" style="margin:.3rem 0 .2rem">榜单每日/每周在变——此页始终显示<b>当下榜单</b>；lxserver 建议缓存 10 分钟，点刷新强制重拉。</p>
+        <div id="ch-boards" style="margin-top:.3rem">加载中…</div>
+      </article>
     </div>
-    <div id="ch-boards" style="margin-top:.5rem">加载中…</div>
-  </article>
-  <div id="ch-songs-box" style="margin-top:.4rem"></div>
+    <div style="flex:2 1 36rem;min-width:30rem">
+      <div id="ch-songs-box" style="min-height:8rem">
+        <p class="hint">👈 在左侧选榜单点「查看歌曲」，这里显示当下榜单内容</p>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ==================== 标签 2：我的订阅 ==================== -->
@@ -84,14 +127,15 @@ function chSwitch(tab) {
   document.getElementById('ch-tab-browse').classList.toggle('active', tab === 'browse')
   document.getElementById('ch-tab-subs').classList.toggle('active', tab === 'subs')
 }
-function chLoadBoards() {
+function chLoadBoards(force) {
   var src = document.getElementById('ch-source').value
-  htmx.ajax('GET', '/api/charts/boards?source=' + src, { target: '#ch-boards', swap: 'innerHTML' })
+  var ts = force ? '&_t=' + Date.now() : ''
+  htmx.ajax('GET', '/api/charts/boards?source=' + src + ts, { target: '#ch-boards', swap: 'innerHTML' })
 }
 function chLoadSongs(source, bangid, name) {
   var box = document.getElementById('ch-songs-box')
   box.innerHTML = '<p class="hint">加载歌曲…</p>'
-  htmx.ajax('GET', '/api/charts/songs?source=' + source + '&bangid=' + bangid + '&name=' + encodeURIComponent(name),
+  htmx.ajax('GET', '/api/charts/songs?source=' + source + '&bangid=' + bangid + '&name=' + encodeURIComponent(name) + '&_t=' + Date.now(),
     { target: box, swap: 'innerHTML' })
 }
 function chfLoadBoards() {

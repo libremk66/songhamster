@@ -165,7 +165,7 @@ export function apiRouter(
       const label = PLAT_LABEL[source] || source
       res.send(
         `<p class="hint" style="margin:.2rem 0">${label}音乐共 ${boards.length} 个榜单——点「查看歌曲」看当下榜单；点「订阅」自动跟进新上榜歌曲</p>
-        <div class="multi-box" style="max-height:16em">
+        <div class="multi-box" style="max-height:44em">
         ` +
           boards
             .map(
@@ -197,25 +197,59 @@ export function apiRouter(
         flac24bit: '24bit FLAC', flac: 'FLAC', '320k': '320K', '128k': '128K',
       }
       res.send(
-        `<h3 style="margin:.2rem 0">${escapeHtml(PLAT_LABEL[source] || source)} · ${escapeHtml(name)}（共 ${songs.length} 首，显示前 ${shown.length}）</h3>
-        <p class="hint" style="margin:.2rem 0">✅=已下载收录 ｜ 无标记=尚未收录（订阅任务会自动跟进）</p>
-        <div class="multi-box" style="max-height:26em">
-        <table><tbody>` +
+        `<div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin:.2rem 0">
+          <h3 style="margin:0">${escapeHtml(PLAT_LABEL[source] || source)} · ${escapeHtml(name)}（共 ${songs.length} 首，显示前 ${shown.length}）</h3>
+          <button type="button" class="btn-sm" id="ch-dl-btn" disabled onclick="chManualDownload('${source}','${escapeHtml(bangid)}')">⬇ 下载所选（0）</button>
+          <span class="hint">下载到 <code>歌单同步/手动下载/</code>，仅入库不入歌单</span>
+          <span id="ch-dl-msg" class="msg"></span>
+        </div>
+        <p class="hint" style="margin:.2rem 0">✅=已下载收录 ｜ 勾选歌曲可手动下载</p>
+        <div class="multi-box" style="max-height:44em">
+        <table><thead><tr>
+          <th style="white-space:nowrap">选</th><th style="white-space:nowrap">#</th><th style="white-space:nowrap">状态</th>
+          <th style="white-space:nowrap">歌曲</th><th style="white-space:nowrap">歌手</th>
+          <th style="white-space:nowrap">专辑</th><th style="white-space:nowrap">最高音质</th>
+        </tr></thead><tbody>` +
           shown
             .map((sg, i) => {
               const dl = downloaded.has(sg.songKey)
-              return `<tr><td style="white-space:nowrap;color:#999">#${i + 1}</td>` +
-                `<td style="white-space:nowrap">${dl ? '<span class="ok">✅</span>' : ''}</td>` +
+              const best = sg.qualities.length ? sg.qualities[sg.qualities.length - 1] : ''
+              return `<tr><td style="white-space:nowrap"><input type="checkbox" class="ch-sel" value="${escapeHtml(sg.songKey)}" onchange="chSelCount()"${dl ? ' disabled title="已下载"' : ''}></td>` +
+                `<td style="white-space:nowrap;color:#999">${i + 1}</td>` +
+                `<td style="white-space:nowrap">${dl ? '<span class="ok">✅</span>' : '—'}</td>` +
                 `<td style="white-space:nowrap">${escapeHtml(sg.name)}</td>` +
                 `<td style="white-space:nowrap">${escapeHtml(sg.singer)}</td>` +
                 `<td class="hint">${escapeHtml(sg.albumName || '')}</td>` +
-                `<td style="white-space:nowrap">${sg.qualities.length ? escapeHtml(qLabel[sg.qualities[0]] || sg.qualities[0]) : '—'}</td></tr>`
+                `<td style="white-space:nowrap">${best ? escapeHtml(qLabel[best] || best) : '—'}</td></tr>`
             })
             .join('') +
         `</tbody></table></div>`,
       )
     } catch (e) {
       res.send(`<span class="bad">拉取歌曲失败：${escapeHtml((e as Error).message)}</span>`)
+    }
+  })
+
+  /** 手动下载所选（榜单浏览页）：落盘 歌单同步/手动下载/，仅入库不入歌单 */
+  r.post('/charts/manual-download', async (req, res) => {
+    const b = req.body ?? {}
+    const source = String(b.source ?? '')
+    const bangid = String(b.bangid ?? '')
+    const keysRaw = Array.isArray(b.songKeys) ? b.songKeys.map(String) : String(b.songKeys ?? '').split(',').map((x) => x.trim()).filter(Boolean)
+    if (!source || !bangid || !keysRaw.length) return res.send(err('参数缺失（source/bangid/songKeys）'))
+    try {
+      if (engine.isRunning) return res.send(err('已有任务在运行（全局单飞），稍后再试'))
+      const want = new Set(keysRaw)
+      const full = await lx.getChartSongs(source, bangid)
+      const songs = full.filter((sg) => want.has(sg.songKey))
+      if (!songs.length) return res.send(err('所选歌曲均无法从榜单解析（可能已跌出榜单），请刷新后重试'))
+      const r = await engine.runManualDownload(songs)
+      res.send(
+        ok(`手动下载完成：成功 ${r.ok} ｜ 已存在跳过 ${r.dup} ｜ 失败 ${r.fail}${r.unsatisfied ? ' ｜ 无可用音质 ' + r.unsatisfied : ''}`) +
+          `<p class="hint">文件已落盘 <code>歌单同步/手动下载/</code>，媒体服务器扫描后入库（未加入任何播放列表）。历史可在「历史记录」页查看。</p>`,
+      )
+    } catch (e) {
+      res.send(err((e as Error).message))
     }
   })
 

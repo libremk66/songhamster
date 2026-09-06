@@ -35,7 +35,7 @@ export function createTask(input: {
   syncMode?: SyncMode
   dedupCheck?: boolean
   dedupMinQuality?: string | null
-  taskType?: 'playlist' | 'chart'
+  taskType?: 'playlist' | 'chart' | 'adhoc'
   chartSource?: string
   chartId?: string
   chartName?: string
@@ -325,4 +325,20 @@ export function listChartSnapshots(taskId: number, limit = 20): ChartSnapshot[] 
 export function listDownloadedKeys(): Set<string> {
   const rows = getDb().prepare('SELECT DISTINCT songKey FROM song_files').all() as { songKey: string }[]
   return new Set(rows.map((r) => r.songKey))
+}
+
+/** 手动下载单例任务（不可见 cron，仅作为历史/进度归属；不存在则创建） */
+export function ensureManualTask(): number {
+  const KEY = 'adhoc:manual'
+  const t = listTasks().find((x) => x.lxPlaylistKey === KEY)
+  if (t) return t.id
+  const id = createTask({
+    lxPlaylistKey: KEY,
+    lxPlaylistName: '手动下载',
+    taskType: 'adhoc',
+    createSameNamePlaylist: false,
+    syncMode: 'incremental',
+  })
+  updateTask(id, { enabled: 0 })
+  return id
 }
