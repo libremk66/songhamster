@@ -13,7 +13,7 @@
       <% } else if (b.result === 'failed') { %><b class="st-bad">失败</b>
       <% } else { %><%= b.result %><% } %>
     </span>
-    <button class="btn btn-outline btn-xs" hx-get="/api/history/batch/<%= b.id %>" hx-target="#batch-<%= b.id %>" hx-swap="innerHTML">查看明细</button>
+    <button class="btn btn-outline btn-xs" onclick="histToggle('<%= b.id %>', this)">查看明细</button>
   </div>
   <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs">
     <span class="st-ok">✅ 成功 <%= b.okCount %></span>

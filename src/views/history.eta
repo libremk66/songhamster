@@ -38,4 +38,24 @@ function switchHistTab(id) {
   document.querySelectorAll('.hist-tab').forEach(function (b) { b.classList.remove('active') })
   document.getElementById(id).classList.add('active')
 }
+// 批次明细:点展开加载、再点收起(避免重复拉取)
+function histToggle(id, btn) {
+  var box = document.getElementById('batch-' + id)
+  if (!box) return
+  if (box.dataset.loaded === '1') {
+    box.innerHTML = ''
+    box.dataset.loaded = ''
+    btn.textContent = '查看明细'
+    return
+  }
+  box.innerHTML = '<span class="c-sub text-xs">加载中…</span>'
+  fetch('/api/history/batch/' + id)
+    .then(function (r) { return r.text() })
+    .then(function (html) {
+      box.innerHTML = html
+      box.dataset.loaded = '1'
+      btn.textContent = '收起'
+    })
+    .catch(function () { box.innerHTML = '<span class="st-bad text-xs">加载失败，请重试</span>' })
+}
 </script>
