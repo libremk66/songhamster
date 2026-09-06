@@ -159,6 +159,52 @@ export class LxServerAdapter {
    * ⚠️ 参数名是 name（不是 query，query 报 400 Missing name）
    * ⚠️ 返回 songmid 是数字，normalizeSong 已转字符串
    */
+  /** 榜单平台（lxserver leaderboard 支持面 + UI 显示名） */
+  async chartPlatforms(): Promise<{ key: string; label: string }[]> {
+    return [
+      { key: 'kw', label: '酷我' },
+      { key: 'tx', label: 'QQ' },
+      { key: 'wy', label: '网易云' },
+      { key: 'kg', label: '酷狗' },
+      { key: 'mg', label: '咪咕' },
+      { key: 'bd', label: '百度' },
+    ]
+  }
+
+  /** 榜单列表（lxserver GET /api/music/leaderboard/boards） */
+  async getChartBoards(source: string): Promise<{ id: string; name: string }[]> {
+    const data = await this.request('GET', `/api/music/leaderboard/boards?source=${encodeURIComponent(source)}`)
+    const list = Array.isArray(data) ? data : data?.list ?? []
+    return list
+      .map((b: any) => ({ id: String(b?.bangid ?? b?.id ?? ''), name: String(b?.name ?? '') }))
+      .filter((b: { id: string; name: string }) => b.id && b.name)
+  }
+
+  /** 榜单歌曲全量（分页拉完；lxserver GET /api/music/leaderboard/list） */
+  async getChartSongs(source: string, bangid: string): Promise<LxSong[]> {
+    const out: LxSong[] = []
+    const seen = new Set<string>()
+    let page = 1
+    for (;;) {
+      const data = await this.request('GET', `/api/music/leaderboard/list?source=${encodeURIComponent(source)}&bangid=${encodeURIComponent(bangid)}&page=${page}`)
+      const list = Array.isArray(data) ? data : data?.list ?? []
+      if (!list.length) break
+      for (const raw of list) {
+        const song = normalizeSong(raw)
+        if (song && !seen.has(song.songKey)) {
+          seen.add(song.songKey)
+          out.push(song)
+        }
+      }
+      const total = Number(data?.total ?? 0)
+      const limit = Number(data?.limit ?? 0)
+      if (total && limit && page * limit >= total) break
+      if (list.length < 300) break // 兜底：单页未满即结束（榜单单页上限 300）
+      page++
+    }
+    return out
+  }
+
   async searchSong(name: string, sources: string[]): Promise<LxSong[]> {
     const out: LxSong[] = []
     const seen = new Set<string>()

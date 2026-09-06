@@ -1,0 +1,24 @@
+<% if (!tasks.length) { %>
+  <p class="hint">还没有榜单订阅——在「榜单浏览」里找想听的榜单，或点上方新建。</p>
+<% } else { %>
+  <% for (const t of tasks) { %>
+  <article style="padding:.6rem .9rem;margin-bottom:.6rem">
+    <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
+      <strong>🏆 <%= t.lxPlaylistName %></strong>
+      <small class="hint"><%= t.chartSource %> · <%= t.chartName || '' %> · 范围前 <%= t.maxCount === 0 ? '全榜' : t.maxCount + ' 首' %></small>
+      <% if (t.cronExpr) { %><small class="hint">cron <%= t.cronExpr %></small><% } else { %><small class="hint">仅手动</small><% } %>
+      <span class="<%= t.enabled ? 'ok' : 'hint' %>"><%= t.enabled ? '● 启用' : '○ 暂停' %></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-top:.2rem">
+      <small class="hint">上次同步：<%= t.lastRunAt ? t.lastRunAt.slice(5, 19).replace('T', ' ') : '—' %>（<%= t.lastResult || '未跑过' %>）</small>
+      <% if (t.lastSnap) { %>
+      <small class="hint">本期榜单 <%= t.lastSnap.totalCount %> 首 ｜ 新上榜 <%= t.lastSnap.newCount %> ｜ 跌出 <%= t.lastSnap.removedCount %>（<%= t.lastSnap.syncedAt.slice(5, 16).replace('T', ' ') %>）</small>
+      <% } %>
+      <span style="flex:1"></span>
+      <button type="button" class="btn-sm" hx-post="/api/task/<%= t.id %>/run" hx-swap="none" hx-confirm="立即同步该订阅？将拉取当前榜单并下载范围内新上榜的歌曲。" hx-on::after-request="chSubMsg('<%= t.lxPlaylistName %> 同步已开始，请稍后在任务进度页查看…')">立即同步</button>
+      <button type="button" class="btn-sm secondary" hx-post="/api/task/<%= t.id %>/toggle" hx-swap="none" hx-on::after-request="htmx.ajax('GET','/api/charts/subs',{target:'#ch-subs-rows'})"><%= t.enabled ? '暂停' : '启用' %></button>
+      <button type="button" class="btn-sm secondary" hx-post="/api/task/<%= t.id %>/delete" hx-swap="none" hx-confirm="删除订阅「<%= t.lxPlaylistName %>」？已下载文件与播放列表内容保留，仅停止后续订阅。" hx-on::after-request="htmx.ajax('GET','/api/charts/subs',{target:'#ch-subs-rows'})">删除</button>
+    </div>
+  </article>
+  <% } %>
+<% } %>

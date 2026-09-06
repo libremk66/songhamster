@@ -11,7 +11,7 @@
     <% } %>
     <% for (const t of tasks) { %>
     <tr>
-      <td><%= t.lxPlaylistName %></td>
+      <td><% if (t.taskType === 'chart') { %>🏆 <% } %><%= t.lxPlaylistName %><% if (t.taskType === 'chart') { %> <small class="hint">（榜单订阅，管理见「榜单订阅」页）</small><% } %></td>
       <td>
         <% if (t.embyTargetPlaylistIdsParsed.length) { %>
           <small><% for (const pid of t.embyTargetPlaylistIdsParsed) { %><%= (idToName && idToName[pid]) || pid %>、<% } %></small>
@@ -24,7 +24,9 @@
       <td><%= t.lastResult ?? '—' %></td>
       <td>
         <button class="btn-sm" hx-post="/api/task/<%= t.id %>/run" hx-target="closest td" hx-swap="outerHTML">▶ 同步</button>
+        <% if (t.taskType !== 'chart') { %>
         <button class="btn-sm secondary" hx-get="/api/task/<%= t.id %>/edit" hx-target="closest tr" hx-swap="outerHTML">编辑</button>
+        <% } %>
         <button class="btn-sm secondary" hx-post="/api/task/<%= t.id %>/toggle" hx-target="#task-table" hx-swap="innerHTML"><%= t.enabled ? '停用' : '启用' %></button>
         <button class="btn-sm secondary" hx-post="/api/task/<%= t.id %>/delete" hx-confirm="确认删除该同步任务？" hx-target="#task-table" hx-swap="innerHTML">删除</button>
       </td>

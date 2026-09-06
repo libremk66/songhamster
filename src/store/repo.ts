@@ -35,14 +35,24 @@ export function createTask(input: {
   syncMode?: SyncMode
   dedupCheck?: boolean
   dedupMinQuality?: string | null
+  taskType?: 'playlist' | 'chart'
+  chartSource?: string
+  chartId?: string
+  chartName?: string
+  maxCount?: number
 }): number {
   const stmt = getDb().prepare(
-    `INSERT INTO sync_task (lxPlaylistKey, lxPlaylistName, enabled, embyTargetPlaylistIds, createSameNamePlaylist, cronExpr, syncMode, dedupCheck, dedupMinQuality)
-     VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO sync_task (lxPlaylistKey, lxPlaylistName, taskType, chartSource, chartId, chartName, maxCount, enabled, embyTargetPlaylistIds, createSameNamePlaylist, cronExpr, syncMode, dedupCheck, dedupMinQuality)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`,
   )
   const info = stmt.run(
     input.lxPlaylistKey,
     input.lxPlaylistName,
+    input.taskType ?? 'playlist',
+    input.chartSource ?? null,
+    input.chartId ?? null,
+    input.chartName ?? null,
+    input.maxCount ?? 30,
     JSON.stringify(input.embyTargetPlaylistIds ?? []),
     input.createSameNamePlaylist !== false ? 1 : 0,
     input.cronExpr ?? null,
@@ -253,4 +263,66 @@ export function setSnapshot(taskId: number, songKeys: string[]): void {
     .prepare(`INSERT INTO playlist_snapshot (taskId, songKeys, updatedAt) VALUES (?, ?, ?)
               ON CONFLICT(taskId) DO UPDATE SET songKeys=excluded.songKeys, updatedAt=excluded.updatedAt`)
     .run(taskId, JSON.stringify(songKeys), new Date().toISOString())
+}
+
+// ===== 榜单订阅快照（时效性展示：变化报告/浏览页新上榜标记） =====
+
+export interface ChartSnapshot {
+  id: number
+  taskId: number
+  syncedAt: string
+  totalCount: number
+  newCount: number
+  removedCount: number
+  songKeys: string[] // 当期榜单（前 N 范围）songKey 全集
+}
+
+export function saveChartSnapshot(input: {
+  taskId: number
+  syncedAt: string
+  totalCount: number
+  newCount: number
+  removedCount: number
+  songKeys: string[]
+}): void {
+  getDb()
+    .prepare(
+      `INSERT INTO chart_snapshot (taskId, syncedAt, totalCount, newCount, removedCount, songKeys) VALUES (?, ?, ?, ?, ?, ?)`,
+    )
+    .run(input.taskId, input.syncedAt, input.totalCount, input.newCount, input.removedCount, JSON.stringify(input.songKeys))
+}
+
+/** 某订阅任务最近一次快照（变化对比基准） */
+export function getLatestChartSnapshot(taskId: number): ChartSnapshot | null {
+  const r = getDb().prepare('SELECT * FROM chart_snapshot WHERE taskId = ? ORDER BY id DESC LIMIT 1').get(taskId) as
+    | (Omit<ChartSnapshot, 'songKeys'> & { songKeys: string })
+    | undefined
+  if (!r) return null
+  let keys: string[] = []
+  try {
+    keys = JSON.parse(r.songKeys)
+  } catch {
+    keys = []
+  }
+  return { ...r, songKeys: keys }
+}
+
+/** 某订阅任务全部快照（订阅详情时间线） */
+export function listChartSnapshots(taskId: number, limit = 20): ChartSnapshot[] {
+  const rows = getDb().prepare('SELECT * FROM chart_snapshot WHERE taskId = ? ORDER BY id DESC LIMIT ?').all(taskId, limit) as (Omit<ChartSnapshot, 'songKeys'> & { songKeys: string })[]
+  return rows.map((r) => {
+    let keys: string[] = []
+    try {
+      keys = JSON.parse(r.songKeys)
+    } catch {
+      keys = []
+    }
+    return { ...r, songKeys: keys }
+  })
+}
+
+/** 已下载歌曲全集（song_files 去重 songKey）——榜单浏览"已收录"标记用 */
+export function listDownloadedKeys(): Set<string> {
+  const rows = getDb().prepare('SELECT DISTINCT songKey FROM song_files').all() as { songKey: string }[]
+  return new Set(rows.map((r) => r.songKey))
 }

@@ -1,0 +1,161 @@
+<h2>榜单订阅</h2>
+
+<div class="btn-row" style="margin-bottom:.6rem">
+  <button type="button" class="hist-tab active" id="ch-tab-browse" onclick="chSwitch('browse', this)">榜单浏览</button>
+  <button type="button" class="hist-tab" id="ch-tab-subs" onclick="chSwitch('subs', this)">我的订阅</button>
+</div>
+
+<!-- ==================== 标签 1：榜单浏览 ==================== -->
+<div id="ch-panel-browse">
+  <article>
+    <div style="display:flex;gap:.6rem;align-items:flex-end;flex-wrap:wrap">
+      <div>
+        <label>平台</label>
+        <select id="ch-source" style="width:11rem" onchange="chLoadBoards()">
+          <% for (const p of [{k:'tx',n:'QQ音乐'},{k:'kw',n:'酷我音乐'},{k:'wy',n:'网易云音乐'},{k:'kg',n:'酷狗音乐'},{k:'mg',n:'咪咕音乐'},{k:'bd',n:'百度音乐'}]) { %>
+          <option value="<%= p.k %>"><%= p.n %></option>
+          <% } %>
+        </select>
+      </div>
+      <span class="hint">榜单实时来自 lxserver（10 分钟缓存）。榜单每天/每周在变——浏览页始终显示<b>当下榜单</b>；订阅任务按频率拉取并只下载范围内<b>新上榜</b>的歌。</span>
+    </div>
+    <div id="ch-boards" style="margin-top:.5rem">加载中…</div>
+  </article>
+  <div id="ch-songs-box" style="margin-top:.4rem"></div>
+</div>
+
+<!-- ==================== 标签 2：我的订阅 ==================== -->
+<div id="ch-panel-subs" style="display:none">
+  <div class="btn-row" style="margin:.2rem 0">
+    <button type="button" onclick="chToggleForm()" id="ch-new-btn">＋ 新建榜单订阅</button>
+    <span id="ch-subs-msg" class="msg"></span>
+    <span class="hint">订阅 = 定时拉取榜单 → 自动下载新上榜歌曲到 歌单同步/&lt;榜单名&gt;/ → 加入 <%= targetName %> 同名播放列表（归档：跌出榜单不删除文件）</span>
+  </div>
+
+  <form id="ch-form" style="display:none" hx-post="/api/tasks" hx-swap="none" hx-on::after-request="chFormDone(event)">
+    <article>
+      <h3>新建订阅</h3>
+      <div class="grid2">
+        <div>
+          <label>平台
+            <select name="chartSource" id="chf-source" onchange="chfLoadBoards()">
+              <% for (const p of [{k:'tx',n:'QQ音乐'},{k:'kw',n:'酷我音乐'},{k:'wy',n:'网易云音乐'},{k:'kg',n:'酷狗音乐'},{k:'mg',n:'咪咕音乐'},{k:'bd',n:'百度音乐'}]) { %>
+              <option value="<%= p.k %>"><%= p.n %></option>
+              <% } %>
+            </select>
+          </label>
+        </div>
+        <div>
+          <label>榜单
+            <select name="chartId" id="chf-board" onchange="chfBoardPicked()"><option value="">选择平台后加载…</option></select>
+          </label>
+        </div>
+        <div><label>任务名（默认：平台+榜单名）<input name="lxPlaylistName" id="chf-name" placeholder="如 QQ音乐·热歌榜"></label></div>
+        <div>
+          <label>下载范围（榜单前 N 首，0=全榜）<input type="number" name="maxCount" value="30" min="0" style="width:7rem"></label>
+        </div>
+        <div style="grid-column:span 2">
+          <label>同步频率（cron 表达式）<input name="cronExpr" value="0 8 * * *" placeholder="0 8 * * *" style="width:14rem"></label>
+          <p class="hint" style="margin:0">⚠️ 各榜单刷新周期不同（部分每日、部分每周），建议按榜单特点自定义 cron；留空则仅手动同步。默认每天早上 8 点。</p>
+        </div>
+        <div>
+          <label style="display:flex;align-items:center;gap:.3rem;margin-top:1.2rem">
+            <input type="checkbox" name="createSameNamePlaylist" value="1" checked> 同步到新建同名 <%= targetName %> 播放列表
+          </label>
+        </div>
+      </div>
+      <input type="hidden" name="chartName" id="chf-chartname" value="">
+      <input type="hidden" name="taskType" value="chart">
+      <input type="hidden" name="syncMode" value="incremental">
+      <div class="btn-row">
+        <button type="submit">创建订阅</button>
+        <span class="hint">创建后出现在下方列表，点「立即同步」跑第一次（首次会下载榜单前 N 首中尚未收录的歌）</span>
+      </div>
+    </article>
+  </form>
+
+  <div id="ch-subs-rows" hx-get="/api/charts/subs" hx-trigger="load">加载中…</div>
+</div>
+
+<script>
+function chSwitch(tab) {
+  document.getElementById('ch-panel-browse').style.display = tab === 'browse' ? '' : 'none'
+  document.getElementById('ch-panel-subs').style.display = tab === 'subs' ? '' : 'none'
+  document.getElementById('ch-tab-browse').classList.toggle('active', tab === 'browse')
+  document.getElementById('ch-tab-subs').classList.toggle('active', tab === 'subs')
+}
+function chLoadBoards() {
+  var src = document.getElementById('ch-source').value
+  htmx.ajax('GET', '/api/charts/boards?source=' + src, { target: '#ch-boards', swap: 'innerHTML' })
+}
+function chLoadSongs(source, bangid, name) {
+  var box = document.getElementById('ch-songs-box')
+  box.innerHTML = '<p class="hint">加载歌曲…</p>'
+  htmx.ajax('GET', '/api/charts/songs?source=' + source + '&bangid=' + bangid + '&name=' + encodeURIComponent(name),
+    { target: box, swap: 'innerHTML' })
+}
+function chfLoadBoards() {
+  var src = document.getElementById('chf-source').value
+  var sel = document.getElementById('chf-board')
+  sel.innerHTML = '<option value="">加载中…</option>'
+  fetch('/api/charts/boards?source=' + src + '&as=options')
+    .then(function (r) { return r.text() })
+    .then(function (html) { sel.innerHTML = html })
+}
+function chfBoardPicked() {
+  var src = document.getElementById('chf-source').value
+  var sel = document.getElementById('chf-board')
+  var opt = sel.selectedOptions[0]
+  if (!opt || !opt.value) return
+  var srcLabel = document.getElementById('chf-source').selectedOptions[0].textContent.replace('音乐', '')
+  document.getElementById('chf-chartname').value = opt.dataset.name || ''
+  var name = document.getElementById('chf-name')
+  if (!name.value) name.value = srcLabel + '·' + (opt.dataset.name || '')
+}
+function chToggleForm() {
+  var f = document.getElementById('ch-form')
+  f.style.display = f.style.display === 'none' ? '' : 'none'
+  if (f.style.display !== 'none') chfLoadBoards()
+}
+function chFormDone(ev) {
+  var f = document.getElementById('ch-form')
+  var m = document.getElementById('ch-subs-msg')
+  if (ev.detail.successful) {
+    f.style.display = 'none'
+    document.getElementById('chf-name').value = ''
+    m.innerHTML = '<span class="ok">✅ 订阅已创建</span>'
+    htmx.ajax('GET', '/api/charts/subs', { target: '#ch-subs-rows' })
+    chSwitch('subs')
+  } else {
+    m.innerHTML = '<span class="bad">创建失败，请检查参数</span>'
+  }
+}
+function chSubMsg(msg) {
+  var m = document.getElementById('ch-subs-msg')
+  m.innerHTML = '<span class="ok">' + msg + '</span>'
+}
+// 浏览页"订阅"按钮：切到我的订阅 tab、展开表单并预填该榜单
+function chSubscribe(source, bangid, name) {
+  chSwitch('subs')
+  var form = document.getElementById('ch-form')
+  form.style.display = ''
+  var srcSel = document.getElementById('chf-source')
+  for (var i = 0; i < srcSel.options.length; i++) {
+    if (srcSel.options[i].value === source) { srcSel.selectedIndex = i; break }
+  }
+  var nameInput = document.getElementById('chf-name')
+  var srcLabel = srcSel.selectedOptions[0].textContent.replace('音乐', '')
+  nameInput.value = srcLabel + '·' + name
+  document.getElementById('chf-chartname').value = name
+  fetch('/api/charts/boards?source=' + source + '&as=options')
+    .then(function (r) { return r.text() })
+    .then(function (html) {
+      var sel = document.getElementById('chf-board')
+      sel.innerHTML = html
+      for (var i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value === bangid) { sel.selectedIndex = i; break }
+      }
+    })
+}
+chLoadBoards()
+</script>

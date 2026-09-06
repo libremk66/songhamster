@@ -79,19 +79,28 @@ export class SyncEngine {
 
     try {
       logger.info(`[engine] task#${taskId}(${task.lxPlaylistName}) ${trigger} 开始`)
-      const songs = await this.lx.getSongs(task.lxPlaylistKey)
+      // 榜单订阅：歌曲源 = 榜单 API（订阅范围前 N 首，0=全榜）；恒增量（归档模式只增不删）
+      const isChart = task.taskType === 'chart'
+      let songs: LxSong[]
+      if (isChart) {
+        const full = await this.lx.getChartSongs(task.chartSource ?? '', task.chartId ?? '')
+        const N = Number(task.maxCount ?? 30)
+        songs = N > 0 ? full.slice(0, N) : full
+      } else {
+        songs = await this.lx.getSongs(task.lxPlaylistKey)
+      }
 
       // diff
       let toDownload: LxSong[]
       let toRemove: string[] = []
-      if (task.syncMode === 'full') {
+      if (isChart || task.syncMode !== 'full') {
+        toDownload = this.diffIncremental(taskId, songs)
+      } else {
         const d = this.diffFull(taskId, songs)
         toDownload = d.toDownload
         toRemove = d.toRemove
-      } else {
-        toDownload = this.diffIncremental(taskId, songs)
       }
-      logger.info(`[engine] 源歌单 ${songs.length} 首 | 待下载 ${toDownload.length} | 待移除 ${toRemove.length}`)
+      logger.info(`[engine] ${isChart ? `榜单 ${task.lxPlaylistName}（范围 ${songs.length} 首）` : `源歌单 ${songs.length} 首`} | 待下载 ${toDownload.length} | 待移除 ${toRemove.length}`)
 
       // 完全同步：移除已删除的歌
       if (toRemove.length > 0) {
@@ -183,6 +192,27 @@ export class SyncEngine {
       })
       // 快照：完全同步语义的删除检测依据 = 本次源歌单全集
       repo.setSnapshot(taskId, songs.map((s) => s.songKey))
+      // 榜单任务：存当期快照 + 变化统计（时效性报告：本期新上榜/跌出）
+      if (isChart) {
+        const prev = repo.getLatestChartSnapshot(taskId)
+        const curKeys = songs.map((s) => s.songKey)
+        const curSet = new Set(curKeys)
+        const prevKeys = prev?.songKeys ?? []
+        const prevSet = new Set(prevKeys)
+        const newCount = curKeys.filter((k) => !prevSet.has(k)).length
+        const removedCount = prev ? prevKeys.filter((k) => !curSet.has(k)).length : 0
+        repo.saveChartSnapshot({
+          taskId,
+          syncedAt: new Date().toISOString(),
+          totalCount: curKeys.length,
+          newCount,
+          removedCount,
+          songKeys: curKeys,
+        })
+        if (prev) {
+          logger.info(`[engine] 榜单变化: 本期 ${curKeys.length} 首 | 新上榜 ${newCount} | 跌出 ${removedCount}`)
+        }
+      }
       logger.info(`[engine] task#${taskId} 完成: result=${result} ok=${okCount} fail=${failCount} unsatisfied=${unsatisfiedCount} dup=${dupCount} dedup=${dedupCount} removed=${removedCount}`)
       this.emit('batch-finish', taskId, batchId, result)
       return result

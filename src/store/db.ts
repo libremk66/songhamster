@@ -11,6 +11,11 @@ export interface SyncTaskRow {
   id: number
   lxPlaylistKey: string
   lxPlaylistName: string
+  taskType: 'playlist' | 'chart'
+  chartSource: string | null
+  chartId: string | null
+  chartName: string | null
+  maxCount: number
   enabled: number
   embyTargetPlaylistIds: string // JSON array
   createSameNamePlaylist: number
@@ -40,6 +45,11 @@ function migrate(d: Database.Database): void {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       lxPlaylistKey TEXT NOT NULL UNIQUE,
       lxPlaylistName TEXT NOT NULL,
+      taskType TEXT NOT NULL DEFAULT 'playlist',   -- playlist=LX歌单 | chart=榜单订阅
+      chartSource TEXT,                             -- 榜单平台 kw/tx/wy/kg/mg/bd
+      chartId TEXT,                                 -- lxserver bangid
+      chartName TEXT,                               -- 榜单原名（快照，如 热歌榜）
+      maxCount INTEGER NOT NULL DEFAULT 30,         -- 订阅范围：榜单前 N 首（0=全榜）
       enabled INTEGER NOT NULL DEFAULT 1,
       embyTargetPlaylistIds TEXT NOT NULL DEFAULT '[]',
       createSameNamePlaylist INTEGER NOT NULL DEFAULT 1,
@@ -49,6 +59,16 @@ function migrate(d: Database.Database): void {
       lastResult TEXT,
       dedupCheck INTEGER NOT NULL DEFAULT 0,
       dedupMinQuality TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS chart_snapshot (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      taskId INTEGER NOT NULL REFERENCES sync_task(id),
+      syncedAt TEXT NOT NULL,
+      totalCount INTEGER NOT NULL DEFAULT 0,
+      newCount INTEGER NOT NULL DEFAULT 0,
+      removedCount INTEGER NOT NULL DEFAULT 0,
+      songKeys TEXT NOT NULL DEFAULT '[]'     -- 当期榜单（前 N 范围）songKey 全集 JSON
     );
 
     CREATE TABLE IF NOT EXISTS history_batch (
@@ -169,5 +189,10 @@ function migrate(d: Database.Database): void {
   }
   ensureCol('sync_task', 'dedupCheck', 'dedupCheck INTEGER NOT NULL DEFAULT 0')
   ensureCol('sync_task', 'dedupMinQuality', 'dedupMinQuality TEXT')
+  ensureCol('sync_task', 'taskType', "taskType TEXT NOT NULL DEFAULT 'playlist'")
+  ensureCol('sync_task', 'chartSource', 'chartSource TEXT')
+  ensureCol('sync_task', 'chartId', 'chartId TEXT')
+  ensureCol('sync_task', 'chartName', 'chartName TEXT')
+  ensureCol('sync_task', 'maxCount', 'maxCount INTEGER NOT NULL DEFAULT 30')
   ensureCol('history_batch', 'dedupCount', 'dedupCount INTEGER NOT NULL DEFAULT 0')
 }

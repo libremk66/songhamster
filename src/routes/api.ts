@@ -146,6 +146,88 @@ export function apiRouter(
   })
 
   // ===== 歌单下拉/列表刷新片段（蓝框内刷新按钮） =====
+  // ===== 榜单订阅 API =====
+  const PLAT_LABEL: Record<string, string> = { tx: 'QQ', kw: '酷我', wy: '网易云', kg: '酷狗', mg: '咪咕', bd: '百度' }
+
+  /** 榜单列表：as=table（浏览页表格）| as=options（表单下拉） */
+  r.get('/charts/boards', async (req, res) => {
+    const source = String(req.query.source ?? 'tx')
+    try {
+      const boards = await lx.getChartBoards(source)
+      if (!boards.length) return res.send('<p class="hint">该平台暂无榜单（lxserver 榜单接口不可用？）</p>')
+      if (String(req.query.as ?? '') === 'options') {
+        const opts = ['<option value="" disabled selected>选择榜单…</option>']
+        for (const b of boards) {
+          opts.push(`<option value="${escapeHtml(b.id)}" data-name="${escapeHtml(b.name)}">${escapeHtml(b.name)}</option>`)
+        }
+        return res.send(opts.join(''))
+      }
+      const label = PLAT_LABEL[source] || source
+      res.send(
+        `<p class="hint" style="margin:.2rem 0">${label}音乐共 ${boards.length} 个榜单——点「查看歌曲」看当下榜单；点「订阅」自动跟进新上榜歌曲</p>
+        <div class="multi-box" style="max-height:16em">
+        ` +
+          boards
+            .map(
+              (b) =>
+                `<div style="display:flex;align-items:center;gap:.5rem;padding:.15rem .1rem;border-bottom:1px solid #f0f0f0">` +
+                `<span style="flex:1">${escapeHtml(b.name)}</span>` +
+                `<button type="button" class="btn-sm secondary" onclick="chLoadSongs('${source}','${escapeHtml(b.id)}','${escapeHtml(b.name)}')">查看歌曲</button>` +
+                `<button type="button" class="btn-sm" onclick="chSubscribe('${source}','${escapeHtml(b.id)}','${escapeHtml(b.name)}')">订阅</button></div>`,
+            )
+            .join('') +
+        `</div>`,
+      )
+    } catch (e) {
+      res.send(`<span class="bad">拉取榜单失败：${escapeHtml((e as Error).message)}</span>`)
+    }
+  })
+
+  /** 榜单歌曲浏览（前 100，标已收录） */
+  r.get('/charts/songs', async (req, res) => {
+    const source = String(req.query.source ?? 'tx')
+    const bangid = String(req.query.bangid ?? '')
+    const name = String(req.query.name ?? '')
+    try {
+      const songs = await lx.getChartSongs(source, bangid)
+      const downloaded = repo.listDownloadedKeys()
+      const shown = songs.slice(0, 100)
+      const qLabel: Record<string, string> = {
+        master: '臻品母带', atmos_plus: 'Atmos+', atmos: 'Atmos', hires: 'Hi-Res',
+        flac24bit: '24bit FLAC', flac: 'FLAC', '320k': '320K', '128k': '128K',
+      }
+      res.send(
+        `<h3 style="margin:.2rem 0">${escapeHtml(PLAT_LABEL[source] || source)} · ${escapeHtml(name)}（共 ${songs.length} 首，显示前 ${shown.length}）</h3>
+        <p class="hint" style="margin:.2rem 0">✅=已下载收录 ｜ 无标记=尚未收录（订阅任务会自动跟进）</p>
+        <div class="multi-box" style="max-height:26em">
+        <table><tbody>` +
+          shown
+            .map((sg, i) => {
+              const dl = downloaded.has(sg.songKey)
+              return `<tr><td style="white-space:nowrap;color:#999">#${i + 1}</td>` +
+                `<td style="white-space:nowrap">${dl ? '<span class="ok">✅</span>' : ''}</td>` +
+                `<td style="white-space:nowrap">${escapeHtml(sg.name)}</td>` +
+                `<td style="white-space:nowrap">${escapeHtml(sg.singer)}</td>` +
+                `<td class="hint">${escapeHtml(sg.albumName || '')}</td>` +
+                `<td style="white-space:nowrap">${sg.qualities.length ? escapeHtml(qLabel[sg.qualities[0]] || sg.qualities[0]) : '—'}</td></tr>`
+            })
+            .join('') +
+        `</tbody></table></div>`,
+      )
+    } catch (e) {
+      res.send(`<span class="bad">拉取歌曲失败：${escapeHtml((e as Error).message)}</span>`)
+    }
+  })
+
+  /** 我的订阅列表片段 */
+  r.get('/charts/subs', (_req, res) => {
+    const tasks = repo
+      .listTasks()
+      .filter((t) => t.taskType === 'chart')
+      .map((t) => ({ ...t, lastSnap: repo.getLatestChartSnapshot(t.id) }))
+    res.send(renderBody('partials/chart-subs', { tasks, targetName: cfg.target === 'navidrome' ? 'Navidrome' : 'Emby' }))
+  })
+
   r.get('/lx/playlists/options', async (_req, res) => {
     try {
       const ps = await lx.listPlaylists()
@@ -203,10 +285,26 @@ export function apiRouter(
   r.post('/tasks', async (req, res) => {
     scheduler.reload()
     const b = req.body ?? {}
-    const key = String(b.lxPlaylistKey ?? '')
-    if (!key) return res.status(400).send(err('未选择 LX 歌单'))
-    const keyToName = await lxKeyToName()
-    const name = keyToName[key] ?? String(b.lxPlaylistName ?? '') ?? key
+    const isChart = String(b.taskType ?? '') === 'chart'
+    let key = String(b.lxPlaylistKey ?? '')
+    let name = ''
+    const chartSource = String(b.chartSource ?? '').trim()
+    const chartId = String(b.chartId ?? '').trim()
+    const chartName = String(b.chartName ?? '').trim()
+    const maxCount = Math.max(0, Number(b.maxCount) || 30)
+    if (isChart) {
+      // 榜单订阅：key = chart:<source>:<bangid>（UNIQUE 天然防同榜重复订阅）
+      if (!chartSource || !chartId) return res.status(400).send(err('请选择平台与榜单'))
+      key = `chart:${chartSource}:${chartId}`
+      if (repo.listTasks().some((t) => t.lxPlaylistKey === key)) {
+        return res.send(err(`该榜单已订阅（任务「${repo.listTasks().find((t) => t.lxPlaylistKey === key)?.lxPlaylistName}」）`))
+      }
+      name = String(b.lxPlaylistName ?? '').trim() || `${chartSource}·${chartName}`
+    } else {
+      if (!key) return res.status(400).send(err('未选择 LX 歌单'))
+      const keyToName = await lxKeyToName()
+      name = keyToName[key] ?? String(b.lxPlaylistName ?? '') ?? key
+    }
     const embyTargets = Array.isArray(b.embyTarget) ? b.embyTarget : b.embyTarget ? [b.embyTarget] : []
     repo.createTask({
       lxPlaylistKey: key,
@@ -217,8 +315,14 @@ export function apiRouter(
       syncMode: b.syncMode === 'full' ? 'full' : 'incremental',
       dedupCheck: bool(b.dedupCheck),
       dedupMinQuality: String(b.dedupMinQuality ?? '').trim() || null,
+      taskType: isChart ? 'chart' : 'playlist',
+      chartSource: isChart ? chartSource : undefined,
+      chartId: isChart ? chartId : undefined,
+      chartName: isChart ? chartName : undefined,
+      maxCount: isChart ? maxCount : undefined,
     })
-    res.send(await taskTableHtml())
+    // 榜单订阅由榜单页刷新；歌单任务刷新任务表
+    res.send(isChart ? '<span class="ok">✅ 订阅已创建</span>' : await taskTableHtml())
   })
 
   r.post('/task/:id/toggle', async (req, res) => {

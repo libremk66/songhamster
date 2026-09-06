@@ -4,11 +4,13 @@ import { QUALITY_ORDER, QUALITY_LABELS } from '../config.js'
 import { LxServerAdapter } from '../adapters/lxserver.js'
 import type { MediaServerAdapter } from '../adapters/media-server.js'
 import { renderPage, VERSION } from '../views/render.js'
+import * as repo from '../store/repo.js'
 import { currentUser } from '../auth.js'
 
 export const NAV = [
   { id: 'connect', label: '连接容器' },
   { id: 'sync-setup', label: '同步设置' },
+  { id: 'charts', label: '榜单订阅' },
   { id: 'options', label: '下载选项' },
   { id: 'progress', label: '任务进度' },
   { id: 'history', label: '历史记录' },
@@ -38,6 +40,11 @@ export function pagesRouter(getCfg: () => AppConfig, lx: LxServerAdapter, emby: 
   })
 
   // 下载选项（全局）
+  // 榜单订阅（浏览 + 我的订阅；订阅列表由 /api/charts/subs 片段加载）
+  r.get('/charts', (_req, res) => {
+    res.type('html').send(renderPage('charts', base('charts', _req)))
+  })
+
   r.get('/options', (_req, res) => {
     res.type('html').send(renderPage('options', { ...base('options', _req), qOrder: QUALITY_ORDER, qLabels: QUALITY_LABELS }))
   })
