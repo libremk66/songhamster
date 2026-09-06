@@ -1,4 +1,14 @@
 <% var TL = { emby: 'Emby', navidrome: 'Navidrome', daoliyu: '道理鱼', subsonic: 'Subsonic（飞牛/音云等）', jellyfin: 'Jellyfin' } %>
+<% var TC = { emby: '#0ea5e9', navidrome: '#a78bfa', daoliyu: '#f59e0b', subsonic: '#34d399', jellyfin: '#f472b6' } /* 服务识别色 */ %>
+<style>
+  /* 媒体服务器目标瓦片:纯底色区分,选中加深 */
+  .svc-tile { border-radius: .5rem; border-width: 2px; transition: background .15s, border-color .15s;
+              background: color-mix(in oklab, var(--svc) 12%, transparent);
+              border-color: color-mix(in oklab, var(--svc) 35%, transparent); }
+  .svc-tile:hover { background: color-mix(in oklab, var(--svc) 20%, transparent); }
+  .peer:checked ~ .svc-tile { background: color-mix(in oklab, var(--svc) 26%, transparent);
+                              border-color: var(--svc); box-shadow: 0 0 0 1px color-mix(in oklab, var(--svc) 55%, transparent); }
+</style>
 <div class="space-y-4">
 
   <!-- ===== 页头 ===== -->
@@ -66,21 +76,13 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-        <% var targets = [['emby','Emby','E'],['navidrome','Navidrome','N'],['daoliyu','道理鱼','鱼'],['subsonic','Subsonic','S'],['jellyfin','Jellyfin','J']] %>
-        <% for (const [val, name, letter] of targets) { %>
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+        <% var targets = ['emby','navidrome','daoliyu','subsonic','jellyfin'] %>
+        <% for (const val of targets) { %>
         <label class="cursor-pointer">
           <input type="radio" name="target" value="<%= val %>" class="peer sr-only"
                  <%= cfg.target === val ? 'checked' : '' %> onchange="markTargetChange()">
-          <div class="relative rounded-xl border-2 border-base-300 bg-base-100 px-3 py-2.5 flex flex-col items-center gap-1.5
-                      hover:border-base-content/40 transition-colors
-                      peer-checked:border-primary peer-checked:bg-primary/5">
-            <% if (cfg.target === val) { %>
-              <span class="absolute left-2.5 top-2 badge badge-success badge-xs">当前</span>
-            <% } %>
-            <span class="w-8 h-8 rounded-lg bg-primary/12 text-primary font-bold text-sm flex items-center justify-center"><%= letter %></span>
-            <span class="text-sm font-medium text-center leading-tight"><%= name %></span>
-          </div>
+          <div class="svc-tile px-2 py-2 text-sm font-medium text-center" style="--svc:<%= TC[val] %>"><%= TL[val] %></div>
         </label>
         <% } %>
       </div>
