@@ -128,6 +128,10 @@ export const LAYOUT = `<!doctype html>
     /* 语义次级文字色(LxBridge 借鉴:固定灰阶代替 opacity 混用,主题变量半透明稳定) */
     .c-sub { color: oklch(var(--bc) / 0.62); }  /* 说明/提示级 */
     .c-mid { color: oklch(var(--bc) / 0.78); }  /* 弱强调级(原 opacity-70/80 用途) */
+    /* 通用栅格(全站共用:表单双列 / 标签行)——tailwind 变体类在项目内不可靠,统一自带 CSS */
+    .fg { display: grid; grid-template-columns: 1fr; gap: .75rem 1.25rem; }
+    @media (min-width: 768px) { .fg { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .flow-label-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .3rem; }
 
     /* ===== 兼容 Pico 旧类（迁移期间过渡，逐步移除） ===== */
     body { font-size: 13px; }
