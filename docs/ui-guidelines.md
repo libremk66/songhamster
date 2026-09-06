@@ -100,7 +100,8 @@ setsid bash -c 'nohup npm run dev >> server.log 2>&1 < /dev/null & echo $! > ser
 | connect(连接容器) | ✅ 已完成(双栏布局) |
 | login | ⚪ 保持 Pico 独立页,不动 |
 | sync-setup(歌单同步) | ✅ 已完成(2026-09-06,照 connect 规范) |
-| options / settings | 🟡 表单页待迁(照 connect 规范) |
+| options(下载选项) | ✅ 已完成(2026-09-06) |
+| settings | 🟡 表单页待迁(照 connect 规范) |
 | charts(榜单订阅) | ✅ 已完成(2026-09-06) |
 | library / progress / history / logs | 🟡 内容页待迁(卡片+表格) |
 | partials ×9(task-table/progress-table/dupe-*/upgrade-*/history-items/chart-subs) | 🟡 与宿主页同迁 |
