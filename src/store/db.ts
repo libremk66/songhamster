@@ -11,7 +11,7 @@ export interface SyncTaskRow {
   id: number
   lxPlaylistKey: string
   lxPlaylistName: string
-  taskType: 'playlist' | 'chart'
+  taskType: 'playlist' | 'chart' | 'adhoc'
   chartSource: string | null
   chartId: string | null
   chartName: string | null

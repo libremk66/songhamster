@@ -309,7 +309,10 @@ export function apiRouter(
       for (const p of await emby.listPlaylists()) idToName[p.id] = p.name
     } catch { /* Emby 未连接时显示 id */ }
     // 兜底：任务名缺失或仍是 key（旧数据/创建时未解析）→ 用 LX 歌单真实名称
-    const tasks = repo.listTasks().map((t) => {
+    const tasks = repo
+      .listTasks()
+      .filter((t) => t.taskType !== 'adhoc') // 隐藏内部任务（手动下载容器）
+      .map((t) => {
       const looksKey = !t.lxPlaylistName || t.lxPlaylistName === t.lxPlaylistKey || t.lxPlaylistName.startsWith('user:') || t.lxPlaylistName === 'loveList'
       return { ...t, lxPlaylistName: looksKey ? keyToName[t.lxPlaylistKey] ?? t.lxPlaylistKey : t.lxPlaylistName }
     })
