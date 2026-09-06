@@ -8,6 +8,10 @@
   .svc-tile:hover { background: color-mix(in oklab, var(--svc) 20%, transparent); }
   .peer:checked ~ .svc-tile { background: color-mix(in oklab, var(--svc) 26%, transparent);
                               border-color: var(--svc); box-shadow: 0 0 0 1px color-mix(in oklab, var(--svc) 55%, transparent); }
+  /* 左侧服务器列表行:横线分隔、行内居中 */
+  .svc-row { text-align: center; padding: .5rem .25rem; font-size: .8125rem; transition: background .15s; }
+  .svc-row:hover { background: color-mix(in oklab, var(--sfg) 12%, transparent); }
+  .peer:checked ~ .svc-row { background: color-mix(in oklab, var(--sfg) 22%, transparent); color: var(--sfg-deep); font-weight: 650; }
 </style>
 <div class="space-y-4">
 
@@ -86,15 +90,12 @@
         </div>
       </div>
       <p class="text-[11px] c-sub leading-relaxed">同步入库与播放列表指向所选服务器。切换前建议先暂停任务。</p>
-      <div class="flex flex-col gap-1.5">
+      <div class="border border-base-300 rounded-lg overflow-hidden divide-y divide-base-200">
         <% for (const val of targets) { %>
-        <label class="cursor-pointer block">
+        <label class="block cursor-pointer">
           <input type="radio" name="target" value="<%= val %>" class="peer sr-only"
                  <%= cfg.target === val ? 'checked' : '' %> onchange="markTargetChange()">
-          <div class="svc-tile flex items-center gap-2.5 w-full px-3 py-1.5 text-sm font-medium" style="--svc:var(--sfg)">
-            <span class="w-2 h-2 rounded-full shrink-0" style="background:var(--svc)"></span>
-            <%= TL[val] %>
-          </div>
+          <div class="svc-row w-full" style="--svc:var(--sfg)"><%= TL[val] %></div>
         </label>
         <% } %>
       </div>
