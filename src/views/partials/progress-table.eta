@@ -1,32 +1,43 @@
-<% if (running) { %><p class="ok">⏳ 有任务正在同步中…</p><% } %>
-<% for (const t of tasks) { %>
-<article>
-  <header>
-    <strong><%= t.lxPlaylistName %></strong>
-    <small class="hint">（<%= t.syncMode === 'full' ? '完全' : '增量' %> · 上次：<%= t.lastResult ?? '从未' %>）</small>
-    <button class="btn-sm" style="float:right" hx-post="/api/task/<%= t.id %>/run" hx-target="closest header">▶ 立即同步</button>
-  </header>
-  <table>
-    <thead><tr><th>歌曲</th><th>歌手</th><th>音质</th><th>状态</th><th>失败原因</th><th>更新时间</th></tr></thead>
-    <tbody>
-      <% const rows = statusByTask[t.id] || [] %>
-      <% if (!rows.length) { %><tr><td colspan="6" class="hint">暂无记录（源歌单可能有歌但未同步过）</td></tr><% } %>
-      <% for (const s of rows) { %>
-      <tr>
-        <td><%= s.songName %></td>
-        <td><%= s.singer %></td>
-        <td><%= s.quality ?? '—' %></td>
-        <td>
-          <% if (s.status === 'success') { %><span class="ok">✅ 成功</span>
-          <% } else if (s.status === 'unsatisfied') { %><span class="bad">⏭ 未满足</span>
-          <% } else if (s.status === 'dedup') { %><span class="hint">🔍 查重跳过</span>
-          <% } else { %><span class="bad">❌ <%= s.status %></span><% } %>
-        </td>
-        <td><small class="hint"><%= s.errorReason ?? '' %></small></td>
-        <td><small class="hint"><%= fmtLocal(s.updatedAt, true) %></small></td>
-      </tr>
-      <% } %>
-    </tbody>
-  </table>
-</article>
+<% if (running) { %>
+<div class="alert alert-warning text-sm py-2 rounded-lg mb-3">⏳ 有任务正在同步中…</div>
 <% } %>
+<div class="space-y-2">
+<% for (const t of tasks) { %>
+<div class="rounded-lg border border-base-300 bg-base-100 shadow-sm overflow-hidden">
+  <header class="flex flex-wrap items-center gap-2 px-3 py-2 bg-base-200/50 border-b border-base-200">
+    <strong class="text-sm"><%= t.lxPlaylistName %></strong>
+    <span class="text-xs c-sub">（<%= t.syncMode === 'full' ? '完全' : '增量' %> · 上次：<%= t.lastResult ?? '从未' %>）</span>
+    <span class="flex-1"></span>
+    <button class="btn btn-primary btn-xs" hx-post="/api/task/<%= t.id %>/run" hx-target="closest header">▶ 立即同步</button>
+  </header>
+  <div class="overflow-x-auto">
+    <table class="table table-sm w-full text-sm">
+      <thead>
+        <tr class="c-sub">
+          <th>歌曲</th><th>歌手</th><th>音质</th><th>状态</th><th>失败原因</th><th>更新时间</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% const rows = statusByTask[t.id] || [] %>
+        <% if (!rows.length) { %><tr><td colspan="6" class="hint">暂无记录（源歌单可能有歌但未同步过）</td></tr><% } %>
+        <% for (const s of rows) { %>
+        <tr>
+          <td><%= s.songName %></td>
+          <td><%= s.singer %></td>
+          <td><%= s.quality ?? '—' %></td>
+          <td>
+            <% if (s.status === 'success') { %><span class="st-ok">✅ 成功</span>
+            <% } else if (s.status === 'unsatisfied') { %><span class="st-warn">⏭ 未满足</span>
+            <% } else if (s.status === 'dedup') { %><span class="st-skip">🔍 查重跳过</span>
+            <% } else { %><span class="st-bad">❌ <%= s.status %></span><% } %>
+          </td>
+          <td><small class="c-sub"><%= s.errorReason ?? '' %></small></td>
+          <td><small class="c-sub"><%= fmtLocal(s.updatedAt, true) %></small></td>
+        </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<% } %>
+</div>
