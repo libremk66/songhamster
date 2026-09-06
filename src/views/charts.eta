@@ -1,83 +1,121 @@
-<h2>榜单订阅</h2>
+<style>
+  /* 榜单浏览双栏:左榜单列表(34rem 弹性)、右歌曲区 */
+  .ch2 { display: grid; grid-template-columns: minmax(0, 34rem) minmax(0, 1fr); gap: 1rem; align-items: start; }
+  @media (max-width: 1023.98px) { .ch2 { grid-template-columns: 1fr; } }
+  /* 服务端片段里的旧式裸按钮:统一描边绿,去 pico 蓝 */
+  #ch-boards button, #ch-songs-box button {
+    background: transparent; border: 1px solid oklch(var(--bc) / 0.3); border-radius: .375rem;
+    padding: .1rem .55rem; font-size: .75rem; line-height: 1.5; color: var(--sfg-deep);
+  }
+  #ch-boards button:hover, #ch-songs-box button:hover { background: color-mix(in oklab, var(--sfg) 18%, transparent); }
+  #ch-boards button:disabled, #ch-songs-box button:disabled { opacity: .5; cursor: not-allowed; }
+  /* 通用:表单双列栅格 / 标签行(与 connect/sync-setup 同源) */
+  .fg { display: grid; grid-template-columns: 1fr; gap: .75rem 1.25rem; }
+  @media (min-width: 768px) { .fg { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .flow-label-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .3rem; }
+</style>
+<div class="space-y-4">
 
-<!-- ==================== 我的榜单订阅 ==================== -->
-<div id="ch-subs-section" style="margin-bottom:1rem">
-  <h3 style="margin-bottom:.3rem">我的榜单订阅</h3>
-  <div class="btn-row" style="margin:.2rem 0">
-    <button type="button" onclick="chToggleForm()" id="ch-new-btn">＋ 新建榜单订阅</button>
-    <span id="ch-subs-msg" class="msg"></span>
-    <span class="hint">订阅 = 定时拉取榜单 → 自动下载新上榜歌曲到 歌单同步/&lt;榜单名&gt;/ → 加入 <%= targetName %> 同名播放列表（归档：跌出榜单不删除文件）</span>
-  </div>
+  <!-- ===== 页头 ===== -->
+  <header>
+    <div class="flex items-center gap-2 flex-wrap">
+      <h2 class="text-lg font-extrabold tracking-tight">榜单订阅</h2>
+      <span class="badge badge-ghost badge-sm font-semibold px-2 py-1">v<%= version %></span>
+    </div>
+  </header>
 
-  <form id="ch-form" style="display:none" hx-post="/api/tasks" hx-swap="none" hx-on::after-request="chFormDone(event)">
-    <article>
-      <h3>新建订阅</h3>
-      <div class="grid2">
+  <!-- ===== 我的榜单订阅 ===== -->
+  <section id="ch-subs-section" class="card bg-base-100 border border-base-300 shadow-sm">
+    <div class="card-body gap-3">
+      <div class="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <label>平台
-            <select name="chartSource" id="chf-source" onchange="chfLoadBoards()">
+          <h3 class="card-title text-base">我的榜单订阅</h3>
+          <p class="text-xs c-sub mt-0.5">订阅 = 定时拉榜 → 自动下载新上榜歌曲 → 加入 <%= targetName %> 同名播放列表（跌出榜单不删文件）</p>
+        </div>
+        <button type="button" id="ch-new-btn" class="btn btn-primary" onclick="chToggleForm()">＋ 新建榜单订阅</button>
+      </div>
+
+      <form id="ch-form" style="display:none" hx-post="/api/tasks" hx-swap="none" hx-on::after-request="chFormDone(event)"
+            class="rounded-lg border border-base-300 bg-base-200/50 p-3">
+        <h4 class="text-sm font-bold mb-2">新建订阅</h4>
+        <div class="fg">
+          <label class="form-control w-full">
+            <span class="label-text mb-1">平台</span>
+            <select name="chartSource" id="chf-source" onchange="chfLoadBoards()" class="select select-bordered w-full">
               <% for (const p of [{k:'tx',n:'QQ音乐'},{k:'kw',n:'酷我音乐'},{k:'wy',n:'网易云音乐'},{k:'kg',n:'酷狗音乐'},{k:'mg',n:'咪咕音乐'},{k:'bd',n:'百度音乐'}]) { %>
               <option value="<%= p.k %>"><%= p.n %></option>
               <% } %>
             </select>
           </label>
-        </div>
-        <div>
-          <label>榜单
-            <select name="chartId" id="chf-board" onchange="chfBoardPicked()"><option value="">选择平台后加载…</option></select>
+          <label class="form-control w-full">
+            <span class="label-text mb-1">榜单</span>
+            <select name="chartId" id="chf-board" onchange="chfBoardPicked()" class="select select-bordered w-full"><option value="">选择平台后加载…</option></select>
+          </label>
+          <label class="form-control w-full">
+            <span class="label-text mb-1">任务名（默认：平台+榜单名）</span>
+            <input name="lxPlaylistName" id="chf-name" placeholder="如 QQ音乐·热歌榜" class="input input-bordered w-full">
+          </label>
+          <label class="form-control w-full">
+            <span class="label-text mb-1">下载范围（榜单前 N 首，0=全榜）</span>
+            <input type="number" name="maxCount" value="30" min="0" class="input input-bordered w-full">
+          </label>
+          <label class="form-control w-full" style="grid-column:1/-1">
+            <span class="label-text mb-1">同步频率（cron 表达式）</span>
+            <input name="cronExpr" value="0 8 * * *" placeholder="0 8 * * *" class="input input-bordered w-full font-mono text-xs">
+            <span class="text-xs c-sub mt-1">⚠️ 各榜单刷新周期不同（部分每日、部分每周），建议按榜单特点自定义 cron；留空则仅手动同步。默认每天早上 8 点。</span>
           </label>
         </div>
-        <div><label>任务名（默认：平台+榜单名）<input name="lxPlaylistName" id="chf-name" placeholder="如 QQ音乐·热歌榜"></label></div>
-        <div>
-          <label>下载范围（榜单前 N 首，0=全榜）<input type="number" name="maxCount" value="30" min="0" style="width:7rem"></label>
-        </div>
-        <div style="grid-column:span 2">
-          <label>同步频率（cron 表达式）<input name="cronExpr" value="0 8 * * *" placeholder="0 8 * * *" style="width:14rem"></label>
-          <p class="hint" style="margin:0">⚠️ 各榜单刷新周期不同（部分每日、部分每周），建议按榜单特点自定义 cron；留空则仅手动同步。默认每天早上 8 点。</p>
-        </div>
-        <div>
-          <label style="display:flex;align-items:center;gap:.3rem;margin-top:1.2rem">
-            <input type="checkbox" name="createSameNamePlaylist" value="1" checked> 同步到新建同名 <%= targetName %> 播放列表
+        <div class="flex flex-wrap items-center gap-4 mt-2">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" name="createSameNamePlaylist" value="1" checked class="checkbox checkbox-sm">
+            <span class="text-sm">同步到新建同名 <%= targetName %> 播放列表</span>
           </label>
+          <span id="ch-subs-msg" class="text-sm"></span>
         </div>
-      </div>
-      <input type="hidden" name="chartName" id="chf-chartname" value="">
-      <input type="hidden" name="taskType" value="chart">
-      <input type="hidden" name="syncMode" value="incremental">
-      <div class="btn-row">
-        <button type="submit">创建订阅</button>
-        <span class="hint">创建后出现在上方列表，点「立即同步」跑第一次（首次会下载榜单前 N 首中尚未收录的歌）</span>
-      </div>
-    </article>
-  </form>
+        <input type="hidden" name="chartName" id="chf-chartname" value="">
+        <input type="hidden" name="taskType" value="chart">
+        <input type="hidden" name="syncMode" value="incremental">
+        <div class="card-actions flex items-center gap-2 border-t border-base-200 pt-3 mt-3">
+          <button type="submit" class="btn btn-primary">创建订阅</button>
+          <span class="text-xs c-sub">创建后出现在上方列表，点「立即同步」跑第一次</span>
+        </div>
+      </form>
 
-  <div id="ch-subs-rows" hx-get="/api/charts/subs" hx-trigger="load">加载中…</div>
-</div>
-
-<!-- ==================== 榜单浏览 ==================== -->
-<h3 style="margin-bottom:.3rem">榜单浏览</h3>
-<div style="display:flex;gap:.8rem;align-items:flex-start;flex-wrap:wrap">
-  <div style="flex:1 1 26rem;min-width:24rem">
-    <article style="margin-bottom:0">
-      <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
-        <label style="margin:0">平台
-          <select id="ch-source" style="width:10rem" onchange="chLoadBoards()">
-            <% for (const p of [{k:'tx',n:'QQ音乐'},{k:'kw',n:'酷我音乐'},{k:'wy',n:'网易云音乐'},{k:'kg',n:'酷狗音乐'},{k:'mg',n:'咪咕音乐'},{k:'bd',n:'百度音乐'}]) { %>
-            <option value="<%= p.k %>"><%= p.n %></option>
-            <% } %>
-          </select>
-        </label>
-        <button type="button" class="btn-sm secondary" onclick="chLoadBoards(true)">🔄 刷新榜单</button>
+      <div id="ch-subs-rows" hx-get="/api/charts/subs" hx-trigger="load">
+        <p class="c-sub text-xs py-6 text-center">加载中…</p>
       </div>
-      <p class="hint" style="margin:.3rem 0 .2rem">榜单每日/每周在变——此页始终显示<b>当下榜单</b>；lxserver 建议缓存 10 分钟，点刷新强制重拉。想订阅的点「订阅」自动填到上方新建表单。</p>
-      <div id="ch-boards" style="margin-top:.3rem">加载中…</div>
-    </article>
-  </div>
-  <div style="flex:2 1 36rem;min-width:30rem">
-    <div id="ch-songs-box" style="min-height:8rem">
-      <p class="hint">👈 在左侧选榜单点「查看歌曲」，这里显示当下榜单内容（可勾选手动下载）</p>
     </div>
-  </div>
+  </section>
+
+  <!-- ===== 榜单浏览 ===== -->
+  <section class="card bg-base-100 border border-base-300 shadow-sm">
+    <div class="card-body gap-3">
+      <h3 class="card-title text-base">榜单浏览</h3>
+      <div class="ch2">
+        <div class="rounded-lg border border-base-300 p-3">
+          <div class="flow-label-row">
+            <span class="label-text font-semibold">平台</span>
+            <div class="flex items-center gap-2">
+              <select id="ch-source" class="select select-bordered" onchange="chLoadBoards()" style="width:10rem">
+                <% for (const p of [{k:'tx',n:'QQ音乐'},{k:'kw',n:'酷我音乐'},{k:'wy',n:'网易云音乐'},{k:'kg',n:'酷狗音乐'},{k:'mg',n:'咪咕音乐'},{k:'bd',n:'百度音乐'}]) { %>
+                <option value="<%= p.k %>"><%= p.n %></option>
+                <% } %>
+              </select>
+              <button type="button" class="btn btn-outline btn-xs px-2" onclick="chLoadBoards(true)">🔄 刷新榜单</button>
+            </div>
+          </div>
+          <p class="text-xs c-sub mt-2 leading-relaxed">榜单每日/每周在变——此页显示<b>当下榜单</b>；lxserver 建议缓存 10 分钟，点刷新强制重拉。想订阅的点「订阅」自动填到上方新建表单。</p>
+          <div id="ch-boards" class="mt-2 space-y-1">加载中…</div>
+        </div>
+        <div class="rounded-lg border border-base-300 p-3">
+          <div id="ch-songs-box" style="min-height:10rem">
+            <p class="text-xs c-sub">👈 在左侧选榜单点「查看歌曲」，这里显示当下榜单内容（可勾选手动下载）</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
 </div>
 
 <script>
