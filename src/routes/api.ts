@@ -504,6 +504,15 @@ export function apiRouter(
     const t = repo.getTask(id)
     if (!t) return res.status(404).send(err('任务不存在'))
     const b = req.body ?? {}
+    if (t.taskType === 'chart') {
+      repo.updateTask(id, {
+        lxPlaylistName: String(b.lxPlaylistName ?? '').trim() || t.lxPlaylistName,
+        maxCount: Math.max(0, Number(b.maxCount) || 30),
+        createSameNamePlaylist: bool(b.createSameNamePlaylist) ? 1 : 0,
+        cronExpr: String(b.cronExpr ?? '').trim() || null,
+      })
+      return res.send(await taskTableHtml())
+    }
     const embyTargets = Array.isArray(b.embyTarget) ? b.embyTarget : b.embyTarget ? [b.embyTarget] : []
     repo.updateTask(id, {
       embyTargetPlaylistIds: JSON.stringify(embyTargets.map(String)),

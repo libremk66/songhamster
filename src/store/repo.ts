@@ -69,10 +69,15 @@ export function updateTask(id: number, patch: Partial<SyncTaskRow>): void {
   const next = { ...cur, ...patch }
   getDb()
     .prepare(
-      `UPDATE sync_task SET lxPlaylistName=?, enabled=?, embyTargetPlaylistIds=?, createSameNamePlaylist=?, cronExpr=?, syncMode=?, lastRunAt=?, lastResult=?, dedupCheck=?, dedupMinQuality=? WHERE id=?`,
+      `UPDATE sync_task SET lxPlaylistName=?, taskType=?, chartSource=?, chartId=?, chartName=?, maxCount=?, enabled=?, embyTargetPlaylistIds=?, createSameNamePlaylist=?, cronExpr=?, syncMode=?, lastRunAt=?, lastResult=?, dedupCheck=?, dedupMinQuality=? WHERE id=?`,
     )
     .run(
       next.lxPlaylistName,
+      next.taskType,
+      next.chartSource,
+      next.chartId,
+      next.chartName,
+      next.maxCount,
       next.enabled,
       next.embyTargetPlaylistIds,
       next.createSameNamePlaylist,

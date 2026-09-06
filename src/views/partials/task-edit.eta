@@ -1,6 +1,18 @@
 <tr class="edit-row">
   <td colspan="8">
     <form class="task-edit-form" hx-post="/api/task/<%= t.id %>/update" hx-target="#task-table" hx-swap="innerHTML">
+      <% if (t.taskType === 'chart') { %>
+      <div class="line"><span>任务名（播放列表/落盘目录同名）</span>
+        <input name="lxPlaylistName" value="<%= t.lxPlaylistName %>" style="width:18rem">
+      </div>
+      <div class="line"><span>下载范围（榜单前 N 首，0=全榜）</span>
+        <input type="number" name="maxCount" value="<%= t.maxCount %>" min="0" style="width:7rem">
+      </div>
+      <div class="line">
+        <label class="opt"><input type="checkbox" name="createSameNamePlaylist" value="1" <%= t.createSameNamePlaylist ? 'checked' : '' %>> 同步到新建同名 <%= targetName %> 播放列表（歌单）</label>
+      </div>
+      <p class="hint">榜单订阅恒为增量（归档只增不删）；平台与榜单不可改——需要换榜请删除后重建。</p>
+      <% } else { %>
       <div class="add-flow">
         <div class="lx-col">
           <label>LX 歌单</label>
@@ -33,6 +45,7 @@
         </select>
         <span class="mode-desc" id="mode-desc-<%= t.id %>"></span>
       </div>
+<% } %>
 <div class="line"><span>定时 cron（空 = 仅手动）</span>
         <input name="cronExpr" value="<%= t.cronExpr || '' %>" placeholder="0 6 * * *">
         <small class="hint">分 时 日 月 周</small>
