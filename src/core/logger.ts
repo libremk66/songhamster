@@ -10,7 +10,9 @@ const RING: LogEntry[] = []
 const MAX = 500
 
 function push(level: Level, msg: string): void {
-  const entry: LogEntry = { ts: new Date().toISOString().slice(11, 19), level, msg }
+  // 显示用本地时间（上海）；存储/排序无关紧要（环形内存日志）
+  const ts = new Date(new Date().getTime() + 8 * 3600_000).toISOString().slice(11, 19)
+  const entry: LogEntry = { ts, level, msg }
   RING.push(entry)
   if (RING.length > MAX) RING.splice(0, RING.length - MAX)
   const fn = level === 'error' ? console.error : level === 'warn' ? console.warn : console.log

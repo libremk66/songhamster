@@ -10,9 +10,9 @@
       <span class="<%= t.enabled ? 'ok' : 'hint' %>"><%= t.enabled ? '● 启用' : '○ 暂停' %></span>
     </div>
     <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-top:.2rem">
-      <small class="hint">上次同步：<%= t.lastRunAt ? t.lastRunAt.slice(5, 19).replace('T', ' ') : '—' %>（<%= t.lastResult || '未跑过' %>）</small>
+      <small class="hint">上次同步：<%= t.lastRunAt ? fmtLocal(t.lastRunAt, true) : '—' %>（<%= t.lastResult || '未跑过' %>）</small>
       <% if (t.lastSnap) { %>
-      <small class="hint">本期榜单 <%= t.lastSnap.totalCount %> 首 ｜ 新上榜 <%= t.lastSnap.newCount %> ｜ 跌出 <%= t.lastSnap.removedCount %>（<%= t.lastSnap.syncedAt.slice(5, 16).replace('T', ' ') %>）</small>
+      <small class="hint">本期榜单 <%= t.lastSnap.totalCount %> 首 ｜ 新上榜 <%= t.lastSnap.newCount %> ｜ 跌出 <%= t.lastSnap.removedCount %>（<%= fmtLocal(t.lastSnap.syncedAt) %>）</small>
       <% } %>
       <span style="flex:1"></span>
       <button type="button" class="btn-sm" hx-post="/api/task/<%= t.id %>/run" hx-swap="none" hx-confirm="立即同步该订阅？将拉取当前榜单并下载范围内新上榜的歌曲。" hx-on::after-request="chSubMsg('<%= t.lxPlaylistName %> 同步已开始，请稍后在任务进度页查看…')">立即同步</button>

@@ -17,6 +17,7 @@ import { probeAudio } from '../core/probe.js'
 import { logger } from '../core/logger.js'
 import { getDb } from '../store/db.js'
 import { renderBody } from '../views/render.js'
+import { fmtLocal } from '../views/fmt.js'
 
 const ok = (msg: string) => `<span class="ok">✅ ${msg}</span>`
 const err = (msg: string) => `<span class="bad">❌ ${msg}</span>`
@@ -519,7 +520,7 @@ export function apiRouter(
         newDurStr: fmtDur(r.newDurationSec),
         newSizeStr: fmtSize(r.newSize),
         newPathShort: r.newPath ? String(r.newPath).split('/').pop() : '',
-        timeStr: String(r.createdAt || '').slice(5, 19).replace('T', ' '),
+        timeStr: fmtLocal(r.createdAt, true),
       }
     })
     res.send(renderBody('partials/upgrade-history', { items }))
@@ -659,7 +660,7 @@ export function apiRouter(
   // 状态面板片段（含忽略列表）
   function renderAutoaddPanel(): string {
     const a = cfg.general.autoadd
-    const last = autoaddStatus.lastScanAt ? autoaddStatus.lastScanAt.slice(5, 19).replace('T', ' ') : '（进程启动后尚未检测）'
+    const last = autoaddStatus.lastScanAt ? fmtLocal(autoaddStatus.lastScanAt, true) : '（进程启动后尚未检测）'
     let html = `<p class="hint">基线歌单 ${a.baselineKeys.length} 个 ｜ 忽略 ${a.ignoredKeys.length} 个 ｜ 上次检测：${last}` +
       (autoaddStatus.lastCreated > 0 ? `，自动创建 ${autoaddStatus.lastCreated} 个（${escapeHtml(autoaddStatus.lastNames.join('、'))}）` : '') + '</p>'
     if (a.ignoredKeys.length) {
@@ -1023,7 +1024,8 @@ export function apiRouter(
     if (!files.length) return html
     for (const b of batches) {
       const bfiles = files.filter((f) => f.batch === b)
-      html += `<details style="margin:.3rem 0"><summary>批次 ${b.slice(5, 19).replace('-', '/')}（${bfiles.length} 个文件）</summary>`
+      const batchIso = b.replace(/(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/, '$1:$2:$3.$4Z') // 批次目录名 → ISO
+      html += `<details style="margin:.3rem 0"><summary>批次 ${fmtLocal(batchIso, true)}（${bfiles.length} 个文件）</summary>`
       for (const f of bfiles) {
         html += `<div style="display:flex;gap:.5rem;align-items:center;margin:.15rem 0;font-size:.85em">` +
           `<span style="word-break:break-all;flex:1">${escapeHtml(f.rel)}（${fmtSize(f.size)}）</span>` +

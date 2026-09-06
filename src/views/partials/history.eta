@@ -1,7 +1,7 @@
 <% for (const b of batches) { %>
 <article style="padding:.6rem .9rem;margin-bottom:.7rem">
   <div class="batch-head">
-    <strong><%= b.startedAt.slice(5, 19).replace('T', ' ') %></strong>
+    <strong><%= fmtLocal(b.startedAt, true) %></strong>
     <span class="hint">
       歌单：<%= b.taskName %>
       · 触发：<%= b.trigger === 'cron' ? '定时' : b.trigger === 'retry' ? '重试' : '手动' %>

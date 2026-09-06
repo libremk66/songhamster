@@ -23,7 +23,7 @@
           <% } else { %><span class="bad">❌ <%= s.status %></span><% } %>
         </td>
         <td><small class="hint"><%= s.errorReason ?? '' %></small></td>
-        <td><small class="hint"><%= s.updatedAt.slice(5, 19).replace('T', ' ') %></small></td>
+        <td><small class="hint"><%= fmtLocal(s.updatedAt, true) %></small></td>
       </tr>
       <% } %>
     </tbody>

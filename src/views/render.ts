@@ -14,14 +14,16 @@ export const VERSION: string = (() => {
   }
 })()
 
+import { fmtLocal } from './fmt.js'
+
 const eta = new Eta({ views: VIEWS_DIR, cache: true, useWith: true })
 // eta v4：resolvePath/readFile 是实例属性（配置后 render('file.eta') 按文件名读模板）
 eta.resolvePath = (tpl: string) => (path.isAbsolute(tpl) ? tpl : path.join(VIEWS_DIR, tpl))
 eta.readFile = (p: string) => readFileSync(p, 'utf8')
 
-/** 渲染视图文件（无布局，body 片段） */
+/** 渲染视图文件（无布局，body 片段）——自动注入 fmtLocal（时间本地化展示） */
 export function renderBody(name: string, data: Record<string, unknown>): string {
-  return eta.render(name + '.eta', data)
+  return eta.render(name + '.eta', { fmtLocal, ...data })
 }
 
 /** 渲染整页：body 模板 + 布局包裹 */

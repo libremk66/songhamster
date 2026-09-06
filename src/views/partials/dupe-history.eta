@@ -13,7 +13,7 @@
 <% for (const r of rows) { %>
 <div class="dup-rec" style="border-bottom:1px solid #eee;padding:.35rem 0">
   <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
-    <small><%= r.createdAt.slice(5, 19).replace('T', ' ') %></small>
+    <small><%= fmtLocal(r.createdAt, true) %></small>
     <small class="hint">重复 <%= r.groupsCount %> 组 ｜ 自动清理候选 <%= r.autoCount %> ｜ 手动候选 <%= r.manualCount %></small>
     <small class="hint"><%= r.threshold ? '门槛：' + r.threshold : '仅查重' %></small>
     <button type="button" class="btn-sm secondary" onclick="dupeRowExpand(this, <%= r.id %>)">展开查看</button>
