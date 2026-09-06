@@ -13,9 +13,20 @@
 
   <!-- ===== 页头 ===== -->
   <header class="flex flex-wrap items-center justify-between gap-3">
-    <div>
-      <h2 class="text-lg font-extrabold tracking-tight">连接容器</h2>
-      <p class="text-sm opacity-60 mt-0.5">同步链路 = LX 下载源 → 目标媒体服务器。填好地址先「测试连接」，再选定目标生效。</p>
+    <div class="min-w-0">
+      <div class="flex items-center gap-2 flex-wrap">
+        <h2 class="text-lg font-extrabold tracking-tight">连接容器</h2>
+        <span class="badge badge-ghost badge-sm font-semibold px-2 py-1">v<%= version %></span>
+      </div>
+      <p class="text-xs c-sub mt-1 leading-relaxed">同步链路 = LX 下载源 → 目标媒体服务器。填好地址先「测试连接」，再选定目标生效。</p>
+      <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
+        <% if (cfg.lxserver.apiKey) { %>
+          <span class="badge badge-outline badge-sm gap-1 font-normal px-2 py-1"><span class="w-1.5 h-1.5 rounded-full bg-success inline-block"></span>LX 下载源已配置</span>
+        <% } else { %>
+          <span class="badge badge-outline badge-sm gap-1 font-normal px-2 py-1"><span class="w-1.5 h-1.5 rounded-full bg-warning inline-block"></span>LX 下载源未配置</span>
+        <% } %>
+        <span class="badge badge-outline badge-sm gap-1 font-normal px-2 py-1"><span class="w-1.5 h-1.5 rounded-full inline-block" style="background:<%= TC[cfg.target] %>"></span>目标 · <%= TL[cfg.target] %></span>
+      </div>
     </div>
   </header>
 
@@ -29,29 +40,29 @@
           <h3 class="card-title text-base">连接 LXSyncServer
             <span class="badge badge-ghost badge-sm font-normal">下载源</span>
           </h3>
-          <p class="text-xs opacity-60">LX Music 歌单同步服务 —— 歌曲下载、标签/封面/歌词写入都由它完成</p>
+          <p class="text-xs c-sub">LX Music 歌单同步服务 —— 歌曲下载、标签/封面/歌词写入都由它完成</p>
         </div>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3">
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1">服务地址</span>
+          <span class="label-text mb-1">服务地址</span>
           <input name="baseUrl" value="<%= cfg.lxserver.baseUrl %>" placeholder="http://127.0.0.1:19527" class="input input-bordered w-full">
         </label>
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1">API key</span>
+          <span class="label-text mb-1">API key</span>
           <div class="join w-full">
             <input type="password" name="apiKey" id="lx-key" value="<%= cfg.lxserver.apiKey %>" autocomplete="off" class="input input-bordered join-item w-full">
             <button type="button" class="btn btn-outline join-item px-3" onclick="toggleKey('lx-key', this)" title="显示/隐藏">👁</button>
           </div>
         </label>
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1">下载用户名（x-user-name）</span>
+          <span class="label-text mb-1">下载用户名（x-user-name）</span>
           <input name="username" value="<%= cfg.lxserver.username %>" placeholder="king" class="input input-bordered w-full">
         </label>
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1">LX 下载目录<span class="text-error">*</span></span>
+          <span class="label-text mb-1">LX 下载目录<span class="text-error">*</span></span>
           <input name="downloadRoot" value="<%= cfg.lxserver.downloadRoot %>" placeholder="容器部署: /data/music；本机直跑: 宿主机路径" class="input input-bordered w-full">
-          <span class="text-xs opacity-60 mt-1">本项目视角路径（本项目要读写它）</span>
+          <span class="text-xs c-sub mt-1">本项目视角路径（本项目要读写它）</span>
         </label>
       </div>
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-4">
@@ -74,7 +85,7 @@
           <span class="font-bold badge badge-success badge-xs"><%= TL[cfg.target] %></span>
         </div>
       </div>
-      <p class="text-[11px] opacity-60 leading-relaxed">同步入库与播放列表指向所选服务器。切换前建议先暂停任务。</p>
+      <p class="text-[11px] c-sub leading-relaxed">同步入库与播放列表指向所选服务器。切换前建议先暂停任务。</p>
       <div class="flex flex-col gap-1.5">
         <% for (const val of targets) { %>
         <label class="cursor-pointer block">
@@ -109,24 +120,24 @@
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3">
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1">服务地址</span>
+          <span class="label-text mb-1">服务地址</span>
           <input name="baseUrl" value="<%= cfg.emby.baseUrl %>" placeholder="http://127.0.0.1:8096" class="input input-bordered w-full">
         </label>
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1">API key</span>
+          <span class="label-text mb-1">API key</span>
           <div class="join w-full">
             <input type="password" name="apiKey" id="emby-key" value="<%= cfg.emby.apiKey %>" autocomplete="off" class="input input-bordered join-item w-full">
             <button type="button" class="btn btn-outline join-item px-3" onclick="toggleKey('emby-key', this)" title="显示/隐藏">👁</button>
           </div>
         </label>
         <label class="form-control w-full md:col-span-2">
-          <span class="label-text text-sm font-medium mb-1">媒体库根路径<span class="text-error">*</span></span>
+          <span class="label-text mb-1">媒体库根路径<span class="text-error">*</span></span>
           <input name="libraryRoot" value="<%= cfg.emby.libraryRoot %>" placeholder="容器部署: /media/music；本机直跑: Emby 里显示的库路径" class="input input-bordered w-full">
-          <span class="text-xs opacity-60 mt-1">Emby 容器视角的媒体库文件夹路径（Emby 后台该库指向的目录）</span>
+          <span class="text-xs c-sub mt-1">Emby 容器视角的媒体库文件夹路径（Emby 后台该库指向的目录）</span>
         </label>
       </div>
       <% if (cfg.emby.mediaLibraryId) { %>
-        <p class="text-xs opacity-60 flex items-center gap-2">当前媒体库 Id：
+        <p class="text-xs c-sub flex items-center gap-2">当前媒体库 Id：
           <code class="bg-base-200 px-1.5 py-0.5 rounded text-xs"><%= cfg.emby.mediaLibraryId %></code>
         </p>
       <% } %>
@@ -153,11 +164,11 @@
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3">
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1">服务地址</span>
+          <span class="label-text mb-1">服务地址</span>
           <input name="baseUrl" value="<%= cfg.navidrome.baseUrl %>" placeholder="http://127.0.0.1:4533" class="input input-bordered w-full">
         </label>
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1">账号密码（登录换 token）</span>
+          <span class="label-text mb-1">账号密码（登录换 token）</span>
           <div class="join w-full">
             <input name="username" value="<%= cfg.navidrome.username %>" placeholder="用户名" class="input input-bordered join-item flex-1">
             <input type="password" name="password" id="nd-key" value="<%= cfg.navidrome.password %>" autocomplete="off" class="input input-bordered join-item flex-1">
@@ -165,13 +176,13 @@
           </div>
         </label>
         <label class="form-control w-full md:col-span-2">
-          <span class="label-text text-sm font-medium mb-1">媒体库根路径<span class="text-error">*</span></span>
+          <span class="label-text mb-1">媒体库根路径<span class="text-error">*</span></span>
           <input name="libraryRoot" value="<%= cfg.navidrome.libraryRoot %>" placeholder="如 /D8/MOVIEPILOT/MUSIC/MusicTagWeb/LINK/LXSERVER/king" class="input input-bordered w-full">
-          <span class="text-xs opacity-60 mt-1">Navidrome 容器视角路径；应等于 LX 下载目录在其容器内的路径。无 API key，用普通账号登录（建议专用低权限账号），入库由 Navidrome 自动监听完成</span>
+          <span class="text-xs c-sub mt-1">Navidrome 容器视角路径；应等于 LX 下载目录在其容器内的路径。无 API key，用普通账号登录（建议专用低权限账号），入库由 Navidrome 自动监听完成</span>
         </label>
       </div>
       <% if (cfg.navidrome.libraryId) { %>
-        <p class="text-xs opacity-60 flex items-center gap-2">当前媒体库 Id：
+        <p class="text-xs c-sub flex items-center gap-2">当前媒体库 Id：
           <code class="bg-base-200 px-1.5 py-0.5 rounded text-xs"><%= cfg.navidrome.libraryId %></code>
         </p>
       <% } %>
@@ -198,11 +209,11 @@
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3">
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1">服务地址</span>
+          <span class="label-text mb-1">服务地址</span>
           <input name="baseUrl" value="<%= cfg.daoliyu.baseUrl %>" placeholder="http://127.0.0.1:4000" class="input input-bordered w-full">
         </label>
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1">管理员账号（邮箱）与密码</span>
+          <span class="label-text mb-1">管理员账号（邮箱）与密码</span>
           <div class="join w-full">
             <input name="username" value="<%= cfg.daoliyu.username %>" placeholder="管理员邮箱" class="input input-bordered join-item flex-[1.4]">
             <input type="password" name="password" id="dly-key" value="<%= cfg.daoliyu.password %>" autocomplete="off" class="input input-bordered join-item flex-1">
@@ -210,9 +221,9 @@
           </div>
         </label>
         <label class="form-control w-full md:col-span-2">
-          <span class="label-text text-sm font-medium mb-1">媒体库根路径<span class="text-error">*</span></span>
+          <span class="label-text mb-1">媒体库根路径<span class="text-error">*</span></span>
           <input name="libraryRoot" value="<%= cfg.daoliyu.libraryRoot %>" placeholder="如 /D8/MOVIEPILOT/MUSIC/MusicTagWeb/LINK/LXSERVER/king" class="input input-bordered w-full">
-          <span class="text-xs opacity-60 mt-1">目录驱动：道理鱼 Web「多媒体库 → 歌单目录」选中 <code class="bg-base-200 px-1 rounded">歌单同步</code> 后，下载落盘即自动入库，无需 API 维护播放列表</span>
+          <span class="text-xs c-sub mt-1">目录驱动：道理鱼 Web「多媒体库 → 歌单目录」选中 <code class="bg-base-200 px-1 rounded">歌单同步</code> 后，下载落盘即自动入库，无需 API 维护播放列表</span>
         </label>
       </div>
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-4">
@@ -238,11 +249,11 @@
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3">
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1">服务地址<span class="text-xs opacity-60 font-normal">（根地址，无需 /rest）</span></span>
+          <span class="label-text mb-1">服务地址<span class="text-xs c-sub font-normal">（根地址，无需 /rest）</span></span>
           <input name="baseUrl" value="<%= cfg.subsonic.baseUrl %>" placeholder="http://127.0.0.1:4533" class="input input-bordered w-full">
         </label>
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1">账号密码</span>
+          <span class="label-text mb-1">账号密码</span>
           <div class="join w-full">
             <input name="username" value="<%= cfg.subsonic.username %>" placeholder="用户名" class="input input-bordered join-item flex-1">
             <input type="password" name="password" id="sub-key" value="<%= cfg.subsonic.password %>" autocomplete="off" class="input input-bordered join-item flex-1">
@@ -250,7 +261,7 @@
           </div>
         </label>
       </div>
-      <p class="text-xs opacity-60 flex items-start gap-2 leading-relaxed">
+      <p class="text-xs c-sub flex items-start gap-2 leading-relaxed">
         <span>⚠️</span>
         <span>通用 Subsonic/OpenSubsonic 协议（Navidrome、音云等皆可）。协议限制：无文件路径（查重可看、回收站定位不可用）、无位深/采样率（24bit 按 FLAC 判定）。</span>
       </p>
@@ -275,24 +286,24 @@
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3">
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1">服务地址</span>
+          <span class="label-text mb-1">服务地址</span>
           <input name="baseUrl" value="<%= cfg.jellyfin.baseUrl %>" placeholder="http://127.0.0.1:8096" class="input input-bordered w-full">
         </label>
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1">API key</span>
+          <span class="label-text mb-1">API key</span>
           <div class="join w-full">
             <input type="password" name="apiKey" id="jf-key" value="<%= cfg.jellyfin.apiKey %>" autocomplete="off" class="input input-bordered join-item w-full">
             <button type="button" class="btn btn-outline join-item px-3" onclick="toggleKey('jf-key', this)" title="显示/隐藏">👁</button>
           </div>
         </label>
         <label class="form-control w-full md:col-span-2">
-          <span class="label-text text-sm font-medium mb-1">媒体库根路径<span class="text-error">*</span></span>
+          <span class="label-text mb-1">媒体库根路径<span class="text-error">*</span></span>
           <input name="libraryRoot" value="<%= cfg.jellyfin.libraryRoot %>" placeholder="如 /D8/MOVIEPILOT/MUSIC/MusicTagWeb/LINK/LXSERVER/king/歌单同步" class="input input-bordered w-full">
-          <span class="text-xs opacity-60 mt-1">Jellyfin 容器视角的媒体库文件夹路径（与 Emby 同源约定）</span>
+          <span class="text-xs c-sub mt-1">Jellyfin 容器视角的媒体库文件夹路径（与 Emby 同源约定）</span>
         </label>
       </div>
       <% if (cfg.jellyfin.mediaLibraryId) { %>
-        <p class="text-xs opacity-60 flex items-center gap-2">当前媒体库 Id：
+        <p class="text-xs c-sub flex items-center gap-2">当前媒体库 Id：
           <code class="bg-base-200 px-1.5 py-0.5 rounded text-xs"><%= cfg.jellyfin.mediaLibraryId %></code>
         </p>
       <% } %>
@@ -316,7 +327,7 @@
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 class="card-title text-base">路径自检</h3>
-          <p class="text-xs opacity-60 mt-0.5">检查下载目录可写、媒体库匹配情况，并给出路径关系提示</p>
+          <p class="text-xs c-sub mt-0.5">检查下载目录可写、媒体库匹配情况，并给出路径关系提示</p>
         </div>
         <button type="button" class="btn btn-outline" hx-post="/api/paths/check" hx-target="#paths-result" hx-swap="innerHTML">运行自检</button>
       </div>
@@ -334,12 +345,12 @@
   ├── 挂给 Emby    → /media/music    媒体库扫描这里
   └── 挂给 本项目  → /data/music     本项目读/移动/洗版</code></pre>
       <p class="text-sm leading-relaxed">界面里两个路径字段填的是<b>不同容器视角</b>的名字：</p>
-      <ul class="list-disc list-inside text-sm opacity-80 space-y-1.5">
+      <ul class="list-disc list-inside text-sm c-mid space-y-1.5">
         <li><b>LX 下载目录</b>：本项目容器内看到的路径（本项目要读写它）——Docker 填 <code class="bg-base-200 px-1 rounded">/data/music</code></li>
         <li><b>媒体库根</b>：你在媒体服务器后台给该音乐媒体库选的<b>文件夹路径</b>（其容器内视角，如 <code class="bg-base-200 px-1 rounded">/media/music/歌单同步</code>）——需先挂载共享目录并在后台建库指向它，SongFerry 仅用于探测匹配</li>
         <li>下载目录与媒体库文件夹是同一目录的两个名字；漏挂任一方卷或媒体库指向别处，文件就不会出现在对应端</li>
       </ul>
-      <p class="text-xs opacity-60">本机直接运行（npm run dev）无容器视角差异，两处填宿主机实际路径即可。完整示例见 <code class="bg-base-200 px-1 rounded">docker-compose.example.yml</code>。</p>
+      <p class="text-xs c-sub">本机直接运行（npm run dev）无容器视角差异，两处填宿主机实际路径即可。完整示例见 <code class="bg-base-200 px-1 rounded">docker-compose.example.yml</code>。</p>
     </div>
   </details>
 
@@ -386,7 +397,7 @@ function applyTarget() {
   var btn = document.getElementById('target-apply-btn')
   var m = document.getElementById('target-msg')
   if (btn) btn.disabled = true
-  if (m) m.innerHTML = '<span class="opacity-70">切换中…</span>'
+  if (m) m.innerHTML = '<span class="c-mid">切换中…</span>'
   fetch('/api/config/target', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

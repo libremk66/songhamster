@@ -95,7 +95,10 @@ export const LAYOUT = `<!doctype html>
     .input, .select, .textarea { height: 1.625rem !important; min-height: 1.625rem !important; font-size: .75rem !important; padding: 0 .5rem !important; border-radius: .375rem !important; }
     .card-body { padding: .875rem; }
     .card-title { font-size: .9rem; }
-    .label-text { font-size: .75rem; }
+    .label-text { font-size: .75rem; font-weight: 650; }
+    /* 语义次级文字色(LxBridge 借鉴:固定灰阶代替 opacity 混用,主题变量半透明稳定) */
+    .c-sub { color: oklch(var(--bc) / 0.62); }  /* 说明/提示级 */
+    .c-mid { color: oklch(var(--bc) / 0.78); }  /* 弱强调级(原 opacity-70/80 用途) */
 
     /* ===== 兼容 Pico 旧类（迁移期间过渡，逐步移除） ===== */
     body { font-size: 13px; }
