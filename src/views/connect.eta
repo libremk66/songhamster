@@ -4,7 +4,7 @@
   <!-- ===== 页头 ===== -->
   <header class="flex flex-wrap items-center justify-between gap-3">
     <div>
-      <h2 class="text-xl font-extrabold tracking-tight">连接容器</h2>
+      <h2 class="text-lg font-extrabold tracking-tight">连接容器</h2>
       <p class="text-sm opacity-60 mt-0.5">同步链路 = LX 下载源 → 目标媒体服务器。填好地址先「测试连接」，再选定目标生效。</p>
     </div>
     <div class="badge badge-outline px-3 py-2 gap-2 text-sm">

@@ -83,14 +83,15 @@ export const LAYOUT = `<!doctype html>
     main.content { flex: 1; min-width: 0; padding: 1.4rem 2rem; display: flex; flex-direction: column; align-items: center; }
     .page { width: 100%; max-width: 1280px; }
 
-    /* ===== 紧凑密度：daisy 默认控件 3rem / 卡片内边距 2rem 偏大，全局收紧 ===== */
-    .btn { height: 2.25rem; min-height: 2.25rem; padding-left: .85rem; padding-right: .85rem; font-size: .875rem; }
-    .input, .select, .textarea { height: 2.25rem; min-height: 2.25rem; font-size: .875rem; padding-left: .75rem; padding-right: .75rem; }
-    .card-body { padding: 1.25rem; }
-    .card-title { font-size: 1.05rem; }
+    /* ===== 紧凑密度：控件高度 30px、输入 13px、卡片内边距 16px ===== */
+    .btn { height: 1.875rem; min-height: 1.875rem; padding-left: .7rem; padding-right: .7rem; font-size: .8125rem; }
+    .input, .select, .textarea { height: 1.875rem; min-height: 1.875rem; font-size: .8125rem; padding-left: .6rem; padding-right: .6rem; }
+    .card-body { padding: 1rem; }
+    .card-title { font-size: .95rem; }
+    .label-text { font-size: .8125rem; }
 
     /* ===== 兼容 Pico 旧类（迁移期间过渡，逐步移除） ===== */
-    body { font-size: 14px; }
+    body { font-size: 13.5px; }
     h2 { font-size: 1.35em; margin-bottom: .55em; }
     h3 { font-size: 1.05em; margin-bottom: .3em; }
     .hint { color: oklch(var(--bc) / 0.6); font-size: .84em; }
