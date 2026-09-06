@@ -87,6 +87,8 @@ export const LAYOUT = `<!doctype html>
     .btn { height: 1.625rem; min-height: 1.625rem; padding-left: .55rem; padding-right: .55rem; font-size: .75rem; border-radius: .375rem; }
     /* 主操作(填充型)比常规按钮再小一号:字号 11px、更窄内边距,成组视觉更轻盈 */
     .btn-primary { padding-left: .4rem; padding-right: .4rem; font-size: .6875rem; font-weight: 600; }
+    /* pico 桥对 button[type=submit] 强制 width:100%(特异性更高),钉回自适应宽度 */
+    button.btn[type="submit"] { width: auto; }
     /* !important: pico 桥的 input:not(...) 属性选择器特异性更高,不加 important 会被压回 ~42px */
     .input, .select, .textarea { height: 1.625rem !important; min-height: 1.625rem !important; font-size: .75rem !important; padding: 0 .5rem !important; border-radius: .375rem !important; }
     .card-body { padding: .875rem; }
