@@ -86,8 +86,8 @@ export const LAYOUT = `<!doctype html>
     aside.sidebar .foot-ver { color: oklch(var(--bc) / 0.6); font-size: .82em; }
     aside.sidebar .foot-hr { border:0; border-top:1px solid oklch(var(--bc) / 0.15); margin:.6rem 0; }
     aside.sidebar .foot-acct { display:flex; align-items:center; gap:.5rem; flex-wrap:nowrap; }
-    aside.sidebar .foot-acct form { display:inline-flex; align-items:center; margin:0; } /* 图标按钮与用户名同轴居中 */
-    aside.sidebar .foot-acct .btn { display:inline-flex; align-items:center; justify-content:center; padding-inline:.45rem; flex-shrink:0; }
+    aside.sidebar .foot-acct form.foot-logout { display:flex; align-items:center; margin:0; } /* 图标按钮与用户名同轴居中 */
+    aside.sidebar .foot-acct .btn { display:inline-flex; align-items:center; justify-content:center; padding-inline:.45rem; flex-shrink:0; margin:0; }
     aside.sidebar .foot-acct .btn svg { display:block; }
     aside.sidebar .foot-acct .u { display:inline-flex; align-items:center; gap:.3rem; height:26px; line-height:26px;
                                   font-size:1.05em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; max-width: 170px; }
@@ -319,7 +319,7 @@ export const LAYOUT = `<!doctype html>
         <% if (it.authEnabled) { %>
           <span class="u">👤 <%= it.authUser || '未登录' %></span>
           <% if (it.authUser) { %>
-            <form method="post" action="/api/auth/logout" style="display:inline">
+            <form method="post" action="/api/auth/logout" class="foot-logout">
               <button type="submit" class="btn btn-ghost btn-xs px-2" title="登出" aria-label="登出">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg>
               </button>
