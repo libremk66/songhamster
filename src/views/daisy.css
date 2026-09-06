@@ -1,0 +1,7 @@
+/** Tailwind + DaisyUI 入口
+ * 构建产物：static/daisy.css（由 npm run build:css 生成）
+ * 主题：默认跟系统（prefers-color-scheme），可手动切换 light/dark/corporate
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

@@ -11,7 +11,9 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:css": "tailwindcss -i src/views/daisy.css -o static/daisy.css --minify",
+    "watch:css": "tailwindcss -i src/views/daisy.css -o static/daisy.css --watch"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
@@ -27,6 +29,10 @@
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.6",
     "@types/node": "^26.4.1",
+    "autoprefixer": "^10.5.5",
+    "daisyui": "^4.12.24",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^3.4.19",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2"
   }
