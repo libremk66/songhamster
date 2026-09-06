@@ -31,10 +31,11 @@
 
 ## 2. 响应式与布局模式
 
-- 断点:≥1024px 桌面(左侧栏 300px,sticky);<1024px 移动(顶部汉堡 3.1rem + 滑出面板 280px,纯 CSS checkbox)
+- 断点:≥1024px 桌面(左侧栏 270px,sticky 100vh 用户栏常驻);<1024px 移动(顶部汉堡 3.1rem + 滑出面板 280px,纯 CSS checkbox)
 - 简单页:通栏卡片,页面容器 `space-y-4`
-- **设置/连接型双栏**:`grid lg:grid-cols-[250px_minmax(0,1fr)] gap-4 items-start`,左栏选项列表(sticky)、右栏表单;移动端自动堆叠
-- 移动端表格/长表单:横排内容允许横向滚动容器,禁止撑破视口(`main.content` 已设 min-width:0)
+- **设置/连接型双栏**:自带 CSS 类 `.lxg`(250px + 1fr,≥1024),左栏选项列表(sticky)、右栏表单;移动端自动堆叠(勿用 tailwind 任意值 grid,见 §13-2)
+- 表单双列/标签行/规则行:自带类 `.fg / .flow-label-row / .prow`(已全局化,勿重复定义)
+- 移动端表格/长表单:横排内容允许横向滚动容器,禁止撑破视口(grid 列用 `minmax(0,1fr)`,见 §13-7)
 
 ## 3. 按钮规范
 
@@ -48,22 +49,12 @@
 
 - 标签:`<span class="label-text text-sm font-medium mb-1">`(字号由 .label-text 全局接管)
 - 字段提示:字段下方 `text-xs opacity-60`;必填:标签加 `<span class="text-error">*</span>`
-- 输入框一律 `input input-bordered w-full`;两个字段并排用 `grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3`
-- 服务/类型选择:放射性选项做成**彩色纯文字按钮**(见 §5),不放图标/字母头像
+- 输入框一律 `input input-bordered w-full`;两个字段并排用 `.fg`
+- 单选类目标/服务选择:用**分隔线行列表**(connect 左栏样式:label 显式 width:100%、行文字居中、选中浅绿底),不放图标/字母头像;早期"多色瓦片/色点"方案已废弃
 
-## 5. 服务识别色(connect 页 TC,color-mix 用法)
+## 5. 主题变量(不要硬编码颜色)
 
-| 服务 | 色值 | | 服务 | 色值 |
-|---|---|---|---|---|
-| Emby | #0ea5e9 | | Subsonic | #34d399 |
-| Navidrome | #a78bfa | | Jellyfin | #f472b6 |
-| 道理鱼 | #f59e0b | | | |
-
-瓦片通用样式在页面 `<style>`(connect.eta):底色 `color-mix(in oklab, var(--svc) 12%, transparent)`、描边 35%;hover 20%;选中(peer-checked)底色 26% + 描边 var(--svc) + 外圈。**半透明叠加保证明暗主题都自然。**
-
-## 6. 主题变量(不要硬编码颜色)
-
-一律 oklch 主题变量(--p/--bc/--b1/--base-*),via daisy 类或 `oklch(var(--p))`;只有"服务识别色"例外(§5,半透明叠加)。跟随系统深浅,禁写死 #fff/#000 背景。
+一律 oklch 主题变量(--p/--bc/--b1/--base-*),via daisy 类或 `oklch(var(--p))`;跟随系统深浅,禁写死 #fff/#000 背景。全站强调色已统一为品牌绿(§12),无服务识别色等第二色系(废弃 TC 表/color-mix 瓦片)。⚠️ daisy 主题变量是**裸通道值**不能直接当颜色(§13-5)。
 
 ## 7. ⚠️ pico 桥五坑(迁移期专用,每条都是踩过的坑)
 
@@ -97,19 +88,12 @@ setsid bash -c 'nohup npm run dev >> server.log 2>&1 < /dev/null & echo $! > ser
 
 | 页面 | 状态 |
 |---|---|
-| connect(连接容器) | ✅ 已完成(双栏布局) |
-| login | ⚪ 保持 Pico 独立页,不动 |
-| sync-setup(歌单同步) | ✅ 已完成(2026-09-06,照 connect 规范) |
-| options(下载选项) | ✅ 已完成(2026-09-06) |
-| settings | 🟡 表单页待迁(照 connect 规范) |
-| charts(榜单订阅) | ✅ 已完成(2026-09-06) |
-| progress(任务进度) | ✅ 已完成(2026-09-06) |
-| history(历史记录) | ✅ 已完成(2026-09-06,双 tab+批次卡+明细/洗版表) |
-| library(曲库管理) | ✅ 已完成(2026-09-06,双 tab;查重/洗版历史等 partials 内部仍旧,随片段轮清理) |
-| settings(设置)/ logs(日志) | ✅ 已完成(2026-09-06) |
-| partials ×9(task-table/progress-table/dupe-*/upgrade-*/history-items/chart-subs) | 🟡 与宿主页同迁 |
+| connect / sync-setup / charts / progress / options / history / library / settings / logs | ✅ 全部完成(2026-09-06) |
+| login | ⚪ 独立页仍 Pico,有意保留 |
+| partials 已 daisy 化:task-table / progress-table / history / history-items / upgrade-history / chart-subs | ✅ |
+| partials 未动(宿主已兼容样式):dupe-result / dupe-history / trash / upgrade-list / task-edit;api.ts 内 charts boards/songs 片段(页面级 CSS 兜底描边绿) | 🟡 待片段轮 |
 
-迁移顺序建议:表单页 → 内容页 → partials → **删 pico 桥 + render.ts 兼容 CSS**。
+**收尾条件(未执行,等真实使用后再做):删 pico.css 引用 + 清理 render.ts 兼容 CSS 段 + 全站回归。风险提示:pico 桥删除可能暴露未被发现的旧裸元素依赖,建议先在 main 分支灰度。**
 
 ## 10. 设计纪律(移植自 Anthropic frontend-design,适用裁剪)
 
