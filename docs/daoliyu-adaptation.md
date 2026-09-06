@@ -77,6 +77,12 @@
 | 媒体库根 | `GET /api/admin/scan-paths` | ✅ 本机根 = `/D8/MOVIEPILOT/MUSIC/MusicTagWeb/LINK/LXSERVER/king`（与 downloadRoot 同源，135 文件，REALTIME 自动监听） |
 | 扫描触发 | `POST /api/admin/scan`（scan-tasks/tasks 任务体系） | ✅ 存在（REALTIME 下通常无需手动） |
 
+**删曲/回收站补充探测（2026-09-06）**：用户从 Web UI 看到"移入回收站"操作，但 REST 层不存在：
+- `/api/playlists*` 全端点无移除歌曲方法；UI 前端走私有 `/playlists/web` 通道
+- `/api/trash`、`/api/library/trash`、`/api/admin/trash`、`/api/tracks/{id}/trash` 等均返回 **501 NOT_IMPLEMENTED_YET**（路由预留未实现）
+- Subsonic `removeFromPlaylist` → Unknown endpoint
+→ **结论：道理鱼播放列表对外 API 只增不减，完全同步（full）模式不可支持，Daoliyu 适配强制 incremental（归档只增）**；如需减法只能等官方开放 API 或 UI 手动。
+
 **适配要点**：
 - kind='daoliyu'，路径本地化 = filePath 去掉容器根前缀（同 Emby localize 思路）
 - quality 判定：detectedContainer/fileFormat + bitDepth + sampleRate/bitrate → QUALITY_ORDER
