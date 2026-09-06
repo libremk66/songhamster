@@ -103,6 +103,12 @@ export const LAYOUT = `<!doctype html>
     .btn-primary:hover, .btn-primary:focus-visible { background-color: oklch(0.62 0.12 153); border-color: oklch(0.62 0.12 153); }
     .btn-primary:active { background-color: oklch(0.56 0.12 153); border-color: oklch(0.56 0.12 153); }
     .btn-primary:disabled { background-color: oklch(0.8 0.06 153); border-color: oklch(0.8 0.06 153); color: oklch(0.35 0.04 152); }
+    /* 次级按钮统一绿(必须显式接管:pico 桥 [type=button] 等属性选择器与 .btn-outline 同特异性且排后,
+       不写即被 pico 涂成蓝色) */
+    .btn-outline { background-color: transparent; border-color: color-mix(in oklab, var(--sfg-deep) 45%, transparent); color: var(--sfg-deep); }
+    .btn-outline:hover { background-color: color-mix(in oklab, var(--sfg) 20%, transparent); border-color: var(--sfg-deep); color: var(--sfg-deep); }
+    .btn-ghost { background-color: transparent; color: var(--sfg-deep); }
+    .btn-ghost:hover { background-color: color-mix(in oklab, var(--sfg) 20%, transparent); color: var(--sfg-deep); }
     /* pico 桥对 button[type=submit] 强制 width:100%(特异性更高),钉回自适应宽度 */
     button.btn[type="submit"] { width: auto; }
     /* pico 桥的 line-height:1.5+上下内边距会把文字挤偏;去上下内边距 + line-height:1,交还 flex 居中 */
@@ -266,7 +272,7 @@ export const LAYOUT = `<!doctype html>
           <span class="u">👤 <%= it.authUser || '未登录' %></span>
           <% if (it.authUser) { %>
             <form method="post" action="/api/auth/logout" style="display:inline">
-              <button type="submit" class="btn-sm">登出</button>
+              <button type="submit" class="btn btn-ghost btn-xs px-2">登出</button>
             </form>
           <% } %>
         <% } else { %>
