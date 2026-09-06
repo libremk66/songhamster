@@ -94,11 +94,11 @@ export const LAYOUT = `<!doctype html>
     main.content::before, main.content::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: -1; }
     :root { --sfg-soft: color-mix(in oklab, var(--b1) 82%, var(--sfg) 18%); } /* 预混合淡绿(备用) */
     main.content::before {
-      /* 左上白 → 右下淡绿(与网格渐隐同向);主题变量在 daisy 中为裸通道值,直接当色值无效,故用字面量+媒体查询 */
-      background-image: linear-gradient(135deg, oklch(0.995 0.002 100) 0%, oklch(0.99 0.008 150) 18%, oklch(0.92 0.055 155) 100%);
+      /* 左上白 → 右下浅灰(与网格渐隐同向);主题变量在 daisy 中为裸通道值,直接当色值无效,故用字面量+媒体查询 */
+      background-image: linear-gradient(135deg, oklch(0.995 0 0) 0%, oklch(0.98 0 0) 22%, oklch(0.93 0 0) 100%);
     }
     @media (prefers-color-scheme: dark) {
-      main.content::before { background-image: linear-gradient(135deg, oklch(0.2 0.005 260) 0%, oklch(0.22 0.01 170) 22%, oklch(0.3 0.06 155) 100%); }
+      main.content::before { background-image: linear-gradient(135deg, oklch(0.18 0 0) 0%, oklch(0.21 0 0) 25%, oklch(0.29 0 0) 100%); }
     }
     main.content::after {
       background-image:
