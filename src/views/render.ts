@@ -85,7 +85,8 @@ export const LAYOUT = `<!doctype html>
 
     /* ===== 紧凑密度：控件高度 30px、输入 13px、卡片内边距 16px ===== */
     .btn { height: 1.875rem; min-height: 1.875rem; padding-left: .7rem; padding-right: .7rem; font-size: .8125rem; }
-    .input, .select, .textarea { height: 1.875rem; min-height: 1.875rem; font-size: .8125rem; padding-left: .6rem; padding-right: .6rem; }
+    /* !important: pico 桥的 input:not(...) 属性选择器特异性更高,不加 important 会被压回 ~42px */
+    .input, .select, .textarea { height: 1.875rem !important; min-height: 1.875rem !important; font-size: .8125rem !important; padding: 0 .6rem !important; }
     .card-body { padding: 1rem; }
     .card-title { font-size: .95rem; }
     .label-text { font-size: .8125rem; }
