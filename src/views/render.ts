@@ -101,7 +101,21 @@ export const LAYOUT = `<!doctype html>
     aside.sidebar .foot-acct { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; }
     aside.sidebar .foot-acct .u { font-size:1.8em; overflow:hidden; text-overflow:ellipsis; max-width: 180px; }
 
-    main.content { flex: 1; min-width: 0; padding: 1.4rem 2rem; display: flex; flex-direction: column; align-items: center; }
+    main.content { flex: 1; min-width: 0; padding: 1.4rem 2rem; display: flex; flex-direction: column; align-items: center;
+                   position: relative; z-index: 0; }
+    /* 内容区背景:左白 → 右淡绿渐变(::before),叠加左上→右下渐隐的灰网格(::after,独立蒙版) */
+    main.content::before, main.content::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: -1; }
+    main.content::before {
+      background: linear-gradient(100deg, oklch(var(--b1)) 0%, oklch(var(--b1)) 40%,
+                                  color-mix(in oklab, var(--b1) 84%, var(--sfg) 16%) 100%);
+    }
+    main.content::after {
+      background-image:
+        repeating-linear-gradient(0deg, transparent 0 26px, oklch(var(--bc) / 0.05) 26px 27px),
+        repeating-linear-gradient(90deg, transparent 0 26px, oklch(var(--bc) / 0.05) 26px 27px);
+      -webkit-mask-image: linear-gradient(135deg, #000 8%, rgba(0,0,0,.5) 45%, transparent 80%);
+      mask-image: linear-gradient(135deg, #000 8%, rgba(0,0,0,.5) 45%, transparent 80%);
+    }
     .page { width: 100%; max-width: 1280px; }
 
     /* ===== 紧凑密度：控件 26px、输入 12px、按钮瘦身贴文字、卡片内边距 14px ===== */
