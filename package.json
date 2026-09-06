@@ -25,6 +25,7 @@
     "yaml": "^2.9.0"
   },
   "devDependencies": {
+    "@tabler/icons": "^3.46.0",
     "@types/better-sqlite3": "^9.6.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.6",

@@ -15,6 +15,7 @@ export const VERSION: string = (() => {
 })()
 
 import { fmtLocal } from './fmt.js'
+import { ICON_SPRITE } from './icons-sprite.js'
 
 const eta = new Eta({ views: VIEWS_DIR, cache: true, useWith: true })
 // eta v4：resolvePath/readFile 是实例属性（配置后 render('file.eta') 按文件名读模板）
@@ -134,6 +135,9 @@ export const LAYOUT = `<!doctype html>
       --su: var(--sfg); --suf: oklch(0.62 0.12 153); --suc: var(--sfg-ink);
       --wa: oklch(0.8 0.07 152); --waf: oklch(0.74 0.09 152); --wac: oklch(0.28 0.07 152);
     }
+    /* 按钮内图标:继承文字色(点击/悬停/禁用状态色随文字走) */
+    .btn svg { width: 1.2em; height: 1.2em; margin-right: .3em; flex-shrink: 0; }
+    .btn svg:only-child { margin-right: 0; }
     /* 主操作(填充型):亮绿底 + 深绿字;字号 11px、窄内边距 */
     .btn-primary { padding-left: .4rem; padding-right: .4rem; font-size: .6875rem; font-weight: 600;
                    background-color: var(--sfg); border-color: var(--sfg); color: var(--sfg-ink); }
@@ -286,7 +290,7 @@ export const LAYOUT = `<!doctype html>
   </style>
 </head>
 <body class="app">
-
+${ICON_SPRITE}
   <!-- 移动端(<1024px)导航:汉堡按钮 checkbox 驱动,点击滑出面板 -->
   <input type="checkbox" id="nav-toggle" autocomplete="off" aria-hidden="true">
   <header class="mob-nav">
