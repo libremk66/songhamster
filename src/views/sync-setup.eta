@@ -1,6 +1,11 @@
 <h2>歌单同步</h2>
 
-<p class="hint">创建/配置 LX 歌单 → <%= targetName %> 的同步任务。任务列表与运行状态见「任务管理」页；榜单订阅见「榜单订阅」页。</p>
+<p class="hint">LX 歌单 → <%= targetName %> 的自动同步。先创建任务，列表中可编辑/立即同步/暂停；运行中的逐首状态见「任务进度」页；榜单订阅在「榜单订阅」页。</p>
+
+<article>
+  <h3>我的歌单同步任务</h3>
+  <div id="task-table" hx-get="/api/tasks/table?scope=playlist" hx-trigger="load">加载中…</div>
+</article>
 
 <article>
   <h3>自动新增同步任务</h3>

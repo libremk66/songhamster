@@ -12,7 +12,7 @@ export const NAV = [
   { id: 'sync-setup', label: '歌单同步' },
   { id: 'charts', label: '榜单订阅' },
   { id: 'options', label: '下载选项' },
-  { id: 'progress', label: '任务管理' },
+  { id: 'progress', label: '任务进度' },
   { id: 'history', label: '历史记录' },
   { id: 'library', label: '曲库管理' },
   { id: 'logs', label: '日志' },

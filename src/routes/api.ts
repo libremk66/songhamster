@@ -448,8 +448,16 @@ export function apiRouter(
     return renderBody('partials/task-table', { tasks, idToName, targetName: TARGET_LABEL[cfg.target] ?? 'Emby', })
   }
 
-  r.get('/tasks/table', async (_req, res) => {
-    res.send(await taskTableHtml())
+  r.get('/tasks/table', async (req, res) => {
+    // scope=playlist（歌单同步页）只显示歌单任务；榜单订阅在榜单页、手动下载为内部任务
+    const scope = String(req.query.scope ?? 'playlist')
+    if (scope === 'all') return res.send(await taskTableHtml())
+    const base = await taskTableHtml()
+    if (scope === 'playlist') {
+      const tasks = repo.listTasks().filter((t) => t.taskType === 'playlist')
+      return res.send(renderBody('partials/task-table', { tasks, idToName: {}, targetName: TARGET_LABEL[cfg.target] ?? 'Emby' }))
+    }
+    return res.send(base)
   })
 
   r.post('/tasks', async (req, res) => {

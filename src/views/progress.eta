@@ -1,12 +1,3 @@
-<h2>任务管理</h2>
-<p class="hint">同步任务统一管理：下方列表可操作（编辑/立即同步/暂停/删除）；顶部运行状态每 3 秒自动刷新。新增：歌单任务在「歌单同步」页、榜单订阅在「榜单订阅」页创建。</p>
-
-<details open style="margin-bottom:.6rem">
-  <summary>运行状态（每 3 秒自动刷新）</summary>
-  <div id="progress-area" hx-get="/api/progress/table" hx-trigger="load, every 3s" hx-swap="innerHTML">加载中…</div>
-</details>
-
-<article>
-  <h3>同步任务列表</h3>
-  <div id="task-table" hx-get="/api/tasks/table" hx-trigger="load">加载中…</div>
-</article>
+<h2>任务进度</h2>
+<p class="hint">每 3 秒自动刷新</p>
+<div id="progress-area" hx-get="/api/progress/table" hx-trigger="load, every 3s" hx-swap="innerHTML">加载中…</div>
