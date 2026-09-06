@@ -1,13 +1,13 @@
 <% var TL = { emby: 'Emby', navidrome: 'Navidrome', daoliyu: '道理鱼', subsonic: 'Subsonic（飞牛/音云等）', jellyfin: 'Jellyfin' } %>
-<div class="space-y-5">
+<div class="space-y-4">
 
   <!-- ===== 页头 ===== -->
   <header class="flex flex-wrap items-center justify-between gap-3">
     <div>
-      <h2 class="text-2xl font-extrabold tracking-tight">连接容器</h2>
-      <p class="text-sm opacity-60 mt-1">同步链路 = LX 下载源 → 目标媒体服务器。填好地址先「测试连接」，再选定目标生效。</p>
+      <h2 class="text-xl font-extrabold tracking-tight">连接容器</h2>
+      <p class="text-sm opacity-60 mt-0.5">同步链路 = LX 下载源 → 目标媒体服务器。填好地址先「测试连接」，再选定目标生效。</p>
     </div>
-    <div class="badge badge-lg badge-outline px-4 py-3 gap-2">
+    <div class="badge badge-outline px-3 py-2 gap-2 text-sm">
       当前目标
       <span class="font-bold badge badge-success badge-sm"><%= TL[cfg.target] %></span>
     </div>
@@ -16,40 +16,40 @@
   <!-- ===== 1. LX 下载源 ===== -->
   <form method="post" action="/api/config/lx" hx-post="/api/config/lx" hx-target="#lx-save-msg"
         class="card bg-base-100 border border-base-300 shadow-sm">
-    <div class="card-body gap-5">
+    <div class="card-body gap-3.5">
       <div class="flex items-center gap-3">
-        <span class="w-10 h-10 rounded-xl bg-primary/15 text-primary font-bold text-lg flex items-center justify-center shrink-0">L</span>
+        <span class="w-8 h-8 rounded-lg bg-primary/15 text-primary font-bold text-base flex items-center justify-center shrink-0">L</span>
         <div>
-          <h3 class="card-title text-lg">连接 LXSyncServer
+          <h3 class="card-title text-base">连接 LXSyncServer
             <span class="badge badge-ghost badge-sm font-normal">下载源</span>
           </h3>
           <p class="text-xs opacity-60">LX Music 歌单同步服务 —— 歌曲下载、标签/封面/歌词写入都由它完成</p>
         </div>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3">
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1.5">服务地址</span>
+          <span class="label-text text-sm font-medium mb-1">服务地址</span>
           <input name="baseUrl" value="<%= cfg.lxserver.baseUrl %>" placeholder="http://127.0.0.1:19527" class="input input-bordered w-full">
         </label>
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1.5">API key</span>
+          <span class="label-text text-sm font-medium mb-1">API key</span>
           <div class="join w-full">
             <input type="password" name="apiKey" id="lx-key" value="<%= cfg.lxserver.apiKey %>" autocomplete="off" class="input input-bordered join-item w-full">
             <button type="button" class="btn btn-outline join-item px-3" onclick="toggleKey('lx-key', this)" title="显示/隐藏">👁</button>
           </div>
         </label>
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1.5">下载用户名（x-user-name）</span>
+          <span class="label-text text-sm font-medium mb-1">下载用户名（x-user-name）</span>
           <input name="username" value="<%= cfg.lxserver.username %>" placeholder="king" class="input input-bordered w-full">
         </label>
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1.5">LX 下载目录<span class="text-error">*</span></span>
+          <span class="label-text text-sm font-medium mb-1">LX 下载目录<span class="text-error">*</span></span>
           <input name="downloadRoot" value="<%= cfg.lxserver.downloadRoot %>" placeholder="容器部署: /data/music；本机直跑: 宿主机路径" class="input input-bordered w-full">
           <span class="text-xs opacity-60 mt-1">本项目视角路径（本项目要读写它）</span>
         </label>
       </div>
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-4">
-        <button type="submit" class="btn btn-primary px-6">保存配置</button>
+        <button type="submit" class="btn btn-primary px-5">保存配置</button>
         <button type="button" class="btn btn-outline" hx-post="/api/test/lx" hx-target="#lx-test-result">测试连接</button>
         <span id="lx-test-result" class="text-sm min-w-44"></span>
         <span id="lx-save-msg" class="text-sm w-full md:w-auto"></span>
@@ -61,7 +61,7 @@
   <section id="target-box" class="card bg-base-100 border border-base-300 shadow-sm" data-current="<%= cfg.target %>">
     <div class="card-body gap-4">
       <div>
-        <h3 class="card-title text-lg">媒体服务器目标</h3>
+        <h3 class="card-title text-base">媒体服务器目标</h3>
         <p class="text-xs opacity-60">同步入库与播放列表操作指向所选服务器。切换目标前建议先暂停任务：点选 → 「确定切换」→ 下方表单才会解锁填写</p>
       </div>
 
@@ -71,13 +71,13 @@
         <label class="cursor-pointer">
           <input type="radio" name="target" value="<%= val %>" class="peer sr-only"
                  <%= cfg.target === val ? 'checked' : '' %> onchange="markTargetChange()">
-          <div class="relative rounded-xl border-2 border-base-300 bg-base-100 px-3 py-3.5 flex flex-col items-center gap-2
+          <div class="relative rounded-xl border-2 border-base-300 bg-base-100 px-3 py-2.5 flex flex-col items-center gap-1.5
                       hover:border-base-content/40 transition-colors
                       peer-checked:border-primary peer-checked:bg-primary/5">
             <% if (cfg.target === val) { %>
               <span class="absolute left-2.5 top-2 badge badge-success badge-xs">当前</span>
             <% } %>
-            <span class="w-9 h-9 rounded-lg bg-primary/12 text-primary font-bold text-base flex items-center justify-center"><%= letter %></span>
+            <span class="w-8 h-8 rounded-lg bg-primary/12 text-primary font-bold text-sm flex items-center justify-center"><%= letter %></span>
             <span class="text-sm font-medium text-center leading-tight"><%= name %></span>
           </div>
         </label>
@@ -98,25 +98,25 @@
   <div id="emby-box" style="display:<%= cfg.target === 'emby' ? '' : 'none' %>">
   <form method="post" action="/api/config/emby" hx-post="/api/config/emby" hx-target="#emby-save-msg"
         class="card bg-base-100 border border-base-300 shadow-sm">
-    <div class="card-body gap-5">
+    <div class="card-body gap-3.5">
       <div class="flex items-center gap-3">
-        <span class="w-10 h-10 rounded-xl bg-primary/15 text-primary font-bold text-lg flex items-center justify-center shrink-0">E</span>
-        <h3 class="card-title text-lg">连接 Emby</h3>
+        <span class="w-8 h-8 rounded-lg bg-primary/15 text-primary font-bold text-base flex items-center justify-center shrink-0">E</span>
+        <h3 class="card-title text-base">连接 Emby</h3>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3">
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1.5">服务地址</span>
+          <span class="label-text text-sm font-medium mb-1">服务地址</span>
           <input name="baseUrl" value="<%= cfg.emby.baseUrl %>" placeholder="http://127.0.0.1:8096" class="input input-bordered w-full">
         </label>
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1.5">API key</span>
+          <span class="label-text text-sm font-medium mb-1">API key</span>
           <div class="join w-full">
             <input type="password" name="apiKey" id="emby-key" value="<%= cfg.emby.apiKey %>" autocomplete="off" class="input input-bordered join-item w-full">
             <button type="button" class="btn btn-outline join-item px-3" onclick="toggleKey('emby-key', this)" title="显示/隐藏">👁</button>
           </div>
         </label>
         <label class="form-control w-full md:col-span-2">
-          <span class="label-text text-sm font-medium mb-1.5">媒体库根路径<span class="text-error">*</span></span>
+          <span class="label-text text-sm font-medium mb-1">媒体库根路径<span class="text-error">*</span></span>
           <input name="libraryRoot" value="<%= cfg.emby.libraryRoot %>" placeholder="容器部署: /media/music；本机直跑: Emby 里显示的库路径" class="input input-bordered w-full">
           <span class="text-xs opacity-60 mt-1">Emby 容器视角的媒体库文件夹路径（Emby 后台该库指向的目录）</span>
         </label>
@@ -127,7 +127,7 @@
         </p>
       <% } %>
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-4">
-        <button type="submit" class="btn btn-primary px-6">保存配置</button>
+        <button type="submit" class="btn btn-primary px-5">保存配置</button>
         <button type="button" class="btn btn-outline" hx-post="/api/test/emby" hx-target="#emby-test-result">测试连接</button>
         <button type="button" class="btn btn-ghost border border-base-300" hx-post="/api/emby/probe" hx-target="#emby-probe-result">探测媒体库</button>
         <span id="emby-test-result" class="text-sm"></span>
@@ -142,18 +142,18 @@
   <div id="nd-box" style="display:<%= cfg.target === 'navidrome' ? '' : 'none' %>">
   <form method="post" action="/api/config/navidrome" hx-post="/api/config/navidrome" hx-target="#nd-save-msg"
         class="card bg-base-100 border border-base-300 shadow-sm">
-    <div class="card-body gap-5">
+    <div class="card-body gap-3.5">
       <div class="flex items-center gap-3">
-        <span class="w-10 h-10 rounded-xl bg-primary/15 text-primary font-bold text-lg flex items-center justify-center shrink-0">N</span>
-        <h3 class="card-title text-lg">连接 Navidrome</h3>
+        <span class="w-8 h-8 rounded-lg bg-primary/15 text-primary font-bold text-base flex items-center justify-center shrink-0">N</span>
+        <h3 class="card-title text-base">连接 Navidrome</h3>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3">
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1.5">服务地址</span>
+          <span class="label-text text-sm font-medium mb-1">服务地址</span>
           <input name="baseUrl" value="<%= cfg.navidrome.baseUrl %>" placeholder="http://127.0.0.1:4533" class="input input-bordered w-full">
         </label>
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1.5">账号密码（登录换 token）</span>
+          <span class="label-text text-sm font-medium mb-1">账号密码（登录换 token）</span>
           <div class="join w-full">
             <input name="username" value="<%= cfg.navidrome.username %>" placeholder="用户名" class="input input-bordered join-item flex-1">
             <input type="password" name="password" id="nd-key" value="<%= cfg.navidrome.password %>" autocomplete="off" class="input input-bordered join-item flex-1">
@@ -161,7 +161,7 @@
           </div>
         </label>
         <label class="form-control w-full md:col-span-2">
-          <span class="label-text text-sm font-medium mb-1.5">媒体库根路径<span class="text-error">*</span></span>
+          <span class="label-text text-sm font-medium mb-1">媒体库根路径<span class="text-error">*</span></span>
           <input name="libraryRoot" value="<%= cfg.navidrome.libraryRoot %>" placeholder="如 /D8/MOVIEPILOT/MUSIC/MusicTagWeb/LINK/LXSERVER/king" class="input input-bordered w-full">
           <span class="text-xs opacity-60 mt-1">Navidrome 容器视角路径；应等于 LX 下载目录在其容器内的路径。无 API key，用普通账号登录（建议专用低权限账号），入库由 Navidrome 自动监听完成</span>
         </label>
@@ -172,7 +172,7 @@
         </p>
       <% } %>
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-4">
-        <button type="submit" class="btn btn-primary px-6">保存配置</button>
+        <button type="submit" class="btn btn-primary px-5">保存配置</button>
         <button type="button" class="btn btn-outline" hx-post="/api/test/navidrome" hx-target="#nd-test-result">测试连接</button>
         <button type="button" class="btn btn-ghost border border-base-300" hx-post="/api/navidrome/probe" hx-target="#nd-probe-result">探测媒体库</button>
         <span id="nd-test-result" class="text-sm"></span>
@@ -187,18 +187,18 @@
   <div id="dly-box" style="display:<%= cfg.target === 'daoliyu' ? '' : 'none' %>">
   <form method="post" action="/api/config/daoliyu" hx-post="/api/config/daoliyu" hx-target="#dly-save-msg"
         class="card bg-base-100 border border-base-300 shadow-sm">
-    <div class="card-body gap-5">
+    <div class="card-body gap-3.5">
       <div class="flex items-center gap-3">
-        <span class="w-10 h-10 rounded-xl bg-primary/15 text-primary font-bold text-lg flex items-center justify-center shrink-0">鱼</span>
-        <h3 class="card-title text-lg">连接 道理鱼</h3>
+        <span class="w-8 h-8 rounded-lg bg-primary/15 text-primary font-bold text-base flex items-center justify-center shrink-0">鱼</span>
+        <h3 class="card-title text-base">连接 道理鱼</h3>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3">
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1.5">服务地址</span>
+          <span class="label-text text-sm font-medium mb-1">服务地址</span>
           <input name="baseUrl" value="<%= cfg.daoliyu.baseUrl %>" placeholder="http://127.0.0.1:4000" class="input input-bordered w-full">
         </label>
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1.5">管理员账号（邮箱）与密码</span>
+          <span class="label-text text-sm font-medium mb-1">管理员账号（邮箱）与密码</span>
           <div class="join w-full">
             <input name="username" value="<%= cfg.daoliyu.username %>" placeholder="管理员邮箱" class="input input-bordered join-item flex-[1.4]">
             <input type="password" name="password" id="dly-key" value="<%= cfg.daoliyu.password %>" autocomplete="off" class="input input-bordered join-item flex-1">
@@ -206,13 +206,13 @@
           </div>
         </label>
         <label class="form-control w-full md:col-span-2">
-          <span class="label-text text-sm font-medium mb-1.5">媒体库根路径<span class="text-error">*</span></span>
+          <span class="label-text text-sm font-medium mb-1">媒体库根路径<span class="text-error">*</span></span>
           <input name="libraryRoot" value="<%= cfg.daoliyu.libraryRoot %>" placeholder="如 /D8/MOVIEPILOT/MUSIC/MusicTagWeb/LINK/LXSERVER/king" class="input input-bordered w-full">
           <span class="text-xs opacity-60 mt-1">目录驱动：道理鱼 Web「多媒体库 → 歌单目录」选中 <code class="bg-base-200 px-1 rounded">歌单同步</code> 后，下载落盘即自动入库，无需 API 维护播放列表</span>
         </label>
       </div>
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-4">
-        <button type="submit" class="btn btn-primary px-6">保存配置</button>
+        <button type="submit" class="btn btn-primary px-5">保存配置</button>
         <button type="button" class="btn btn-outline" hx-post="/api/test/daoliyu" hx-target="#dly-test-result">测试连接</button>
         <button type="button" class="btn btn-ghost border border-base-300" hx-post="/api/daoliyu/probe" hx-target="#dly-probe-result">探测媒体库根</button>
         <span id="dly-test-result" class="text-sm"></span>
@@ -227,18 +227,18 @@
   <div id="sub-box" style="display:<%= cfg.target === 'subsonic' ? '' : 'none' %>">
   <form method="post" action="/api/config/subsonic" hx-post="/api/config/subsonic" hx-target="#sub-save-msg"
         class="card bg-base-100 border border-base-300 shadow-sm">
-    <div class="card-body gap-5">
+    <div class="card-body gap-3.5">
       <div class="flex items-center gap-3">
-        <span class="w-10 h-10 rounded-xl bg-primary/15 text-primary font-bold text-lg flex items-center justify-center shrink-0">S</span>
-        <h3 class="card-title text-lg">连接 Subsonic 服务器</h3>
+        <span class="w-8 h-8 rounded-lg bg-primary/15 text-primary font-bold text-base flex items-center justify-center shrink-0">S</span>
+        <h3 class="card-title text-base">连接 Subsonic 服务器</h3>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3">
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1.5">服务地址<span class="text-xs opacity-60 font-normal">（根地址，无需 /rest）</span></span>
+          <span class="label-text text-sm font-medium mb-1">服务地址<span class="text-xs opacity-60 font-normal">（根地址，无需 /rest）</span></span>
           <input name="baseUrl" value="<%= cfg.subsonic.baseUrl %>" placeholder="http://127.0.0.1:4533" class="input input-bordered w-full">
         </label>
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1.5">账号密码</span>
+          <span class="label-text text-sm font-medium mb-1">账号密码</span>
           <div class="join w-full">
             <input name="username" value="<%= cfg.subsonic.username %>" placeholder="用户名" class="input input-bordered join-item flex-1">
             <input type="password" name="password" id="sub-key" value="<%= cfg.subsonic.password %>" autocomplete="off" class="input input-bordered join-item flex-1">
@@ -251,7 +251,7 @@
         <span>通用 Subsonic/OpenSubsonic 协议（Navidrome、音云等皆可）。协议限制：无文件路径（查重可看、回收站定位不可用）、无位深/采样率（24bit 按 FLAC 判定）。</span>
       </p>
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-4">
-        <button type="submit" class="btn btn-primary px-6">保存配置</button>
+        <button type="submit" class="btn btn-primary px-5">保存配置</button>
         <button type="button" class="btn btn-outline" hx-post="/api/test/subsonic" hx-target="#sub-test-result">测试连接</button>
         <span id="sub-test-result" class="text-sm"></span>
         <span id="sub-save-msg" class="text-sm w-full md:w-auto"></span>
@@ -264,25 +264,25 @@
   <div id="jf-box" style="display:<%= cfg.target === 'jellyfin' ? '' : 'none' %>">
   <form method="post" action="/api/config/jellyfin" hx-post="/api/config/jellyfin" hx-target="#jf-save-msg"
         class="card bg-base-100 border border-base-300 shadow-sm">
-    <div class="card-body gap-5">
+    <div class="card-body gap-3.5">
       <div class="flex items-center gap-3">
-        <span class="w-10 h-10 rounded-xl bg-primary/15 text-primary font-bold text-lg flex items-center justify-center shrink-0">J</span>
-        <h3 class="card-title text-lg">连接 Jellyfin</h3>
+        <span class="w-8 h-8 rounded-lg bg-primary/15 text-primary font-bold text-base flex items-center justify-center shrink-0">J</span>
+        <h3 class="card-title text-base">连接 Jellyfin</h3>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3">
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1.5">服务地址</span>
+          <span class="label-text text-sm font-medium mb-1">服务地址</span>
           <input name="baseUrl" value="<%= cfg.jellyfin.baseUrl %>" placeholder="http://127.0.0.1:8096" class="input input-bordered w-full">
         </label>
         <label class="form-control w-full">
-          <span class="label-text text-sm font-medium mb-1.5">API key</span>
+          <span class="label-text text-sm font-medium mb-1">API key</span>
           <div class="join w-full">
             <input type="password" name="apiKey" id="jf-key" value="<%= cfg.jellyfin.apiKey %>" autocomplete="off" class="input input-bordered join-item w-full">
             <button type="button" class="btn btn-outline join-item px-3" onclick="toggleKey('jf-key', this)" title="显示/隐藏">👁</button>
           </div>
         </label>
         <label class="form-control w-full md:col-span-2">
-          <span class="label-text text-sm font-medium mb-1.5">媒体库根路径<span class="text-error">*</span></span>
+          <span class="label-text text-sm font-medium mb-1">媒体库根路径<span class="text-error">*</span></span>
           <input name="libraryRoot" value="<%= cfg.jellyfin.libraryRoot %>" placeholder="如 /D8/MOVIEPILOT/MUSIC/MusicTagWeb/LINK/LXSERVER/king/歌单同步" class="input input-bordered w-full">
           <span class="text-xs opacity-60 mt-1">Jellyfin 容器视角的媒体库文件夹路径（与 Emby 同源约定）</span>
         </label>
@@ -293,7 +293,7 @@
         </p>
       <% } %>
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-4">
-        <button type="submit" class="btn btn-primary px-6">保存配置</button>
+        <button type="submit" class="btn btn-primary px-5">保存配置</button>
         <button type="button" class="btn btn-outline" hx-post="/api/test/jellyfin" hx-target="#jf-test-result">测试连接</button>
         <button type="button" class="btn btn-ghost border border-base-300" hx-post="/api/jellyfin/probe" hx-target="#jf-probe-result">探测媒体库</button>
         <span id="jf-test-result" class="text-sm"></span>
@@ -309,10 +309,10 @@
     <div class="card-body gap-4">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 class="card-title text-lg">路径自检</h3>
+          <h3 class="card-title text-base">路径自检</h3>
           <p class="text-xs opacity-60 mt-0.5">检查下载目录可写、媒体库匹配情况，并给出路径关系提示</p>
         </div>
-        <button type="button" class="btn btn-outline px-6" hx-post="/api/paths/check" hx-target="#paths-result" hx-swap="innerHTML">运行自检</button>
+        <button type="button" class="btn btn-outline px-5" hx-post="/api/paths/check" hx-target="#paths-result" hx-swap="innerHTML">运行自检</button>
       </div>
       <div id="paths-result" class="text-sm rounded-xl bg-base-200/60 p-3 min-h-10"></div>
     </div>

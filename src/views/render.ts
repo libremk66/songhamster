@@ -83,6 +83,12 @@ export const LAYOUT = `<!doctype html>
     main.content { flex: 1; min-width: 0; padding: 1.4rem 2rem; display: flex; flex-direction: column; align-items: center; }
     .page { width: 100%; max-width: 1280px; }
 
+    /* ===== 紧凑密度：daisy 默认控件 3rem / 卡片内边距 2rem 偏大，全局收紧 ===== */
+    .btn { height: 2.25rem; min-height: 2.25rem; padding-left: .85rem; padding-right: .85rem; font-size: .875rem; }
+    .input, .select, .textarea { height: 2.25rem; min-height: 2.25rem; font-size: .875rem; padding-left: .75rem; padding-right: .75rem; }
+    .card-body { padding: 1.25rem; }
+    .card-title { font-size: 1.05rem; }
+
     /* ===== 兼容 Pico 旧类（迁移期间过渡，逐步移除） ===== */
     body { font-size: 14px; }
     h2 { font-size: 1.35em; margin-bottom: .55em; }
