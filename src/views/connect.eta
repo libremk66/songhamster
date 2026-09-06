@@ -7,10 +7,6 @@
       <h2 class="text-lg font-extrabold tracking-tight">连接容器</h2>
       <p class="text-sm opacity-60 mt-0.5">同步链路 = LX 下载源 → 目标媒体服务器。填好地址先「测试连接」，再选定目标生效。</p>
     </div>
-    <div class="badge badge-outline px-3 py-2 gap-2 text-sm">
-      当前目标
-      <span class="font-bold badge badge-success badge-sm"><%= TL[cfg.target] %></span>
-    </div>
   </header>
 
   <!-- ===== 1. LX 下载源 ===== -->
@@ -60,9 +56,14 @@
   <!-- ===== 2. 媒体服务器目标 ===== -->
   <section id="target-box" class="card bg-base-100 border border-base-300 shadow-sm" data-current="<%= cfg.target %>">
     <div class="card-body gap-4">
-      <div>
-        <h3 class="card-title text-base">媒体服务器目标</h3>
-        <p class="text-xs opacity-60">同步入库与播放列表操作指向所选服务器。切换目标前建议先暂停任务：点选 → 「确定切换」→ 下方表单才会解锁填写</p>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 class="card-title text-base">媒体服务器目标</h3>
+          <p class="text-xs opacity-60">同步入库与播放列表操作指向所选服务器。切换目标前建议先暂停任务：点选 → 「确定切换」→ 下方表单才会解锁填写</p>
+        </div>
+        <div class="badge badge-outline px-3 py-1.5 gap-1.5 text-sm shrink-0">当前目标
+          <span class="font-bold badge badge-success badge-xs"><%= TL[cfg.target] %></span>
+        </div>
       </div>
 
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
