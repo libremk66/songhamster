@@ -33,7 +33,7 @@
     <label style="display:flex;align-items:center;gap:.3rem"><input type="radio" name="target" value="emby" <%= cfg.target === 'emby' ? 'checked' : '' %> onchange="markTargetChange()"> Emby</label>
     <label style="display:flex;align-items:center;gap:.3rem"><input type="radio" name="target" value="navidrome" <%= cfg.target === 'navidrome' ? 'checked' : '' %> onchange="markTargetChange()"> Navidrome</label>
     <label style="display:flex;align-items:center;gap:.3rem"><input type="radio" name="target" value="daoliyu" <%= cfg.target === 'daoliyu' ? 'checked' : '' %> onchange="markTargetChange()"> 道理鱼</label>
-    <label style="display:flex;align-items:center;gap:.3rem"><input type="radio" name="target" value="subsonic" <%= cfg.target === 'subsonic' ? 'checked' : '' %> onchange="markTargetChange()"> Subsonic</label>
+    <label style="display:flex;align-items:center;gap:.3rem"><input type="radio" name="target" value="subsonic" <%= cfg.target === 'subsonic' ? 'checked' : '' %> onchange="markTargetChange()"> Subsonic（飞牛/音云等）</label>
     <button type="button" id="target-apply-btn" disabled onclick="applyTarget()">确定</button>
     <span id="target-msg" class="msg"></span>
   </div>
