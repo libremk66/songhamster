@@ -1,121 +1,178 @@
-<h2>设置</h2>
+<div class="space-y-4">
 
-<form method="post" action="/api/config/general" hx-post="/api/config/general" hx-target="#gen-msg">
-  <article>
-    <h3>通用</h3>
-    <label><input type="checkbox" name="autoIncludeNewPlaylists" value="1" <%= cfg.general.autoIncludeNewPlaylists ? 'checked' : '' %>> 自动纳入 LX 新建的歌单（默认：同名文件夹+同名 <%= targetName %> 歌单）</label>
-    <label><input type="checkbox" name="cleanupOrphanFiles" value="1" <%= cfg.general.cleanupOrphanFiles ? 'checked' : '' %>> 完全同步时清理无引用的孤立文件（默认关）</label>
-    <label><input type="checkbox" name="pauseAll" value="1" <%= cfg.general.pauseAll ? 'checked' : '' %>> 暂停所有同步（总开关）</label>
-    <div class="row-inline">
-      <div><label>日志保留天数<input type="number" name="logRetentionDays" value="<%= cfg.general.logRetentionDays %>" min="1" max="365"></label></div>
+  <!-- ===== 页头 ===== -->
+  <header>
+    <div class="flex items-center gap-2 flex-wrap">
+      <h2 class="text-lg font-extrabold tracking-tight">设置</h2>
+      <span class="badge badge-ghost badge-sm font-semibold px-2 py-1">v<%= version %></span>
     </div>
-    <div class="prot-field">
-      <div class="row1"><span>帮助链接（GitHub）</span><input name="githubUrl" value="<%= cfg.general.githubUrl %>" placeholder="https://github.com/xxx/songferry" style="width:24rem"></div>
-      <p class="hint">显示在左侧栏底部"帮助"入口</p>
-    </div>
-    <p><button type="submit" class="btn-sm">保存</button> <span id="gen-msg"></span></p>
-  </article>
-</form>
+  </header>
 
-<article>
-  <h3>账号安全</h3>
-  <form method="post" action="/api/auth/settings" hx-post="/api/auth/settings" hx-target="#auth-msg">
-    <label style="display:flex;align-items:center;gap:.35rem">
-      <input type="checkbox" name="enabled" value="1" <%= cfg.auth.enabled ? 'checked' : '' %>> 启用账号认证（登录后访问）
-    </label>
-    <div class="prot-field">
-      <div class="row1"><span>用户名</span><input name="username" value="<%= cfg.auth.username %>" placeholder="admin" style="width:14rem"></div>
-    </div>
-    <% if (cfg.auth.enabled) { %>
-    <div class="prot-field">
-      <div class="row1"><span>当前密码</span><input type="password" name="currentPassword" placeholder="修改账号需验证"></div>
-      <p class="hint">已启用状态下修改/停用需要验证当前密码</p>
-    </div>
-    <% } %>
-    <div class="prot-field">
-      <div class="row1"><span><%= cfg.auth.enabled ? '新密码（留空=不改）' : '新密码' %></span><input type="password" name="newPassword" placeholder=""></div>
-      <p class="hint">密码以 scrypt 哈希存储，不保存明文；启用时必填</p>
-    </div>
-    <div class="btn-row">
-      <button type="submit">保存账号设置</button>
-      <span id="auth-msg" class="msg"></span>
-    </div>
-  </form>
-</article>
-
-<article>
-  <h3>批量下载保护</h3>
-  <form method="post" action="/api/config/protection" hx-post="/api/config/protection" hx-target="#prot-msg">
-    <label style="display:flex;align-items:center;gap:.35rem">
-      <input type="checkbox" name="enabled" value="1" <%= cfg.download.protection.enabled ? 'checked' : '' %>> 批量下载保护（推荐开启）
-    </label>
-    <p class="hint" style="margin-top:.2rem">下载保持单任务串行，并在每首歌曲成功或失败后等待一段时间；同时限制直链解析的请求节奏，降低音源限流或封禁 IP 的风险。</p>
-    <div class="prot-field">
-      <div class="row1"><span>下载间隔（秒）</span><input type="number" name="downloadIntervalSec" value="<%= cfg.download.protection.downloadIntervalSec %>" min="2" max="60"></div>
-      <p class="hint">范围 2~60 秒，默认 5 秒；成功和失败的任务都会等待</p>
-    </div>
-    <div class="prot-field">
-      <div class="row1"><span>直链解析间隔（秒）</span><input type="number" name="resolveIntervalSec" value="<%= cfg.download.protection.resolveIntervalSec %>" min="1" max="30"></div>
-      <p class="hint">范围 1~30 秒，默认 2 秒；只限制新的直链解析请求</p>
-    </div>
-    <p class="hint">
-      当前已<%= cfg.download.protection.enabled ? '开启：下载间隔 ' + cfg.download.protection.downloadIntervalSec + ' 秒，直链解析间隔 ' + cfg.download.protection.resolveIntervalSec + ' 秒' : '关闭' %>
-    </p>
-    <div class="btn-row">
-      <button type="submit">保存保护设置</button>
-      <span id="prot-msg" class="msg"></span>
-    </div>
-  </form>
-  <details>
-    <summary>批量下载保护说明</summary>
-    <ul class="hint">
-      <li>下载任务始终按队列逐个执行，不会并发请求多个音源。</li>
-      <li>间隔从上一首下载完成或失败后开始计算，等待期间下一首不会发起请求。</li>
-      <li>直链解析间隔会错开连续的解析请求（换音质档位或自动重试时同样受控），避免短时间快速连发。</li>
-      <li>关闭保护会取消两个间隔，但下载仍保持串行；频繁请求可能触发音源平台限流或封禁 IP。</li>
-      <li>保存后影响后续请求，不会中断当前正在下载的任务。</li>
-    </ul>
-  </details>
-</article>
-
-<article>
-  <h3>通知（预留）</h3>
-  <p class="hint">通知功能规划中：飞书 webhook 配置将在后续版本开放。</p>
-  <label>飞书 Webhook（占位）<input disabled placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/xxx"></label>
-</article>
-
-<article>
-  <h3>高级设置</h3>
-  <form method="post" action="/api/config/advanced" hx-post="/api/config/advanced" hx-target="#adv-msg">
-    <label style="display:flex;align-items:center;gap:.35rem">
-      <input type="checkbox" name="dedupCheck" value="1" id="adv-dd" onchange="toggleAdvQ()" <%= cfg.advanced.dedupCheck ? 'checked' : '' %>> 同步前查重
-    </label>
-    <p class="hint" style="margin-top:.2rem">默认关闭，开启后每首歌都需查一次 <%= targetName %>，耗时增加</p>
-    <p class="hint" style="margin-top:.2rem">同步歌单前先检查 <%= targetName %> 曲库：已存在对应歌曲则跳过该曲的 LX 搜索下载，仅执行歌单加入（全库查重）。适用于"库中已有高音质不想重复下载"的场景。</p>
-    <div class="prot-field" id="adv-dedup-q" style="display:<%= cfg.advanced.dedupCheck ? '' : 'none' %>">
-      <div class="row1"><span>查重音质门槛</span>
-        <select name="dedupMinQuality" style="width:16rem">
-          <option value="">不检查音质（任意存在即跳过）</option>
-          <% for (const q of qOrder) { %>
-          <option value="<%= q %>" <%= cfg.advanced.dedupMinQuality === q ? 'selected' : '' %>><%= qLabels[q] %></option>
-          <% } %>
-        </select>
+  <!-- ===== 通用 ===== -->
+  <form method="post" action="/api/config/general" hx-post="/api/config/general" hx-target="#gen-msg"
+        class="card bg-base-100 border border-base-300 shadow-sm">
+    <div class="card-body gap-3">
+      <h3 class="card-title text-base">通用</h3>
+      <div class="flex flex-col gap-1.5">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" name="autoIncludeNewPlaylists" value="1" <%= cfg.general.autoIncludeNewPlaylists ? 'checked' : '' %> class="checkbox checkbox-sm">
+          <span class="text-sm">自动纳入 LX 新建的歌单（默认：同名文件夹+同名 <%= targetName %> 歌单）</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" name="cleanupOrphanFiles" value="1" <%= cfg.general.cleanupOrphanFiles ? 'checked' : '' %> class="checkbox checkbox-sm">
+          <span class="text-sm">完全同步时清理无引用的孤立文件（默认关）</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" name="pauseAll" value="1" <%= cfg.general.pauseAll ? 'checked' : '' %> class="checkbox checkbox-sm">
+          <span class="text-sm">暂停所有同步（总开关）</span>
+        </label>
       </div>
-      <p class="hint">库内已有音质 ≥ 所选档位 → 跳过下载；低于所选（如只有 320k）→ 视为缺失，继续下载高音质</p>
-    </div>
-    <div class="btn-row">
-      <button type="submit">保存高级设置</button>
-      <span id="adv-msg" class="msg"></span>
+      <div class="fg">
+        <label class="form-control w-full">
+          <span class="label-text mb-1">日志保留天数</span>
+          <input type="number" name="logRetentionDays" value="<%= cfg.general.logRetentionDays %>" min="1" max="365" class="input input-bordered w-28">
+        </label>
+        <label class="form-control w-full">
+          <span class="label-text mb-1">帮助链接（GitHub）</span>
+          <input name="githubUrl" value="<%= cfg.general.githubUrl %>" placeholder="https://github.com/xxx/songferry" class="input input-bordered w-full font-mono text-xs">
+          <span class="text-xs c-sub mt-1">显示在左侧栏底部「帮助」入口</span>
+        </label>
+      </div>
+      <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-3">
+        <button type="submit" class="btn btn-primary">保存</button>
+        <span id="gen-msg" class="text-sm"></span>
+      </div>
     </div>
   </form>
-</article>
-<article>
-  <h3>运行信息</h3>
-  <p class="hint">
-    配置: <code>data/config.yaml</code> ｜ 数据库: <code>data/songferry.db</code><br>
-    Emby 媒体库 Id: <code><%= cfg.emby.mediaLibraryId || '未探测' %></code>
-  </p>
-</article>
+
+  <!-- ===== 账号安全 ===== -->
+  <form method="post" action="/api/auth/settings" hx-post="/api/auth/settings" hx-target="#auth-msg"
+        class="card bg-base-100 border border-base-300 shadow-sm">
+    <div class="card-body gap-3">
+      <h3 class="card-title text-base">账号安全</h3>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" name="enabled" value="1" <%= cfg.auth.enabled ? 'checked' : '' %> class="checkbox checkbox-sm">
+        <span class="text-sm">启用账号认证（登录后访问）</span>
+      </label>
+      <div class="fg">
+        <label class="form-control w-full">
+          <span class="label-text mb-1">用户名</span>
+          <input name="username" value="<%= cfg.auth.username %>" placeholder="admin" class="input input-bordered w-56">
+        </label>
+        <% if (cfg.auth.enabled) { %>
+        <label class="form-control w-full">
+          <span class="label-text mb-1">当前密码</span>
+          <input type="password" name="currentPassword" placeholder="修改账号需验证" class="input input-bordered w-full">
+          <span class="text-xs c-sub mt-1">已启用状态下修改/停用需要验证当前密码</span>
+        </label>
+        <% } %>
+        <label class="form-control w-full">
+          <span class="label-text mb-1"><%= cfg.auth.enabled ? '新密码（留空=不改）' : '新密码' %></span>
+          <input type="password" name="newPassword" placeholder="" class="input input-bordered w-56">
+          <span class="text-xs c-sub mt-1">密码以 scrypt 哈希存储，不保存明文；启用时必填</span>
+        </label>
+      </div>
+      <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-3">
+        <button type="submit" class="btn btn-primary">保存账号设置</button>
+        <span id="auth-msg" class="text-sm"></span>
+      </div>
+    </div>
+  </form>
+
+  <!-- ===== 批量下载保护 ===== -->
+  <form method="post" action="/api/config/protection" hx-post="/api/config/protection" hx-target="#prot-msg"
+        class="card bg-base-100 border border-base-300 shadow-sm">
+    <div class="card-body gap-3">
+      <h3 class="card-title text-base">批量下载保护</h3>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" name="enabled" value="1" <%= cfg.download.protection.enabled ? 'checked' : '' %> class="checkbox checkbox-sm">
+        <span class="text-sm">批量下载保护（推荐开启）</span>
+      </label>
+      <p class="text-xs c-sub leading-relaxed">下载保持单任务串行，并在每首歌曲成功或失败后等待一段时间；同时限制直链解析的请求节奏，降低音源限流或封禁 IP 的风险。</p>
+      <div class="fg">
+        <label class="form-control w-full">
+          <span class="label-text mb-1">下载间隔（秒）</span>
+          <input type="number" name="downloadIntervalSec" value="<%= cfg.download.protection.downloadIntervalSec %>" min="2" max="60" class="input input-bordered w-28">
+          <span class="text-xs c-sub mt-1">范围 2~60 秒，默认 5 秒；成功和失败的任务都会等待</span>
+        </label>
+        <label class="form-control w-full">
+          <span class="label-text mb-1">直链解析间隔（秒）</span>
+          <input type="number" name="resolveIntervalSec" value="<%= cfg.download.protection.resolveIntervalSec %>" min="1" max="30" class="input input-bordered w-28">
+          <span class="text-xs c-sub mt-1">范围 1~30 秒，默认 2 秒；只限制新的直链解析请求</span>
+        </label>
+      </div>
+      <p class="text-xs c-sub">当前已<%= cfg.download.protection.enabled ? '开启：下载间隔 ' + cfg.download.protection.downloadIntervalSec + ' 秒，直链解析间隔 ' + cfg.download.protection.resolveIntervalSec + ' 秒' : '关闭' %></p>
+      <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-3">
+        <button type="submit" class="btn btn-primary">保存保护设置</button>
+        <span id="prot-msg" class="text-sm"></span>
+      </div>
+      <details class="rounded-lg border border-base-300 p-2.5">
+        <summary class="cursor-pointer text-xs font-semibold select-none">批量下载保护说明</summary>
+        <ul class="text-xs c-sub space-y-1 mt-2 list-disc list-inside">
+          <li>下载任务始终按队列逐个执行，不会并发请求多个音源。</li>
+          <li>间隔从上一首下载完成或失败后开始计算，等待期间下一首不会发起请求。</li>
+          <li>直链解析间隔会错开连续的解析请求（换音质档位或自动重试时同样受控），避免短时间快速连发。</li>
+          <li>关闭保护会取消两个间隔，但下载仍保持串行；频繁请求可能触发音源平台限流或封禁 IP。</li>
+          <li>保存后影响后续请求，不会中断当前正在下载的任务。</li>
+        </ul>
+      </details>
+    </div>
+  </form>
+
+  <!-- ===== 通知（预留） ===== -->
+  <section class="card bg-base-100 border border-base-300 shadow-sm">
+    <div class="card-body gap-2">
+      <h3 class="card-title text-base">通知（预留）</h3>
+      <p class="text-xs c-sub">通知功能规划中：飞书 webhook 配置将在后续版本开放。</p>
+      <label class="form-control w-full">
+        <span class="label-text mb-1">飞书 Webhook（占位）</span>
+        <input disabled placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/xxx" class="input input-bordered w-full opacity-60">
+      </label>
+    </div>
+  </section>
+
+  <!-- ===== 高级设置 ===== -->
+  <form method="post" action="/api/config/advanced" hx-post="/api/config/advanced" hx-target="#adv-msg"
+        class="card bg-base-100 border border-base-300 shadow-sm">
+    <div class="card-body gap-3">
+      <h3 class="card-title text-base">高级设置</h3>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" name="dedupCheck" value="1" id="adv-dd" onchange="toggleAdvQ()" <%= cfg.advanced.dedupCheck ? 'checked' : '' %> class="checkbox checkbox-sm">
+        <span class="text-sm">同步前查重</span>
+      </label>
+      <p class="text-xs c-sub leading-relaxed">默认关闭，开启后每首歌都需查一次 <%= targetName %>，耗时增加。同步歌单前先检查 <%= targetName %> 曲库：已存在对应歌曲则跳过该曲的 LX 搜索下载，仅执行歌单加入（全库查重）。适用于「库中已有高音质不想重复下载」的场景。</p>
+      <div id="adv-dedup-q" style="display:<%= cfg.advanced.dedupCheck ? '' : 'none' %>">
+        <div class="prow">
+          <span class="p-lbl" style="width:9em">查重音质门槛</span>
+          <select name="dedupMinQuality" class="select select-bordered" style="width:16rem">
+            <option value="">不检查音质（任意存在即跳过）</option>
+            <% for (const q of qOrder) { %>
+            <option value="<%= q %>" <%= cfg.advanced.dedupMinQuality === q ? 'selected' : '' %>><%= qLabels[q] %></option>
+            <% } %>
+          </select>
+        </div>
+        <p class="text-xs c-sub mt-1">库内已有音质 ≥ 所选档位 → 跳过下载；低于所选（如只有 320k）→ 视为缺失，继续下载高音质</p>
+      </div>
+      <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-3">
+        <button type="submit" class="btn btn-primary">保存高级设置</button>
+        <span id="adv-msg" class="text-sm"></span>
+      </div>
+    </div>
+  </form>
+
+  <!-- ===== 运行信息 ===== -->
+  <section class="card bg-base-100 border border-base-300 shadow-sm">
+    <div class="card-body gap-1">
+      <h3 class="card-title text-base">运行信息</h3>
+      <p class="text-xs c-sub leading-relaxed">
+        配置: <code class="bg-base-200 px-1 rounded">data/config.yaml</code> ｜ 数据库: <code class="bg-base-200 px-1 rounded">data/songferry.db</code><br>
+        Emby 媒体库 Id: <code class="bg-base-200 px-1 rounded"><%= cfg.emby.mediaLibraryId || '未探测' %></code>
+      </p>
+    </div>
+  </section>
+
+</div>
+
 <script>
 function toggleAdvQ() {
   var el = document.getElementById('adv-dd')

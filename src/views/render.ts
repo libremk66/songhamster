@@ -132,6 +132,9 @@ export const LAYOUT = `<!doctype html>
     .fg { display: grid; grid-template-columns: 1fr; gap: .75rem 1.25rem; }
     @media (min-width: 768px) { .fg { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     .flow-label-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .3rem; }
+    /* 规则行(标签宽 11em + 控件 + 提示) */
+    .prow { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .4rem 0; }
+    .prow > .p-lbl { width: 11em; flex-shrink: 0; font-size: .8125rem; font-weight: 500; }
 
     /* ===== 兼容 Pico 旧类（迁移期间过渡，逐步移除） ===== */
     body { font-size: 13px; }
