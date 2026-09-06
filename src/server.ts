@@ -50,6 +50,12 @@ app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
 app.use('/static', express.static(path.join(process.cwd(), 'static')))
 
+// HTML 页面响应不缓存（模板迭代频繁，避免浏览器缓存旧页面造成"改动没生效"的误判）
+app.use((req, res, next) => {
+  if (!req.path.includes('.')) res.set('Cache-Control', 'no-store')
+  next()
+})
+
 app.get('/healthz', (_req, res) => {
   res.json({ ok: true, version: '0.1.0', time: new Date().toISOString() })
 })
