@@ -85,8 +85,13 @@ export const LAYOUT = `<!doctype html>
 
     /* ===== 紧凑密度：控件 26px、输入 12px、按钮瘦身贴文字、卡片内边距 14px ===== */
     .btn { height: 1.625rem; min-height: 1.625rem; padding-left: .55rem; padding-right: .55rem; font-size: .75rem; border-radius: .375rem; }
-    /* 主操作(填充型)比常规按钮再小一号:字号 11px、更窄内边距,成组视觉更轻盈 */
-    .btn-primary { padding-left: .4rem; padding-right: .4rem; font-size: .6875rem; font-weight: 600; }
+    /* 主操作(填充型)比常规按钮再小一号:字号 11px、更窄内边距,成组视觉更轻盈
+       配色:低饱和绿(oklch 0.5/0.085/152),替代主题默认蓝,明暗主题一致 */
+    .btn-primary { padding-left: .4rem; padding-right: .4rem; font-size: .6875rem; font-weight: 600;
+                   background-color: oklch(0.5 0.085 152); border-color: oklch(0.5 0.085 152); color: oklch(0.985 0.005 152); }
+    .btn-primary:hover, .btn-primary:focus-visible { background-color: oklch(0.45 0.085 152); border-color: oklch(0.45 0.085 152); }
+    .btn-primary:active { background-color: oklch(0.41 0.085 152); border-color: oklch(0.41 0.085 152); }
+    .btn-primary:disabled { background-color: oklch(0.62 0.04 152); border-color: oklch(0.62 0.04 152); }
     /* pico 桥对 button[type=submit] 强制 width:100%(特异性更高),钉回自适应宽度 */
     button.btn[type="submit"] { width: auto; }
     /* pico 桥的 line-height:1.5+上下内边距会把文字挤偏;去上下内边距 + line-height:1,交还 flex 居中 */
