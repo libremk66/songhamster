@@ -354,6 +354,38 @@ export function apiRouter(
     }
   })
 
+  /** 订阅编辑表单（卡片内联替换） */
+  r.get('/charts/subs/:id/edit', (req, res) => {
+    const t = repo.getTask(Number(req.params.id))
+    if (!t || t.taskType !== 'chart') return res.send('<p class="bad">订阅不存在</p>')
+    const tn = TARGET_LABEL[cfg.target] ?? 'Emby'
+    res.send(`<article style="padding:.6rem .9rem;margin-bottom:.6rem">
+      <form hx-post="/api/task/${t.id}/update" hx-swap="none" hx-on::after-request="htmx.ajax('GET','/api/charts/subs',{target:'#ch-subs-rows'})">
+        <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
+          <strong>🏆 编辑订阅</strong>
+          <small class="hint">${escapeHtml(t.chartSource ?? '')} · ${escapeHtml(t.chartName ?? '')}（平台与榜单不可改）</small>
+        </div>
+        <div class="line"><span>任务名（播放列表/落盘目录同名）</span>
+          <input name="lxPlaylistName" value="${escapeHtml(t.lxPlaylistName)}" style="width:16rem">
+        </div>
+        <div class="line"><span>下载范围（榜单前 N 首，0=全榜）</span>
+          <input type="number" name="maxCount" value="${t.maxCount}" min="0" style="width:7rem">
+        </div>
+        <div class="line">
+          <label class="opt"><input type="checkbox" name="createSameNamePlaylist" value="1" ${t.createSameNamePlaylist ? 'checked' : ''}> 同步到新建同名 ${tn} 播放列表（歌单）</label>
+        </div>
+        <div class="line"><span>定时 cron（空 = 仅手动）</span>
+          <input name="cronExpr" value="${escapeHtml(t.cronExpr || '')}" placeholder="0 8 * * *" style="width:12rem">
+          <small class="hint">各榜单刷新周期不同，建议按榜单自定</small>
+        </div>
+        <div class="btn-row">
+          <button type="submit">保存</button>
+          <button type="button" class="secondary" hx-get="/api/charts/subs" hx-target="#ch-subs-rows" hx-swap="innerHTML">取消</button>
+        </div>
+      </form>
+    </article>`)
+  })
+
   /** 我的订阅列表片段 */
   r.get('/charts/subs', (_req, res) => {
     const tasks = repo

@@ -15,6 +15,7 @@
       <small class="hint">本期榜单 <%= t.lastSnap.totalCount %> 首 ｜ 新上榜 <%= t.lastSnap.newCount %> ｜ 跌出 <%= t.lastSnap.removedCount %>（<%= fmtLocal(t.lastSnap.syncedAt) %>）</small>
       <% } %>
       <span style="flex:1"></span>
+      <button type="button" class="btn-sm secondary" hx-get="/api/charts/subs/<%= t.id %>/edit" hx-target="closest article" hx-swap="outerHTML">编辑</button>
       <button type="button" class="btn-sm" hx-post="/api/task/<%= t.id %>/run" hx-swap="none" hx-confirm="立即同步该订阅？将拉取当前榜单并下载范围内新上榜的歌曲。" hx-on::after-request="chSubMsg('<%= t.lxPlaylistName %> 同步已开始，请稍后在任务进度页查看…')">立即同步</button>
       <button type="button" class="btn-sm secondary" hx-post="/api/task/<%= t.id %>/toggle" hx-swap="none" hx-on::after-request="htmx.ajax('GET','/api/charts/subs',{target:'#ch-subs-rows'})"><%= t.enabled ? '暂停' : '启用' %></button>
       <button type="button" class="btn-sm secondary" hx-post="/api/task/<%= t.id %>/delete" hx-swap="none" hx-confirm="删除订阅「<%= t.lxPlaylistName %>」？已下载文件与播放列表内容保留，仅停止后续订阅。" hx-on::after-request="htmx.ajax('GET','/api/charts/subs',{target:'#ch-subs-rows'})">删除</button>
