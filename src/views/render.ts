@@ -323,7 +323,7 @@ ${ICON_SPRITE}
           <% if (it.authUser) { %>
             <form method="post" action="/api/auth/logout" class="foot-logout">
               <button type="submit" class="btn btn-ghost btn-xs px-2" title="登出" aria-label="登出">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg>
+                <svg aria-hidden="true"><use href="#i-logout"/></svg>
               </button>
             </form>
           <% } %>

@@ -51,7 +51,7 @@
           <h3 class="card-title text-base">我的榜单订阅</h3>
           <p class="text-xs c-sub mt-0.5">订阅 = 定时拉榜 → 自动下载新上榜歌曲 → 加入 <%= targetName %> 同名播放列表（跌出榜单不删文件）</p>
         </div>
-        <button type="button" id="ch-new-btn" class="btn btn-primary" onclick="chToggleForm()">＋ 新建榜单订阅</button>
+        <button type="button" id="ch-new-btn" class="btn btn-primary" onclick="chToggleForm()"><svg aria-hidden="true"><use href="#i-plus"/></svg>新建榜单订阅</button>
       </div>
 
       <form id="ch-form" style="display:none" hx-post="/api/tasks" hx-swap="none" hx-on::after-request="chFormDone(event)"
@@ -95,7 +95,7 @@
         <input type="hidden" name="taskType" value="chart">
         <input type="hidden" name="syncMode" value="incremental">
         <div class="card-actions flex items-center gap-2 border-t border-base-200 pt-3 mt-3">
-          <button type="submit" class="btn btn-primary">创建订阅</button>
+          <button type="submit" class="btn btn-primary"><svg aria-hidden="true"><use href="#i-check"/></svg>创建订阅</button>
           <span class="text-xs c-sub">创建后出现在上方列表，点「立即同步」跑第一次</span>
         </div>
       </form>
@@ -120,7 +120,7 @@
                 <option value="<%= p.k %>"><%= p.n %></option>
                 <% } %>
               </select>
-              <button type="button" class="btn btn-outline btn-xs px-2" onclick="chLoadBoards(true)">🔄 刷新榜单</button>
+              <button type="button" class="btn btn-outline btn-xs px-2" onclick="chLoadBoards(true)"><svg aria-hidden="true"><use href="#i-refresh"/></svg>刷新榜单</button>
             </div>
           </div>
           <p class="text-xs c-sub mt-2 leading-relaxed">榜单每日/每周在变——此页显示<b>当下榜单</b>；lxserver 建议缓存 10 分钟，点刷新强制重拉。想订阅的点「订阅」自动填到上方新建表单。</p>

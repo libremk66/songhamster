@@ -3,7 +3,7 @@
 <div style="display:flex;align-items:center;gap:.3rem;flex-wrap:wrap;margin:.25rem 0">
   <small class="hint">记录过多已分页：</small>
   <% for (let i = 1; i <= pages; i++) { %>
-  <button type="button" class="btn-sm<%= i === page ? ' current' : ' secondary' %>" hx-get="/api/dupe/history/partial?page=<%= i %>" hx-target="#dupe-history" hx-swap="innerHTML"><%= i %></button>
+  <button type="button" class="btn btn-xs<%= i === page ? ' btn-primary' : ' btn-ghost' %>" hx-get="/api/dupe/history/partial?page=<%= i %>" hx-target="#dupe-history" hx-swap="innerHTML"><%= i %></button>
   <% } %>
   <small class="hint">第 <%= page %>/<%= pages %> 页（每页 10 条，共 <%= total %> 条）</small>
 </div>
@@ -16,8 +16,8 @@
     <small><%= fmtLocal(r.createdAt, true) %></small>
     <small class="hint">重复 <%= r.groupsCount %> 组 ｜ 自动清理候选 <%= r.autoCount %> ｜ 手动候选 <%= r.manualCount %></small>
     <small class="hint"><%= r.threshold ? '门槛：' + r.threshold : '仅查重' %></small>
-    <button type="button" class="btn-sm secondary" onclick="dupeRowExpand(this, <%= r.id %>)">展开查看</button>
-    <button type="button" class="btn-sm secondary" onclick="dupeRowCollapse(this)">收起</button>
+    <button type="button" class="btn btn-ghost btn-xs" onclick="dupeRowExpand(this, <%= r.id %>)"><svg aria-hidden="true"><use href="#i-chevronDown"/></svg>展开查看</button>
+    <button type="button" class="btn btn-ghost btn-xs" onclick="dupeRowCollapse(this)"><svg aria-hidden="true"><use href="#i-chevronUp"/></svg>收起</button>
   </div>
   <div id="dup-body-<%= r.id %>" class="dup-body" style="display:none;margin-top:.35rem"></div>
 </div>

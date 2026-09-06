@@ -1,7 +1,8 @@
 <style>
   /* 双 tab(洗版/查重) */
-  .hist-tab { padding: .4rem .9rem; font-size: .8125rem; border-bottom: 2px solid transparent; color: oklch(var(--bc) / 0.7);
+  .hist-tab { display: inline-flex; align-items: center; padding: .4rem .9rem; font-size: .8125rem; border-bottom: 2px solid transparent; color: oklch(var(--bc) / 0.7);
               cursor: pointer; background: none; border-radius: 0; transition: color .15s, border-color .15s; }
+  .hist-tab svg { width: 1em; height: 1em; margin-right: .35em; }
   .hist-tab:hover { color: var(--sfg-deep); }
   .hist-tab.active { color: var(--sfg-deep); font-weight: 650; border-bottom-color: var(--sfg); }
   /* 规则行(标签+控件+提示) */
@@ -20,9 +21,9 @@
   <!-- ===== Tabs ===== -->
   <div class="flex gap-1 border-b border-base-200">
     <button type="button" class="hist-tab active" id="lib-tab-wash"
-      onclick="var a=document.getElementById('lib-panel-wash'),b=document.getElementById('lib-panel-dupe');a.style.display='';b.style.display='none';this.classList.add('active');document.getElementById('lib-tab-dupe').classList.remove('active')">安全洗版</button>
+      onclick="var a=document.getElementById('lib-panel-wash'),b=document.getElementById('lib-panel-dupe');a.style.display='';b.style.display='none';this.classList.add('active');document.getElementById('lib-tab-dupe').classList.remove('active')"><svg aria-hidden="true"><use href="#i-refresh"/></svg>安全洗版</button>
     <button type="button" class="hist-tab" id="lib-tab-dupe"
-      onclick="var a=document.getElementById('lib-panel-wash'),b=document.getElementById('lib-panel-dupe');a.style.display='none';b.style.display='';this.classList.add('active');document.getElementById('lib-tab-wash').classList.remove('active')">查重清理</button>
+      onclick="var a=document.getElementById('lib-panel-wash'),b=document.getElementById('lib-panel-dupe');a.style.display='none';b.style.display='';this.classList.add('active');document.getElementById('lib-tab-wash').classList.remove('active')"><svg aria-hidden="true"><use href="#i-search"/></svg>查重清理</button>
   </div>
 
   <!-- ==================== Tab 1：安全洗版 ==================== -->
@@ -87,7 +88,7 @@
           <p class="text-xs c-sub">独立目录，高音质新版只写这里，绝不触碰原歌曲</p>
         </div>
         <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-3">
-          <button type="submit" class="btn btn-primary">保存规则</button>
+          <button type="submit" class="btn btn-primary"><svg aria-hidden="true"><use href="#i-save"/></svg>保存规则</button>
           <span id="upgrade-msg" class="text-sm"></span>
         </div>
       </div>
@@ -125,7 +126,7 @@
           <p class="text-xs c-sub">请先在步骤 2 设置扫描目录并保存</p>
         <% } else { %>
         <div class="flex flex-wrap items-center gap-2">
-          <button class="btn btn-primary" hx-get="/api/upgrade/scan" hx-target="#upgrade-scan" hx-swap="innerHTML">扫描低码率歌曲</button>
+          <button class="btn btn-primary" hx-get="/api/upgrade/scan" hx-target="#upgrade-scan" hx-swap="innerHTML"><svg aria-hidden="true"><use href="#i-scan"/></svg>扫描低码率歌曲</button>
           <span class="text-xs c-sub">扫描目录：<code class="bg-base-200 px-1 rounded"><%= cfg.upgrade.scanDir %></code>（低于 <%= cfg.upgrade.thresholdKbps %>kbps）</span>
         </div>
         <% } %>
@@ -148,7 +149,7 @@
             <div style="flex:1;min-width:20rem">
               <div class="flow-label-row">
                 <span class="label-text font-semibold">Emby 音乐媒体库（可多选）</span>
-                <button type="button" class="btn btn-outline btn-xs px-2" hx-get="/api/emby/music-libs/options" hx-target="#dupe-libs-box" hx-swap="innerHTML">刷新</button>
+                <button type="button" class="btn btn-outline btn-xs px-2" hx-get="/api/emby/music-libs/options" hx-target="#dupe-libs-box" hx-swap="innerHTML"><svg aria-hidden="true"><use href="#i-refresh"/></svg>刷新</button>
               </div>
               <div id="dupe-libs-box" class="multi-box" style="max-height:9em">
                 <% if (musicLibs && musicLibs.length) { %>
@@ -196,7 +197,7 @@
             <p class="text-xs c-sub leading-relaxed">「清理 XX 以下」：低于所选档位的重复副本自动清理（整组最高低于门槛时不删，防误删唯一版本）；「每组仅保留最高一份」：应对两个副本音质相同（如双 FLAC）的情况——每组留最高音质那份，其余副本（含同音质）一并清理</p>
           </div>
           <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-3">
-            <button type="submit" id="dupe-btn" class="btn btn-primary">开始查重</button>
+            <button type="submit" id="dupe-btn" class="btn btn-primary"><svg aria-hidden="true"><use href="#i-search"/></svg>开始查重</button>
             <span id="dupe-loading" class="text-sm st-warn" style="display:none">⏳ 扫描中…（媒体库较大时可能需要一些时间，请勿关闭页面）</span>
           </div>
         </div>
@@ -208,7 +209,7 @@
         <div class="flex flex-wrap items-center justify-between gap-2">
           <h3 class="card-title text-base">历史查重记录（可翻查后处理）</h3>
           <div class="flex flex-wrap items-center gap-2">
-            <button type="button" class="btn btn-outline btn-xs px-2" hx-post="/api/dupe/scan-library" hx-target="#dupe-op-msg2" hx-swap="innerHTML">手动扫库</button>
+            <button type="button" class="btn btn-outline btn-xs px-2" hx-post="/api/dupe/scan-library" hx-target="#dupe-op-msg2" hx-swap="innerHTML"><svg aria-hidden="true"><use href="#i-folderSearch"/></svg>手动扫库</button>
             <span class="text-xs c-sub">移入回收站/恢复文件后点此，让 <%= targetName %> 清理缺失条目</span>
           </div>
         </div>
@@ -224,7 +225,7 @@
       <summary class="cursor-pointer text-sm font-semibold px-3 py-2 select-none">🗑 回收站（删除缓冲：移入可恢复）</summary>
       <div class="px-3 pb-3">
         <div class="flex flex-wrap items-center gap-2 py-2">
-          <button type="button" class="btn btn-outline btn-xs px-2" hx-get="/api/trash/partial" hx-target="#trash-panel" hx-swap="innerHTML">刷新回收站</button>
+          <button type="button" class="btn btn-outline btn-xs px-2" hx-get="/api/trash/partial" hx-target="#trash-panel" hx-swap="innerHTML"><svg aria-hidden="true"><use href="#i-refresh"/></svg>刷新回收站</button>
           <span class="text-xs c-sub">移入/恢复/彻底删除后自动刷新；如未更新请点此刷新</span>
         </div>
         <div id="trash-panel" hx-get="/api/trash/partial" hx-trigger="load">

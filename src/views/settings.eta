@@ -38,7 +38,7 @@
         </label>
       </div>
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-3">
-        <button type="submit" class="btn btn-primary">保存</button>
+        <button type="submit" class="btn btn-primary"><svg aria-hidden="true"><use href="#i-save"/></svg>保存</button>
         <span id="gen-msg" class="text-sm"></span>
       </div>
     </div>
@@ -72,7 +72,7 @@
         </label>
       </div>
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-3">
-        <button type="submit" class="btn btn-primary">保存账号设置</button>
+        <button type="submit" class="btn btn-primary"><svg aria-hidden="true"><use href="#i-save"/></svg>保存账号设置</button>
         <span id="auth-msg" class="text-sm"></span>
       </div>
     </div>
@@ -102,7 +102,7 @@
       </div>
       <p class="text-xs c-sub">当前已<%= cfg.download.protection.enabled ? '开启：下载间隔 ' + cfg.download.protection.downloadIntervalSec + ' 秒，直链解析间隔 ' + cfg.download.protection.resolveIntervalSec + ' 秒' : '关闭' %></p>
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-3">
-        <button type="submit" class="btn btn-primary">保存保护设置</button>
+        <button type="submit" class="btn btn-primary"><svg aria-hidden="true"><use href="#i-save"/></svg>保存保护设置</button>
         <span id="prot-msg" class="text-sm"></span>
       </div>
       <details class="rounded-lg border border-base-300 p-2.5">
@@ -153,7 +153,7 @@
         <p class="text-xs c-sub mt-1">库内已有音质 ≥ 所选档位 → 跳过下载；低于所选（如只有 320k）→ 视为缺失，继续下载高音质</p>
       </div>
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-3">
-        <button type="submit" class="btn btn-primary">保存高级设置</button>
+        <button type="submit" class="btn btn-primary"><svg aria-hidden="true"><use href="#i-save"/></svg>保存高级设置</button>
         <span id="adv-msg" class="text-sm"></span>
       </div>
     </div>

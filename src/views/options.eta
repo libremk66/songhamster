@@ -92,7 +92,7 @@
       </section>
 
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-3">
-        <button type="submit" class="btn btn-primary">保存全部设置</button>
+        <button type="submit" class="btn btn-primary"><svg aria-hidden="true"><use href="#i-save"/></svg>保存全部设置</button>
         <span id="dl-save-msg" class="text-sm"></span>
       </div>
     </div>

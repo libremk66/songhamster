@@ -107,8 +107,8 @@
       </div>
 
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-3">
-        <button type="submit" class="btn btn-primary">保存设置</button>
-        <button type="button" class="btn btn-outline" hx-post="/api/autoadd/scan" hx-target="#autoadd-msg">立即检测</button>
+        <button type="submit" class="btn btn-primary"><svg aria-hidden="true"><use href="#i-save"/></svg>保存设置</button>
+        <button type="button" class="btn btn-outline" hx-post="/api/autoadd/scan" hx-target="#autoadd-msg"><svg aria-hidden="true"><use href="#i-bolt"/></svg>立即检测</button>
         <span id="autoadd-msg" class="text-sm"></span>
       </div>
       <div id="autoadd-panel" hx-get="/api/autoadd/panel" hx-trigger="load"></div>
@@ -134,7 +134,7 @@
             <div class="manual-box">
               <div class="flow-label-row">
                 <span class="label-text font-semibold">LX 歌单</span>
-                <button type="button" class="btn btn-outline btn-xs px-2" hx-get="/api/lx/playlists/options" hx-target="#lx-select" hx-swap="innerHTML">刷新</button>
+                <button type="button" class="btn btn-outline btn-xs px-2" hx-get="/api/lx/playlists/options" hx-target="#lx-select" hx-swap="innerHTML"><svg aria-hidden="true"><use href="#i-refresh"/></svg>刷新</button>
               </div>
               <select name="lxPlaylistKey" id="lx-select" required class="select select-bordered w-full">
                 <option value="" disabled selected>选择歌单…</option>
@@ -154,7 +154,7 @@
             <div class="manual-box">
               <div class="flow-label-row">
                 <span class="label-text font-semibold">目标 · <%= targetName %> 播放列表</span>
-                <button type="button" class="btn btn-outline btn-xs px-2" hx-get="/api/emby/playlists/checkboxes" hx-target="#existing-list" hx-swap="innerHTML">刷新</button>
+                <button type="button" class="btn btn-outline btn-xs px-2" hx-get="/api/emby/playlists/checkboxes" hx-target="#existing-list" hx-swap="innerHTML"><svg aria-hidden="true"><use href="#i-refresh"/></svg>刷新</button>
               </div>
               <label class="flex items-center gap-2 cursor-pointer py-0.5">
                 <input type="checkbox" name="createSameNamePlaylist" value="1" checked class="checkbox checkbox-sm">
@@ -201,7 +201,7 @@
       </div>
 
       <div class="card-actions flex items-center gap-2 border-t border-base-200 pt-3">
-        <button type="submit" class="btn btn-primary">添加任务</button>
+        <button type="submit" class="btn btn-primary"><svg aria-hidden="true"><use href="#i-plus"/></svg>添加任务</button>
       </div>
     </div>
   </form>

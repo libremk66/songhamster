@@ -51,8 +51,8 @@
         <small class="hint">分 时 日 月 周</small>
       </div>
       <div class="btn-row">
-        <button type="submit">保存</button>
-        <button type="button" class="secondary" hx-get="/api/tasks/table" hx-target="#task-table" hx-swap="innerHTML">取消</button>
+        <button type="submit"><svg aria-hidden="true"><use href="#i-save"/></svg>保存</button>
+        <button type="button" class="btn btn-outline btn-xs" hx-get="/api/tasks/table" hx-target="#task-table" hx-swap="innerHTML"><svg aria-hidden="true"><use href="#i-x"/></svg>取消</button>
       </div>
     </form>
     <script>

@@ -6,7 +6,7 @@
 <div class="btn-row" style="margin:.5rem 0">
   <button hx-post="/api/dupe/delete" hx-vals='{"ids":"<%= autoIds.join(',') %>"}' hx-target="closest .dup-result-view .dup-op-msg" hx-swap="innerHTML"
     hx-on::after-request="htmx.ajax('GET','/api/trash/partial',{target:'#trash-panel'})"
-    hx-confirm="将把 <%= autoIds.length %> 首候选移入回收站（可恢复，非物理删除）。确认执行？">移入回收站（<%= autoIds.length %> 首）</button>
+    hx-confirm="将把 <%= autoIds.length %> 首候选移入回收站（可恢复，非物理删除）。确认执行？"><svg aria-hidden="true"><use href="#i-trash"/></svg>移入回收站（<%= autoIds.length %> 首）</button>
   <span class="hint">删除安全缓冲：文件移入回收站可恢复；移入/恢复后点"手动扫库"让 <%= targetName %> 清理条目</span>
 </div>
 <div class="dup-op-msg"></div>
@@ -34,12 +34,12 @@
         <td style="width:45%;word-break:break-all"><small><%= it.path || '' %></small></td>
         <td style="white-space:nowrap">
           <% if (it.inTrash) { %>
-          <button class="btn-sm" hx-post="/api/dupe/row/restore" hx-vals='{"id":"<%= it.id %>","path":"<%= it.path %>"}' hx-target="closest td" hx-swap="innerHTML"
-            hx-on::after-request="if(event.detail.successful){dupeClearRow(this)};htmx.ajax('GET','/api/trash/partial',{target:'#trash-panel'})">恢复</button>
+          <button class="btn btn-ghost btn-xs" hx-post="/api/dupe/row/restore" hx-vals='{"id":"<%= it.id %>","path":"<%= it.path %>"}' hx-target="closest td" hx-swap="innerHTML"
+            hx-on::after-request="if(event.detail.successful){dupeClearRow(this)};htmx.ajax('GET','/api/trash/partial',{target:'#trash-panel'})"><svg aria-hidden="true"><use href="#i-restore"/></svg>恢复</button>
           <% } else { %>
-          <button class="btn-sm secondary" hx-post="/api/dupe/delete" hx-vals='{"ids":"<%= it.id %>","paths":"<%= it.path %>"}' hx-target="closest td" hx-swap="innerHTML"
+          <button class="btn btn-outline btn-xs" hx-post="/api/dupe/delete" hx-vals='{"ids":"<%= it.id %>","paths":"<%= it.path %>"}' hx-target="closest td" hx-swap="innerHTML"
             hx-on::after-request="if(event.detail.successful){dupeMarkTrash(this)};htmx.ajax('GET','/api/trash/partial',{target:'#trash-panel'})"
-            hx-confirm="<%= isKeep ? '这是建议保留的最高音质副本，仍要移入回收站吗（可恢复）？' : '将移入回收站（可恢复）。确认？' %>\n<%= it.path %>">移入回收站</button>
+            hx-confirm="<%= isKeep ? '这是建议保留的最高音质副本，仍要移入回收站吗（可恢复）？' : '将移入回收站（可恢复）。确认？' %>\n<%= it.path %>"><svg aria-hidden="true"><use href="#i-trash"/></svg>移入回收站</button>
           <% } %>
         </td>
       </tr>

@@ -19,7 +19,7 @@
       <td><small class="c-sub"><%= it.errorReason ?? '' %></small></td>
       <td>
         <% if (it.status === 'failed' || it.status === 'unsatisfied') { %>
-        <button class="btn btn-outline btn-xs" hx-post="/api/history/item/<%= it.id %>/retry" hx-target="closest tr" hx-swap="outerHTML">重试</button>
+        <button class="btn btn-outline btn-xs" hx-post="/api/history/item/<%= it.id %>/retry" hx-target="closest tr" hx-swap="outerHTML"><svg aria-hidden="true"><use href="#i-retry"/></svg>重试</button>
         <% } %>
       </td>
     </tr>

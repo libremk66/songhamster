@@ -18,7 +18,7 @@ const MAP = {
   retry: 'rotate-clockwise', search: 'search', music: 'music', clock: 'clock',
   logout: 'logout', check: 'check', alert: 'alert-triangle', listSearch: 'list-search',
   sync: 'refresh', shield: 'shield-check', heart: 'heart', settings: 'settings',
-  arrowRight: 'arrow-right', database: 'database', playlist: 'playlist',
+  arrowRight: 'arrow-right', database: 'database', playlist: 'playlist', x: 'x', restore: 'arrow-back-up',
 }
 
 const warn = []

@@ -15,6 +15,6 @@
   </tbody>
 </table>
 <div class="btn-row" style="margin-top:.5rem">
-  <button hx-post="/api/upgrade/run" hx-target="#upgrade-result" hx-swap="innerHTML" hx-confirm="将自动为以上 <%= items.length %> 首匹配 LX 高音质候选并下载到独立目录（不动旧文件）。继续？">开始洗版（自动）</button>
+  <button hx-post="/api/upgrade/run" hx-target="#upgrade-result" hx-swap="innerHTML" hx-confirm="将自动为以上 <%= items.length %> 首匹配 LX 高音质候选并下载到独立目录（不动旧文件）。继续？"><svg aria-hidden="true"><use href="#i-refresh"/></svg>开始洗版（自动）</button>
   <span class="hint">匹配候选 → 下载最高可用音质 → 旧文件/歌单关系不动</span>
 </div>

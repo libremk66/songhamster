@@ -8,7 +8,7 @@
     <strong class="text-sm"><%= t.lxPlaylistName %></strong>
     <span class="text-xs c-sub">（<%= t.syncMode === 'full' ? '完全' : '增量' %> · 上次：<%= t.lastResult ?? '从未' %>）</span>
     <span class="flex-1"></span>
-    <button class="btn btn-primary btn-xs" hx-post="/api/task/<%= t.id %>/run" hx-target="closest header">▶ 立即同步</button>
+    <button class="btn btn-primary btn-xs" hx-post="/api/task/<%= t.id %>/run" hx-target="closest header"><svg aria-hidden="true"><use href="#i-play"/></svg>立即同步</button>
   </header>
   <div class="overflow-x-auto">
     <table class="table table-sm w-full text-sm">
