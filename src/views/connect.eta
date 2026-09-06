@@ -32,6 +32,7 @@
   <div style="display:flex;align-items:center;gap:1.2rem;flex-wrap:wrap">
     <label style="display:flex;align-items:center;gap:.3rem"><input type="radio" name="target" value="emby" <%= cfg.target === 'emby' ? 'checked' : '' %> onchange="markTargetChange()"> Emby</label>
     <label style="display:flex;align-items:center;gap:.3rem"><input type="radio" name="target" value="navidrome" <%= cfg.target === 'navidrome' ? 'checked' : '' %> onchange="markTargetChange()"> Navidrome</label>
+    <label style="display:flex;align-items:center;gap:.3rem"><input type="radio" name="target" value="daoliyu" <%= cfg.target === 'daoliyu' ? 'checked' : '' %> onchange="markTargetChange()"> 道理鱼</label>
     <button type="button" id="target-apply-btn" disabled onclick="applyTarget()">确定</button>
     <span id="target-msg" class="msg"></span>
   </div>
@@ -110,6 +111,39 @@
 </form>
 </div>
 
+<div id="dly-box" style="display:<%= cfg.target === 'daoliyu' ? '' : 'none' %>">
+<form method="post" action="/api/config/daoliyu" hx-post="/api/config/daoliyu" hx-target="#dly-save-msg">
+  <article>
+    <h3>连接 道理鱼</h3>
+    <div class="grid2">
+      <div><label>服务地址<input name="baseUrl" value="<%= cfg.daoliyu.baseUrl %>" placeholder="http://127.0.0.1:4000"></label></div>
+      <div>
+        <label>管理员账号（邮箱）</label>
+        <div class="key-wrap" style="gap:.3rem">
+          <input name="username" value="<%= cfg.daoliyu.username %>" placeholder="管理员邮箱" style="flex:1.4">
+          <input type="password" name="password" id="dly-key" value="<%= cfg.daoliyu.password %>" autocomplete="off" style="flex:1">
+          <button type="button" class="btn-sm secondary key-eye" onclick="toggleKey('dly-key', this)" title="显示/隐藏">👁</button>
+        </div>
+      </div>
+      <div style="grid-column: span 2">
+        <label>媒体库根路径（道理鱼容器视角；应等于 LX 下载目录在其容器内的路径）
+          <input name="libraryRoot" value="<%= cfg.daoliyu.libraryRoot %>" placeholder="如 /D8/MOVIEPILOT/MUSIC/MusicTagWeb/LINK/LXSERVER/king">
+        </label>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button type="submit">保存</button>
+      <button type="button" class="secondary" hx-post="/api/test/daoliyu" hx-target="#dly-test-result">测试连接</button>
+      <button type="button" class="secondary" hx-post="/api/daoliyu/probe" hx-target="#dly-probe-result">探测媒体库根</button>
+      <span id="dly-test-result" class="msg"></span>
+      <span id="dly-probe-result" class="msg"></span>
+      <span id="dly-save-msg" class="msg"></span>
+    </div>
+    <p class="hint" style="margin:.3rem 0 0">目录驱动：在道理鱼 Web「多媒体库 → 歌单目录」选择 <code>歌单同步</code> 目录后，SongFerry 下载落盘即自动入库并纳入同名歌单，无需 API 维护播放列表。</p>
+  </article>
+</form>
+</div>
+
 <article>
   <h3>路径自检</h3>
   <div class="btn-row">
@@ -139,6 +173,7 @@
 <script>
 // 目标切换：先选择 → 点「确定」才生效（避免误切）。确定前锁定下方连接表单。
 var currentTarget = document.getElementById('target-box').dataset.current || 'emby'
+var TARGET_LABELS = { emby: 'Emby', navidrome: 'Navidrome', daoliyu: '道理鱼' }
 function targetSelected() {
   var r = document.querySelector('input[name="target"]:checked')
   return r ? r.value : currentTarget
@@ -147,7 +182,7 @@ function targetPending() {
   return targetSelected() !== currentTarget
 }
 function setFormLocked(locked) {
-  var boxes = ['emby-box', 'nd-box']
+  var boxes = ['emby-box', 'nd-box', 'dly-box']
   for (var i = 0; i < boxes.length; i++) {
     var box = document.getElementById(boxes[i])
     if (!box) continue
@@ -159,7 +194,7 @@ function setFormLocked(locked) {
   var hint = document.getElementById('target-pending-hint')
   var m = document.getElementById('target-msg')
   if (locked) {
-    if (hint) hint.innerHTML = '⚠️ 目标已选为 <b>' + (targetSelected() === 'navidrome' ? 'Navidrome' : 'Emby') + '</b> 但尚未生效——点「确定」后切换并解锁下方连接表单'
+    if (hint) hint.innerHTML = '⚠️ 目标已选为 <b>' + (TARGET_LABELS[targetSelected()] || targetSelected()) + '</b> 但尚未生效——点「确定」后切换并解锁下方连接表单'
     if (hint) hint.style.color = '#e8590c'
     if (m) m.innerHTML = ''
   } else {

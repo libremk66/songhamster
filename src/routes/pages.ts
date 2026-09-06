@@ -1,6 +1,6 @@
 import { Router, type Request } from 'express'
 import type { AppConfig } from '../config.js'
-import { QUALITY_ORDER, QUALITY_LABELS } from '../config.js'
+import { QUALITY_ORDER, QUALITY_LABELS, TARGET_LABEL } from '../config.js'
 import { LxServerAdapter } from '../adapters/lxserver.js'
 import type { MediaServerAdapter } from '../adapters/media-server.js'
 import { renderPage, VERSION } from '../views/render.js'
@@ -29,7 +29,7 @@ export function pagesRouter(getCfg: () => AppConfig, lx: LxServerAdapter, emby: 
     githubUrl: getCfg().general.githubUrl || '',
     authEnabled: getCfg().auth.enabled,
     authUser: currentUser(req),
-    targetName: getCfg().target === 'navidrome' ? 'Navidrome' : 'Emby',
+    targetName: TARGET_LABEL[getCfg().target] ?? 'Emby',
   })
 
   r.get('/', (_req, res) => res.redirect('/connect'))

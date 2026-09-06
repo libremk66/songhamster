@@ -6,6 +6,7 @@ import { getDb } from './store/db.js'
 import { LxServerAdapter } from './adapters/lxserver.js'
 import { EmbyAdapter } from './adapters/emby.js'
 import { NavidromeAdapter } from './adapters/navidrome.js'
+import { DaoliyuAdapter } from './adapters/daoliyu.js'
 import type { MediaServerAdapter } from './adapters/media-server.js'
 import { SyncEngine } from './core/sync-engine.js'
 import { Scheduler } from './scheduler/index.js'
@@ -21,7 +22,9 @@ initAuthFromEnv(config) // docker env 注入初始账号（SONGFERRY_AUTH_USER/P
 
 /** 按 cfg.target 实例化媒体服务器适配器 */
 function makeServer(): MediaServerAdapter {
-  return config.target === 'navidrome' ? new NavidromeAdapter(() => config) : new EmbyAdapter(() => config)
+  if (config.target === 'navidrome') return new NavidromeAdapter(() => config)
+  if (config.target === 'daoliyu') return new DaoliyuAdapter(() => config)
+  return new EmbyAdapter(() => config)
 }
 
 // 可变服务器适配器：target 切换（POST /api/config/target）即换实例，引擎/路由经由 proxy 透明跟随
@@ -84,14 +87,14 @@ app.use(authRequired(() => config))
 // 媒体服务器目标切换（emby | navidrome）：保存并即时重建适配器（引擎/路由经 proxy 自动跟随）
 app.post('/api/config/target', (req, res) => {
   const t = String((req.body ?? {}).target ?? '')
-  if (t !== 'emby' && t !== 'navidrome') {
+  if (t !== 'emby' && t !== 'navidrome' && t !== 'daoliyu') {
     return res.status(400).send('<span class="bad">❌ 未知目标</span>')
   }
   config.target = t
   saveConfig(config)
   serverImpl = makeServer()
   logger.info(`[server] 媒体服务器目标切换为 ${t}`)
-  res.send(`<span class="ok">✅ 已切换目标：${t === 'navidrome' ? 'Navidrome' : 'Emby'}（同步任务将操作该服务器）</span>`)
+  res.send(`<span class="ok">✅ 已切换目标：${t === 'navidrome' ? 'Navidrome' : t === 'daoliyu' ? '道理鱼' : 'Emby'}（同步任务将操作该服务器）</span>`)
 })
 
 app.use('/api', apiRouter(config, lx, server, engine, scheduler))

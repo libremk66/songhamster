@@ -387,8 +387,8 @@ export class SyncEngine {
           }
         }
       }
-      // 加入目标歌单
-      const playlistIds: string[] = [...task.embyTargetPlaylistIdsParsed]
+      // 加入目标歌单（daoliyu 目录驱动：落盘即入库+入同名目录歌单，无需 API 操作）
+      const playlistIds: string[] = this.emby.kind === 'daoliyu' ? [] : [...task.embyTargetPlaylistIdsParsed]
       if (task.createSameNamePlaylist) {
         const same = await this.findPlaylistByName(task.lxPlaylistName)
         if (same) {

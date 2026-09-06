@@ -1,10 +1,11 @@
 import { Router } from 'express'
 import type { AppConfig, Quality } from '../config.js'
-import { QUALITY_ORDER, QUALITY_LABELS } from '../config.js'
+import { QUALITY_ORDER, QUALITY_LABELS, TARGET_LABEL } from '../config.js'
 import { saveConfig } from '../config.js'
 import { LxServerAdapter } from '../adapters/lxserver.js'
 import type { MediaServerAdapter } from '../adapters/media-server.js'
 import { NavidromeAdapter } from '../adapters/navidrome.js'
+import { DaoliyuAdapter } from '../adapters/daoliyu.js'
 import * as repo from '../store/repo.js'
 import { SyncEngine } from '../core/sync-engine.js'
 import { Scheduler } from '../scheduler/index.js'
@@ -42,6 +43,12 @@ export function apiRouter(
     if (cfg.target === 'navidrome') {
       if (!serverPath.startsWith('/')) return dl + '/' + serverPath
       return serverPath.startsWith(dl) ? serverPath : localizeEmbyPath(cfg, serverPath)
+    }
+    if (cfg.target === 'daoliyu') {
+      // filePath 为容器内绝对路径（与 downloadRoot 同源）：libraryRoot 前缀 → downloadRoot
+      const lib = cfg.daoliyu.libraryRoot?.replace(/\/+$/, '')
+      if (lib && serverPath.startsWith(lib + '/')) return dl + serverPath.slice(lib.length)
+      return serverPath.startsWith(dl) ? serverPath : null
     }
     return localizeEmbyPath(cfg, serverPath)
   }
@@ -147,6 +154,39 @@ export function apiRouter(
   })
 
   // ===== 歌单下拉/列表刷新片段（蓝框内刷新按钮） =====
+  // ===== 道理鱼连接（target=daoliyu 时使用；目录驱动） =====
+  r.post('/config/daoliyu', (req, res) => {
+    const b = req.body ?? {}
+    cfg.daoliyu.baseUrl = String(b.baseUrl ?? '').trim()
+    cfg.daoliyu.username = String(b.username ?? '').trim()
+    cfg.daoliyu.password = String(b.password ?? '').trim()
+    cfg.daoliyu.libraryRoot = String(b.libraryRoot ?? '').trim()
+    saveConfig(cfg)
+    res.send(ok('道理鱼连接配置已保存'))
+  })
+
+  r.post('/test/daoliyu', async (_req, res) => {
+    const t = await new DaoliyuAdapter(() => cfg).test()
+    res.send(t.ok ? ok('道理鱼连接正常') : err(`道理鱼 ${t.error}`))
+  })
+
+  r.post('/daoliyu/probe', async (_req, res) => {
+    try {
+      const dly = new DaoliyuAdapter(() => cfg)
+      const libs = await dly.listLibraries()
+      const root = libs[0]?.locations[0]
+      if (root) {
+        cfg.daoliyu.libraryRoot = root
+        saveConfig(cfg)
+        res.send(ok(`已识别媒体库根：<code>${escapeHtml(root)}</code>（已保存）`))
+      } else {
+        res.send(err('未探测到媒体库扫描路径（请先在道理鱼 Web 配置媒体库并全量扫描一次）'))
+      }
+    } catch (e) {
+      res.send(err((e as Error).message))
+    }
+  })
+
   // ===== 榜单订阅 API =====
   const PLAT_LABEL: Record<string, string> = { tx: 'QQ', kw: '酷我', wy: '网易云', kg: '酷狗', mg: '咪咕', bd: '百度' }
 
@@ -316,7 +356,7 @@ export function apiRouter(
       const looksKey = !t.lxPlaylistName || t.lxPlaylistName === t.lxPlaylistKey || t.lxPlaylistName.startsWith('user:') || t.lxPlaylistName === 'loveList'
       return { ...t, lxPlaylistName: looksKey ? keyToName[t.lxPlaylistKey] ?? t.lxPlaylistKey : t.lxPlaylistName }
     })
-    return renderBody('partials/task-table', { tasks, idToName, targetName: cfg.target === 'navidrome' ? 'Navidrome' : 'Emby', })
+    return renderBody('partials/task-table', { tasks, idToName, targetName: TARGET_LABEL[cfg.target] ?? 'Emby', })
   }
 
   r.get('/tasks/table', async (_req, res) => {
@@ -397,7 +437,7 @@ export function apiRouter(
     try {
       embyPlaylists = await emby.listPlaylists()
     } catch { /* 未连接 */ }
-    res.send(renderBody('partials/task-edit', { t, embyPlaylists, qOrder: QUALITY_ORDER, qLabels: QUALITY_LABELS, targetName: cfg.target === 'navidrome' ? 'Navidrome' : 'Emby', }))
+    res.send(renderBody('partials/task-edit', { t, embyPlaylists, qOrder: QUALITY_ORDER, qLabels: QUALITY_LABELS, targetName: TARGET_LABEL[cfg.target] ?? 'Emby', }))
   })
 
   // 保存编辑
@@ -864,7 +904,7 @@ export function apiRouter(
       else head = `仅查重（不自动清理，候选手动删除 <b>${plan.manualCandidates.length}</b> 首）`
       res.send(
         `<p class="ok">扫描完成（${modeTxt}）：${scannedCount} 首 ｜ 重复组 ${groups.length} ｜ 保留 ${plan.keep.length} ｜ ${head}</p>` +
-          renderBody('partials/dupe-result', { groups: data, autoIds: [...autoIds], keepIds: [...keepIds], threshold: rawTh, targetName: cfg.target === 'navidrome' ? 'Navidrome' : 'Emby', }),
+          renderBody('partials/dupe-result', { groups: data, autoIds: [...autoIds], keepIds: [...keepIds], threshold: rawTh, targetName: TARGET_LABEL[cfg.target] ?? 'Emby', }),
       )
     } catch (e) {
       res.send(err('查重失败：' + escapeHtml((e as Error).message)))
@@ -890,7 +930,7 @@ export function apiRouter(
     try {
       const sm = JSON.parse(row.summary)
       const { groups } = buildDupeView((sm.groups || []).map((g: any) => ({ ...g, items: g.items.map((it: any) => ({ ...it, quality: it.quality || null })) })))
-      res.send(renderBody('partials/dupe-result', { groups, autoIds: sm.autoIds || [], keepIds: sm.keepIds || [], threshold: sm.threshold || '', targetName: cfg.target === 'navidrome' ? 'Navidrome' : 'Emby', }))
+      res.send(renderBody('partials/dupe-result', { groups, autoIds: sm.autoIds || [], keepIds: sm.keepIds || [], threshold: sm.threshold || '', targetName: TARGET_LABEL[cfg.target] ?? 'Emby', }))
     } catch (e) {
       res.send('<p class="bad">记录解析失败</p>')
     }

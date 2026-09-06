@@ -105,13 +105,13 @@
 
 <!-- ==================== 标签 2：查重清理 ==================== -->
 <div id="lib-panel-dupe" style="display:none">
-<p class="hint"><% if (cfg.target !== 'navidrome') { %>在所选 Emby 音乐媒体库内<% } else { %>在当前 Navidrome 媒体库内<% } %>查找重复歌曲（同名同歌手），保留高音质版本。可自动清理低质副本，或仅查重后逐条手动删除。</p>
+<p class="hint"><% if (cfg.target === 'emby') { %>在所选 Emby 音乐媒体库内<% } else { %>在当前 <%= targetName %> 媒体库内<% } %>查找重复歌曲（同名同歌手），保留高音质版本。可自动清理低质副本，或仅查重后逐条手动删除。</p>
 
 <form hx-post="/api/dupe/scan" hx-target="#dupe-result" hx-swap="innerHTML" hx-indicator="#dupe-loading">
   <article>
     <h3>查重范围</h3>
     <div style="display:flex;gap:.6rem;align-items:flex-end">
-      <% if (cfg.target !== 'navidrome') { %>
+      <% if (cfg.target === 'emby') { %>
       <div class="svc-icon-col" style="width:auto">
         <img src="/static/emby.svg" alt="Emby" style="width:34px;height:34px;border-radius:7px">
         <button type="button" class="btn-sm secondary" hx-get="/api/emby/music-libs/options" hx-target="#dupe-libs-box" hx-swap="innerHTML">刷新</button>
@@ -143,7 +143,7 @@
       </div>
       <% } else { %>
       <div style="flex:1">
-        <p class="hint" style="margin:0">当前目标 <b>Navidrome</b>：媒体库为单一音乐根，整库查重，无需选择范围。文件由 Navidrome 自动监听入库。</p>
+        <p class="hint" style="margin:0">当前目标 <b><%= targetName %></b>：媒体库为单一音乐根，整库查重，无需选择范围。文件由媒体服务器自动监听入库。</p>
       </div>
       <% } %>
     </div>

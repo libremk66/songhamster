@@ -6,6 +6,13 @@ import YAML from 'yaml'
 export const QUALITY_ORDER = ['master', 'atmos_plus', 'atmos', 'hires', 'flac24bit', 'flac', '320k', '128k'] as const
 export type Quality = (typeof QUALITY_ORDER)[number]
 
+/** 媒体服务器显示名 */
+export const TARGET_LABEL: Record<'emby' | 'navidrome' | 'daoliyu', string> = {
+  emby: 'Emby',
+  navidrome: 'Navidrome',
+  daoliyu: '道理鱼',
+}
+
 /** 音质显示名（界面复选框标签） */
 export const QUALITY_LABELS: Record<Quality, string> = {
   master: '臻品母带',
@@ -80,8 +87,16 @@ export interface AppConfig {
     /** 媒体库 Id（连接后自动探测填入） */
     libraryId?: string
   }
-  /** 媒体服务器目标（M5-2 接入切换）：emby | navidrome */
-  target: 'emby' | 'navidrome'
+  daoliyu: {
+    baseUrl: string
+    /** 管理员邮箱（登录用） */
+    username: string
+    password: string
+    /** 媒体库根路径（Daoliyu 容器视角，与 downloadRoot 同源；如 /D8/.../LXSERVER/king） */
+    libraryRoot: string
+  }
+  /** 媒体服务器目标：emby | navidrome | daoliyu */
+  target: 'emby' | 'navidrome' | 'daoliyu'
   download: {
     /** 勾选的音质，按高→低尝试；未勾选绝不使用 */
     qualities: Quality[]
@@ -156,6 +171,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   lxserver: { baseUrl: 'http://127.0.0.1:19527', apiKey: '', username: 'king', downloadRoot: '' },
   emby: { baseUrl: 'http://127.0.0.1:8096', apiKey: '', libraryRoot: '' },
   navidrome: { baseUrl: '', username: '', password: '', libraryRoot: '' },
+  daoliyu: { baseUrl: '', username: '', password: '', libraryRoot: '' },
   target: 'emby',
   download: {
     qualities: ['flac24bit', 'flac'],
@@ -235,6 +251,7 @@ export function loadConfig(): AppConfig {
     lxserver: { ...DEFAULT_CONFIG.lxserver, ...fileCfg?.lxserver },
     emby: { ...DEFAULT_CONFIG.emby, ...fileCfg?.emby },
     navidrome: { ...DEFAULT_CONFIG.navidrome, ...fileCfg?.navidrome },
+    daoliyu: { ...DEFAULT_CONFIG.daoliyu, ...fileCfg?.daoliyu },
     download: {
       ...DEFAULT_CONFIG.download,
       ...fileCfg?.download,
