@@ -3,7 +3,10 @@
   .ch2 { display: grid; grid-template-columns: minmax(0, 34rem) minmax(0, 1fr); gap: 1rem; align-items: stretch; }
   .ch2 > div { height: 100%; min-width: 0; display: flex; flex-direction: column; }
   /* 移动端必须 minmax(0,1fr):1fr 的 min=auto 会被长榜单行内容撑出窗口 */
-  @media (max-width: 1023.98px) { .ch2 { grid-template-columns: minmax(0, 1fr); } .ch2 > div { height: auto; } }
+  @media (max-width: 1023.98px) {
+    .ch2 { grid-template-columns: minmax(0, 1fr); } .ch2 > div { height: auto; }
+    .songs-col { display: none; } /* 移动端歌曲走榜单行内折叠框,右侧整框隐藏 */
+  }
   /* 移动端榜单行内展开框(点「查看歌曲」在该榜单下开合;超宽内容横向滚动) */
   .ch-songs-panel { margin: .4rem 0 .6rem; border: 1px solid oklch(var(--bc) / .15); border-radius: .5rem;
                     background: oklch(var(--b1)); padding: .6rem .7rem; max-width: 100%; overflow-x: auto; }
@@ -124,10 +127,8 @@
           <p class="text-xs c-sub mt-2 leading-relaxed">榜单每日/每周在变——此页显示<b>当下榜单</b>；lxserver 建议缓存 10 分钟，点刷新强制重拉。想订阅的点「订阅」自动填到上方新建表单。</p>
           <div id="ch-boards" class="mt-2 space-y-1">加载中…</div>
         </div>
-        <div class="rounded-lg border border-base-300 p-3">
-          <div id="ch-songs-box" style="min-height:10rem">
-            <p class="text-xs c-sub">👈 在左侧选榜单点「查看歌曲」，这里显示当下榜单内容（可勾选手动下载）</p>
-          </div>
+        <div class="songs-col rounded-lg border border-base-300 p-3">
+          <div id="ch-songs-box"></div>
         </div>
       </div>
     </div>
