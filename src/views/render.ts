@@ -77,9 +77,10 @@ export const LAYOUT = `<!doctype html>
     aside.sidebar nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; }
     /* 菜单项=圆角框:悬停浅绿底、选中绿底深字 */
     aside.sidebar nav a {
-      display: block; padding: .6rem .9rem; font-size: 1.2em; border-radius: .6rem;
+      display: flex; align-items: center; gap: .6rem; padding: .6rem .9rem; font-size: 1.2em; border-radius: .6rem;
       color: oklch(var(--bc)); text-decoration: none; transition: background .15s, color .15s;
     }
+    aside.sidebar nav a svg { width: 1.15em; height: 1.15em; flex-shrink: 0; }
     aside.sidebar nav a:hover { background: color-mix(in oklab, var(--sfg) 14%, transparent); color: var(--sfg-deep); }
     aside.sidebar nav a.active { font-weight: 700; background: var(--sfg); color: var(--sfg-ink); }
     aside.sidebar .sidebar-foot { margin-top: auto; padding-top: .8rem; font-size: .88em; }
@@ -277,8 +278,9 @@ export const LAYOUT = `<!doctype html>
       .mob-panel .mob-sub { color: oklch(var(--bc) / .6); font-size: .95rem; margin: .15rem 0 1.4rem; }
       .mob-panel ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .2rem; overflow-y: auto; }
       .mob-panel ul { gap: .2rem; }
-      .mob-panel li a { display: block; padding: .7rem .9rem; font-size: 1.1em; border-radius: .55rem; color: oklch(var(--bc));
+      .mob-panel li a { display: flex; align-items: center; gap: .55rem; padding: .7rem .9rem; font-size: 1.1em; border-radius: .55rem; color: oklch(var(--bc));
                         text-decoration: none; transition: background .15s, color .15s; }
+      .mob-panel li a svg { width: 1.1em; height: 1.1em; flex-shrink: 0; }
       .mob-panel li a:hover { background: color-mix(in oklab, var(--sfg) 14%, transparent); color: var(--sfg-deep); }
       .mob-panel li a.active { font-weight: 700; background: var(--sfg); color: var(--sfg-ink); }
       .mob-panel .mob-foot { margin-top: auto; padding-top: .7rem; border-top: 1px solid oklch(var(--bc) / .15); font-size: .82em; color: oklch(var(--bc) / .6); }
@@ -291,6 +293,7 @@ export const LAYOUT = `<!doctype html>
 </head>
 <body class="app">
 ${ICON_SPRITE}
+  <% var NAV_ICON = { connect:'server', 'sync-setup':'playlist', charts:'listSearch', options:'adjustments', progress:'chartLine', history:'clock', library:'database', logs:'fileText', settings:'settings' }; %>
   <!-- 移动端(<1024px)导航:汉堡按钮 checkbox 驱动,点击滑出面板 -->
   <input type="checkbox" id="nav-toggle" autocomplete="off" aria-hidden="true">
   <header class="mob-nav">
@@ -306,7 +309,7 @@ ${ICON_SPRITE}
       <nav>
         <ul>
           <% for (const item of it.nav) { %>
-            <li><a href="/<%= item.id %>" class="<%= item.id === it.active ? 'active' : '' %>"><%= item.label %></a></li>
+            <li><a href="/<%= item.id %>" class="<%= item.id === it.active ? 'active' : '' %>"><% if (NAV_ICON[item.id]) { %><svg aria-hidden="true"><use href="#i-<%= NAV_ICON[item.id] %>"/></svg><% } %><%= item.label %></a></li>
           <% } %>
         </ul>
       </nav>
@@ -346,7 +349,7 @@ ${ICON_SPRITE}
     <div class="mob-sub">LX 歌单自动同步入库</div>
     <ul>
       <% for (const item of it.nav) { %>
-        <li><a href="/<%= item.id %>" class="<%= item.id === it.active ? 'active' : '' %>"><%= item.label %></a></li>
+        <li><a href="/<%= item.id %>" class="<%= item.id === it.active ? 'active' : '' %>"><% if (NAV_ICON[item.id]) { %><svg aria-hidden="true"><use href="#i-<%= NAV_ICON[item.id] %>"/></svg><% } %><%= item.label %></a></li>
       <% } %>
     </ul>
     <div class="mob-foot">v<%= it.version %> · <% if (it.authEnabled && it.authUser) { %>👤 <%= it.authUser %><% } else if (it.authEnabled) { %>未登录<% } else { %>认证未启用<% } %></div>
