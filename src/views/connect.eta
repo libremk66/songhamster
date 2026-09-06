@@ -20,21 +20,10 @@
 <div class="space-y-4">
 
   <!-- ===== 页头 ===== -->
-  <header class="flex flex-wrap items-center justify-between gap-3">
-    <div class="min-w-0">
-      <div class="flex items-center gap-2 flex-wrap">
-        <h2 class="text-lg font-extrabold tracking-tight">连接容器</h2>
-        <span class="badge badge-ghost badge-sm font-semibold px-2 py-1">v<%= version %></span>
-      </div>
-      <p class="text-xs c-sub mt-1 leading-relaxed">同步链路 = LX 下载源 → 目标媒体服务器。填好地址先「测试连接」，再选定目标生效。</p>
-      <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
-        <% if (cfg.lxserver.apiKey) { %>
-          <span class="badge badge-outline badge-sm gap-1 font-normal px-2 py-1"><span class="w-1.5 h-1.5 rounded-full bg-success inline-block"></span>LX 下载源已配置</span>
-        <% } else { %>
-          <span class="badge badge-outline badge-sm gap-1 font-normal px-2 py-1"><span class="w-1.5 h-1.5 rounded-full bg-base-300 inline-block"></span>LX 下载源未配置</span>
-        <% } %>
-        <span class="badge badge-outline badge-sm gap-1 font-normal px-2 py-1"><span class="w-1.5 h-1.5 rounded-full inline-block" style="background:var(--sfg)"></span>目标 · <%= TL[cfg.target] %></span>
-      </div>
+  <header>
+    <div class="flex items-center gap-2 flex-wrap">
+      <h2 class="text-lg font-extrabold tracking-tight">连接容器</h2>
+      <span class="badge badge-ghost badge-sm font-semibold px-2 py-1">v<%= version %></span>
     </div>
   </header>
 
