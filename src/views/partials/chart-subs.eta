@@ -7,7 +7,11 @@
       <strong class="text-sm">🏆 <%= t.lxPlaylistName %></strong>
       <span class="text-xs c-sub"><%= t.chartSource %> · <%= t.chartName || '' %> · 范围前 <%= t.maxCount === 0 ? '全榜' : t.maxCount + ' 首' %></span>
       <span class="text-xs c-sub"><% if (t.cronExpr) { %>cron <%= t.cronExpr %><% } else { %>仅手动<% } %></span>
-      <span class="badge badge-sm <%= t.enabled ? 'badge-success badge-outline' : 'badge-ghost' %>"><%= t.enabled ? '● 启用' : '○ 暂停' %></span>
+      <% if (t.enabled) { %>
+      <span class="inline-flex items-center gap-1 text-xs"><span class="w-2 h-2 rounded-full inline-block" style="background:var(--sfg)"></span>启用</span>
+      <% } else { %>
+      <span class="inline-flex items-center gap-1 text-xs c-sub"><span class="w-2 h-2 rounded-full inline-block" style="background:oklch(var(--bc)/0.35)"></span>暂停</span>
+      <% } %>
     </div>
     <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
       <span class="text-xs c-sub">上次同步：<%= t.lastRunAt ? fmtLocal(t.lastRunAt, true) : '—' %>（<%= t.lastResult || '未跑过' %>）</span>

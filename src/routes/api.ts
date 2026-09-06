@@ -268,9 +268,9 @@ export function apiRouter(
           boards
             .map(
               (b) =>
-                `<div style="display:flex;align-items:center;gap:.5rem;padding:.15rem .1rem;border-bottom:1px solid #f0f0f0">` +
+                `<div class="ch-row" style="display:flex;align-items:center;gap:.5rem;padding:.15rem .1rem;border-bottom:1px solid oklch(var(--bc)/0.08)">` +
                 `<span style="flex:1">${escapeHtml(b.name)}</span>` +
-                `<button type="button" class="btn-sm secondary" onclick="chLoadSongs('${source}','${escapeHtml(b.id)}','${escapeHtml(b.name)}')">查看歌曲</button>` +
+                `<button type="button" class="btn-sm secondary" onclick="chLoadSongs('${source}','${escapeHtml(b.id)}','${escapeHtml(b.name)}',this)">查看歌曲</button>` +
                 `<button type="button" class="btn-sm" onclick="chSubscribe('${source}','${escapeHtml(b.id)}','${escapeHtml(b.name)}')">订阅</button></div>`,
             )
             .join('') +

@@ -1,7 +1,11 @@
 <style>
-  /* 榜单浏览双栏:左榜单列表(34rem 弹性)、右歌曲区 */
-  .ch2 { display: grid; grid-template-columns: minmax(0, 34rem) minmax(0, 1fr); gap: 1rem; align-items: start; }
-  @media (max-width: 1023.98px) { .ch2 { grid-template-columns: 1fr; } }
+  /* 榜单浏览双栏:左榜单列表(34rem 弹性)、右歌曲区;等高(桌面) */
+  .ch2 { display: grid; grid-template-columns: minmax(0, 34rem) minmax(0, 1fr); gap: 1rem; align-items: stretch; }
+  .ch2 > div { height: 100%; display: flex; flex-direction: column; }
+  @media (max-width: 1023.98px) { .ch2 { grid-template-columns: 1fr; } .ch2 > div { height: auto; } }
+  /* 移动端榜单行内展开框(点「查看歌曲」在该榜单下开合) */
+  .ch-songs-panel { margin: .4rem 0 .6rem; border: 1px solid oklch(var(--bc) / .15); border-radius: .5rem;
+                    background: oklch(var(--b1)); padding: .6rem .7rem; }
   /* 服务端片段里的旧式裸按钮:统一描边绿,去 pico 蓝 */
   #ch-boards button, #ch-songs-box button {
     background: transparent; border: 1px solid oklch(var(--bc) / 0.3); border-radius: .375rem;
@@ -124,11 +128,27 @@ function chLoadBoards(force) {
   var ts = force ? '&_t=' + Date.now() : ''
   htmx.ajax('GET', '/api/charts/boards?source=' + src + ts, { target: '#ch-boards', swap: 'innerHTML' })
 }
-function chLoadSongs(source, bangid, name) {
+function chSongsUrl(source, bangid, name) {
+  return '/api/charts/songs?source=' + source + '&bangid=' + encodeURIComponent(bangid) + '&name=' + encodeURIComponent(name) + '&_t=' + Date.now()
+}
+function chLoadSongs(source, bangid, name, btn) {
+  // 移动端(<1024):在该榜单行下方折叠展开;桌面:右侧歌曲区
+  if (btn && window.innerWidth < 1024) {
+    var row = btn.closest('.ch-row')
+    if (!row) return
+    var panel = row.nextElementSibling
+    if (panel && panel.classList.contains('ch-songs-panel')) { panel.remove(); return } // 再点收起
+    panel = document.createElement('div')
+    panel.className = 'ch-songs-panel'
+    panel.innerHTML = '<p class="hint">加载歌曲…</p>'
+    row.insertAdjacentElement('afterend', panel)
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    htmx.ajax('GET', chSongsUrl(source, bangid, name), { target: panel, swap: 'innerHTML' })
+    return
+  }
   var box = document.getElementById('ch-songs-box')
   box.innerHTML = '<p class="hint">加载歌曲…</p>'
-  htmx.ajax('GET', '/api/charts/songs?source=' + source + '&bangid=' + bangid + '&name=' + encodeURIComponent(name) + '&_t=' + Date.now(),
-    { target: box, swap: 'innerHTML' })
+  htmx.ajax('GET', chSongsUrl(source, bangid, name), { target: box, swap: 'innerHTML' })
 }
 function chfLoadBoards() {
   var src = document.getElementById('chf-source').value
@@ -194,7 +214,7 @@ function chSubscribe(source, bangid, name) {
     })
 }
 function chSelCount() {
-  var box = document.getElementById('ch-songs-box')
+  var box = document.querySelector('.ch-songs-panel:last-of-type') || document.getElementById('ch-songs-box')
   var btns = box ? box.querySelectorAll('.ch-sel:checked') : []
   var btn = document.getElementById('ch-dl-btn')
   if (btn) {
@@ -203,7 +223,7 @@ function chSelCount() {
   }
 }
 function chManualDownload(source, bangid) {
-  var box = document.getElementById('ch-songs-box')
+  var box = document.querySelector('.ch-songs-panel:last-of-type') || document.getElementById('ch-songs-box')
   var checks = box ? Array.from(box.querySelectorAll('.ch-sel:checked')) : []
   if (!checks.length) return
   var keys = checks.map(function (c) { return c.value })
