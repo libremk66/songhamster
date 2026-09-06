@@ -1,8 +1,14 @@
-<% if (!items.length) { %><p class="hint">暂无洗版记录</p><% } else { %>
-<div style="overflow-x:auto">
-<table style="font-size:.82em;min-width:1100px">
+<style>
+  .hist-tag { font-size: .7rem; font-weight: 700; padding: .05rem .45rem; border-radius: .3rem; }
+  tr.hist-old .hist-tag { background: oklch(var(--bc) / .1); }
+  tr.hist-new .hist-tag { background: color-mix(in oklab, var(--sfg) 18%, transparent); color: var(--sfg-deep); }
+  tr.hist-new td { background: color-mix(in oklab, var(--sfg) 5%, transparent); }
+</style>
+<% if (!items.length) { %><p class="c-sub text-xs py-8 text-center">暂无洗版记录</p><% } else { %>
+<div class="overflow-x-auto">
+<table class="table table-sm" style="min-width:1100px">
   <thead>
-    <tr>
+    <tr class="c-sub">
       <th rowspan="2">时间</th>
       <th rowspan="2">歌手</th>
       <th rowspan="2">歌曲名</th>
@@ -34,12 +40,12 @@
       <td><%= r.oldSizeStr %></td>
       <td style="width:300px;word-break:break-all"><small><%= r.oldPath || '' %></small></td>
       <td rowspan="2">
-        <% if (r.status === 'success') { %><span class="ok">✅ 洗版成功</span>
-        <% } else if (r.status === 'no_candidate') { %><span class="bad">⏭ 无匹配候选</span>
-        <% } else if (r.status === 'has_higher') { %><span class="hint">⏭ 已有高质</span>
-        <% } else { %><span class="bad">❌ 失败</span><% } %>
-        <% if (r.matchScore) { %><br><small class="hint">匹配分 <%= r.matchScore %>/190</small><% } %>
-        <% if (r.errorReason) { %><br><small class="bad"><%= r.errorReason %></small><% } %>
+        <% if (r.status === 'success') { %><span class="st-ok">✅ 洗版成功</span>
+        <% } else if (r.status === 'no_candidate') { %><span class="st-warn">⏭ 无匹配候选</span>
+        <% } else if (r.status === 'has_higher') { %><span class="st-skip">⏭ 已有高质</span>
+        <% } else { %><span class="st-bad">❌ 失败</span><% } %>
+        <% if (r.matchScore) { %><br><small class="c-sub">匹配分 <%= r.matchScore %>/190</small><% } %>
+        <% if (r.errorReason) { %><br><small class="st-bad"><%= r.errorReason %></small><% } %>
       </td>
     </tr>
     <tr class="hist-new">
@@ -56,6 +62,6 @@
     <% }) %>
   </tbody>
 </table>
-<p class="hint" style="margin-top:.3rem">采样率/位深为文件头精确解析；FLAC 平均码率随内容波动，显示为 ~ 估算值。文件被移动后参数回退显示记录值或 —。</p>
+<p class="text-xs c-sub mt-1">采样率/位深为文件头精确解析；FLAC 平均码率随内容波动，显示为 ~ 估算值。文件被移动后参数回退显示记录值或 —。</p>
 </div>
 <% } %>

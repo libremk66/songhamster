@@ -1,16 +1,36 @@
-<h2>历史记录</h2>
+<style>
+  /* 双 tab(同步/洗版):下划线式 */
+  .hist-tab { padding: .4rem .9rem; font-size: .8125rem; border-bottom: 2px solid transparent; color: oklch(var(--bc) / 0.7);
+              cursor: pointer; background: none; border-radius: 0; transition: color .15s, border-color .15s; }
+  .hist-tab:hover { color: var(--sfg-deep); }
+  .hist-tab.active { color: var(--sfg-deep); font-weight: 650; border-bottom-color: var(--sfg); }
+</style>
+<div class="space-y-4">
 
-<div class="btn-row" style="margin-bottom:.6rem">
-  <button type="button" class="hist-tab active" id="tab-sync"
-    hx-get="/api/history/partial" hx-target="#hist-content" hx-swap="innerHTML"
-    onclick="switchHistTab('tab-sync')">同步任务历史记录</button>
-  <button type="button" class="hist-tab" id="tab-upgrade"
-    hx-get="/api/upgrade/history/partial" hx-target="#hist-content" hx-swap="innerHTML"
-    onclick="switchHistTab('tab-upgrade')">洗版历史记录</button>
-</div>
+  <!-- ===== 页头 ===== -->
+  <header>
+    <div class="flex items-center gap-2 flex-wrap">
+      <h2 class="text-lg font-extrabold tracking-tight">历史记录</h2>
+      <span class="badge badge-ghost badge-sm font-semibold px-2 py-1">v<%= version %></span>
+    </div>
+  </header>
 
-<div id="hist-content" hx-get="/api/history/partial" hx-trigger="load">
-  加载中…
+  <section class="card bg-base-100 border border-base-300 shadow-sm">
+    <div class="card-body gap-2">
+      <div class="flex gap-1 border-b border-base-200">
+        <button type="button" class="hist-tab active" id="tab-sync"
+          hx-get="/api/history/partial" hx-target="#hist-content" hx-swap="innerHTML"
+          onclick="switchHistTab('tab-sync')">同步任务历史记录</button>
+        <button type="button" class="hist-tab" id="tab-upgrade"
+          hx-get="/api/upgrade/history/partial" hx-target="#hist-content" hx-swap="innerHTML"
+          onclick="switchHistTab('tab-upgrade')">洗版历史记录</button>
+      </div>
+      <div id="hist-content" hx-get="/api/history/partial" hx-trigger="load">
+        <p class="c-sub text-xs py-10 text-center">加载中…</p>
+      </div>
+    </div>
+  </section>
+
 </div>
 
 <script>
