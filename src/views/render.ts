@@ -97,6 +97,8 @@ export const LAYOUT = `<!doctype html>
     :root { font-size: 16px; }
     /* 复选框/单选勾选色统一品牌绿 */
     input[type="checkbox"], input[type="radio"] { accent-color: var(--sfg); }
+    .checkbox { --chkbg: var(--sfg); --chkfg: var(--sfg-ink); border-color: oklch(var(--bc) / 0.35); }
+    .checkbox:checked { border-color: var(--sfg); }
     html[data-theme="light"], html[data-theme="dark"], html[data-theme="corporate"], html[data-theme=""] {
       --p: var(--sfg-deep); --pf: oklch(0.38 0.1 152); --pc: oklch(0.97 0.01 152);
       --su: var(--sfg); --suf: oklch(0.62 0.12 153); --suc: var(--sfg-ink);

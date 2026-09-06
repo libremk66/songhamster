@@ -1,3 +1,14 @@
+<style>
+  /* 手动新增:左右块垂直居中、内部不溢出 */
+  .add-flow { align-items: center; }
+  .add-flow .lx-col, .add-flow .target-col { min-width: 0; }
+  .flow-label-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .3rem; }
+  @media (max-width: 767.98px) {
+    .add-flow { flex-direction: column; align-items: stretch; }
+    .arrow-col { width: auto !important; padding: .2rem 0 !important; }
+    .arrow-label, .add-flow label span { overflow-wrap: anywhere; white-space: normal; }
+  }
+</style>
 <div class="space-y-4">
 
   <!-- ===== 页头 ===== -->
@@ -12,7 +23,6 @@
   <section class="card bg-base-100 border border-base-300 shadow-sm">
     <div class="card-body gap-3">
       <h3 class="card-title text-base">我的歌单同步任务</h3>
-      <p class="text-xs c-sub leading-relaxed">运行中的逐首状态见「任务进度」；榜单订阅在「榜单订阅」页</p>
       <div id="task-table" class="overflow-x-auto" hx-get="/api/tasks/table?scope=playlist" hx-trigger="load">
         <p class="c-sub text-xs py-6 text-center">加载中…</p>
       </div>
@@ -35,7 +45,8 @@
         </label>
       </div>
 
-      <div class="fg">
+      <div class="flex flex-wrap items-start gap-x-6 gap-y-3">
+      <div class="flex flex-col gap-3" style="width:240px">
         <label class="form-control w-full">
           <span class="label-text mb-1">启用日期</span>
           <input type="date" name="baselineDate" value="<%= cfg.general.autoadd.baselineDate || '' %>" class="input input-bordered w-full">
@@ -44,11 +55,11 @@
         <label class="form-control w-full">
           <span class="label-text mb-1">检测计划<span class="c-sub font-normal">（分 时 日 月 周）</span></span>
           <input name="checkCron" value="<%= cfg.general.autoadd.checkCron %>" placeholder="0 6 * * *" class="input input-bordered w-full font-mono text-xs">
-          <span class="text-xs c-sub mt-1">空 = 仅手动，点「立即检测」可立即进行一次</span>
+          <span class="text-xs c-sub mt-1">空 = 仅手动</span>
         </label>
       </div>
 
-      <div class="rounded-lg border border-base-300 bg-base-200/50 p-3 space-y-2">
+      <div class="rounded-lg border border-base-300 bg-base-200/50 p-3 space-y-2" style="flex:1 1 300px;min-width:280px">
         <h4 class="text-xs font-bold c-sub">新任务默认设置</h4>
         <label class="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" name="createSameNamePlaylist" value="1" <%= cfg.general.autoadd.createSameNamePlaylist ? 'checked' : '' %> class="checkbox checkbox-sm">
@@ -86,6 +97,7 @@
           <small class="hint text-xs">空 = 创建后立即同步一次，之后仅手动</small>
         </div>
       </div>
+      </div>
 
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-3">
         <button type="submit" class="btn btn-primary">保存设置</button>
@@ -110,14 +122,13 @@
       <div id="manual-add-msg" class="text-sm"></div>
 
       <div class="rounded-lg border border-base-300 bg-base-200/50 p-3">
-        <div class="add-flow">
+        <div class="add-flow" style="max-width:860px;margin-inline:auto">
           <div class="lx-col">
-            <div class="svc-icon-col">
-              <img src="/static/lx.svg" alt="LX">
-              <button type="button" class="btn btn-outline btn-xs px-2" hx-get="/api/lx/playlists/options" hx-target="#lx-select" hx-swap="innerHTML">刷新</button>
-            </div>
             <div style="flex:1;min-width:0">
-              <span class="label-text mb-1 inline-block">LX 歌单</span>
+              <div class="flow-label-row">
+                <span class="label-text font-semibold">LX 歌单</span>
+                <button type="button" class="btn btn-outline btn-xs px-2" hx-get="/api/lx/playlists/options" hx-target="#lx-select" hx-swap="innerHTML">刷新</button>
+              </div>
               <select name="lxPlaylistKey" id="lx-select" required class="select select-bordered w-full">
                 <option value="" disabled selected>选择歌单…</option>
                 <% for (const p of lxPlaylists) { %>
@@ -133,11 +144,11 @@
           </div>
 
           <div class="target-col">
-            <div class="svc-icon-col">
-              <img src="/static/emby.svg" alt="Emby">
-              <button type="button" class="btn btn-outline btn-xs px-2" hx-get="/api/emby/playlists/checkboxes" hx-target="#existing-list" hx-swap="innerHTML">刷新</button>
-            </div>
             <div style="flex:1;min-width:0">
+              <div class="flow-label-row">
+                <span class="label-text font-semibold">目标 · <%= targetName %> 播放列表</span>
+                <button type="button" class="btn btn-outline btn-xs px-2" hx-get="/api/emby/playlists/checkboxes" hx-target="#existing-list" hx-swap="innerHTML">刷新</button>
+              </div>
               <label class="flex items-center gap-2 cursor-pointer py-0.5">
                 <input type="checkbox" name="createSameNamePlaylist" value="1" checked class="checkbox checkbox-sm">
                 <span class="text-sm">同步到新建 <%= targetName %> 播放列表（歌单）</span>
