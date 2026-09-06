@@ -232,7 +232,7 @@ export class SyncEngine {
     taskId: number,
     task: ReturnType<typeof repo.getTask> & {},
     song: LxSong,
-    opts?: { dirName?: string; skipIngest?: boolean },
+    opts?: { dirName?: string; absoluteDir?: string; skipIngest?: boolean },
   ): Promise<{ status: 'success' | 'failed' | 'unsatisfied' | 'dup'; quality?: string; reason?: string }> {
     const cfg = this.cfg()
     // 尝试链 = 勾选档 ∩ 该歌实际可用档（types 未声明的不白试）；裁剪为空则退回全勾选
@@ -272,6 +272,7 @@ export class SyncEngine {
           downloadRoot: cfg.lxserver.downloadRoot,
           srcFilename: file.filename,
           taskPlaylistName: dirName,
+          absoluteDir: opts?.absoluteDir,
           song,
           quality,
           template: cfg.download.filenameTemplate,
@@ -432,10 +433,13 @@ export class SyncEngine {
     let unsatisfied = 0
     const prot = this.cfg().download.protection
     try {
-      logger.info(`[engine] 手动下载 ${songs.length} 首（落盘 歌单同步/手动下载/，不入歌单）`)
+      logger.info(`[engine] 手动下载 ${songs.length} 首（落盘 downloadRoot/手动下载，不入歌单）`)
       for (let idx = 0; idx < songs.length; idx++) {
         const song = songs[idx]
-        const outcome = await this.downloadOne(taskId, task, song, { dirName: '手动下载', skipIngest: true })
+        const outcome = await this.downloadOne(taskId, task, song, {
+          absoluteDir: path.join(this.cfg().lxserver.downloadRoot?.replace(/\/+$/, '') ?? '', '手动下载'),
+          skipIngest: true,
+        })
         if (outcome.status === 'success') ok++
         else if (outcome.status === 'dup') dup++
         else if (outcome.status === 'unsatisfied') unsatisfied++

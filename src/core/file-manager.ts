@@ -29,13 +29,15 @@ export function moveToPlaylistDir(input: {
   quality: Quality
   template: string
   embedLyric: boolean
+  /** 直接指定目标目录（绝对路径，替代 歌单同步/<name> 约定）——手动下载等场景 */
+  absoluteDir?: string
 }): { filePath: string; moved: boolean; reason?: string } {
   const src = path.join(input.downloadRoot, input.srcFilename)
   if (!existsSync(src)) return { filePath: '', moved: false, reason: `源文件不存在: ${src}` }
 
   const ext = path.extname(input.srcFilename) || '.flac'
   const newName = renderFilename(input.template, input.song, input.quality) + ext
-  const dir = path.join(input.downloadRoot, '歌单同步', input.taskPlaylistName)
+  const dir = input.absoluteDir ?? path.join(input.downloadRoot, '歌单同步', input.taskPlaylistName)
   mkdirSync(dir, { recursive: true })
   const dest = path.join(dir, newName)
 

@@ -200,7 +200,7 @@ export function apiRouter(
         `<div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin:.2rem 0">
           <h3 style="margin:0">${escapeHtml(PLAT_LABEL[source] || source)} · ${escapeHtml(name)}（共 ${songs.length} 首，显示前 ${shown.length}）</h3>
           <button type="button" class="btn-sm" id="ch-dl-btn" disabled onclick="chManualDownload('${source}','${escapeHtml(bangid)}')">⬇ 下载所选（0）</button>
-          <span class="hint">下载到 <code>歌单同步/手动下载/</code>，仅入库不入歌单</span>
+          <span class="hint">下载到 <code>downloadRoot/手动下载/</code>，仅入库不入歌单</span>
           <span id="ch-dl-msg" class="msg"></span>
         </div>
         <p class="hint" style="margin:.2rem 0">✅=已下载收录 ｜ 勾选歌曲可手动下载</p>
@@ -246,7 +246,7 @@ export function apiRouter(
       const r = await engine.runManualDownload(songs)
       res.send(
         ok(`手动下载完成：成功 ${r.ok} ｜ 已存在跳过 ${r.dup} ｜ 失败 ${r.fail}${r.unsatisfied ? ' ｜ 无可用音质 ' + r.unsatisfied : ''}`) +
-          `<p class="hint">文件已落盘 <code>歌单同步/手动下载/</code>，媒体服务器扫描后入库（未加入任何播放列表）。历史可在「历史记录」页查看。</p>`,
+          `<p class="hint">文件已落盘 <code>downloadRoot/手动下载/</code>，媒体服务器扫描后入库（未加入任何播放列表）。历史可在「历史记录」页查看。</p>`,
       )
     } catch (e) {
       res.send(err((e as Error).message))
