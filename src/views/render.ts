@@ -92,6 +92,9 @@ export const LAYOUT = `<!doctype html>
       --sfg-deep: oklch(0.44 0.1 152);
       --sfg-ink: oklch(0.16 0.03 152);
     }
+    /* 钉死根字号 16px:pico 桥 :root{font-size:var(--pico-font-size)} 在宽屏放大到 125%(20px),
+       会把所有 rem 尺寸(控件 26px 等)实际放大 25% */
+    :root { font-size: 16px; }
     html[data-theme="light"], html[data-theme="dark"], html[data-theme="corporate"], html[data-theme=""] {
       --p: var(--sfg-deep); --pf: oklch(0.38 0.1 152); --pc: oklch(0.97 0.01 152);
       --su: var(--sfg); --suf: oklch(0.62 0.12 153); --suc: var(--sfg-ink);

@@ -16,6 +16,14 @@
   .svc-row { display: block; width: 100%; text-align: center; padding: .5rem .25rem; font-size: .8125rem; transition: background .15s; }
   .svc-row:hover { background: color-mix(in oklab, var(--sfg) 12%, transparent); }
   .peer:checked ~ .svc-row { background: color-mix(in oklab, var(--sfg) 22%, transparent); color: var(--sfg-deep); font-weight: 650; }
+  /* 表单字段栅格:自带 CSS 双列(项目内 tailwind md: 变体类未生效,用 .fg 保证) */
+  .fg { display: grid; grid-template-columns: 1fr; gap: .75rem 1.25rem; }
+  @media (min-width: 768px) { .fg { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  /* 整体双栏布局:左 250 列表 + 右表单(≥1024),小屏堆叠 */
+  .lxg { display: grid; gap: 1rem; align-items: start; }
+  @media (min-width: 1024px) { .lxg { grid-template-columns: 250px minmax(0, 1fr); } }
+  /* 输入框顶部 margin 归零(部分字段在 join 中、部分裸排导致行内错位 4px) */
+  .fg .form-control > input, .fg .form-control .input { margin-top: 0; }
 </style>
 <div class="space-y-4">
 
@@ -40,7 +48,7 @@
           <p class="text-xs c-sub">LX Music 歌单同步服务 —— 歌曲下载、标签/封面/歌词写入都由它完成</p>
         </div>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3">
+      <div class="fg">
         <label class="form-control w-full">
           <span class="label-text mb-1">服务地址</span>
           <input name="baseUrl" value="<%= cfg.lxserver.baseUrl %>" placeholder="http://127.0.0.1:19527" class="input input-bordered w-full">
@@ -73,7 +81,7 @@
 
   <!-- ===== 2. 目标选择(左栏) + 连接表单(右栏) ===== -->
   <% var targets = ['emby','navidrome','daoliyu','subsonic','jellyfin'] %>
-  <div class="grid lg:grid-cols-[250px_minmax(0,1fr)] gap-4 items-start">
+  <div class="lxg">
   <section id="target-box" class="card bg-base-100 border border-base-300 shadow-sm lg:sticky lg:top-2" data-current="<%= cfg.target %>">
     <div class="card-body gap-3">
       <div class="flex items-center justify-between gap-2">
@@ -112,7 +120,7 @@
         <span class="w-8 h-8 rounded-lg bg-primary/15 text-primary font-bold text-base flex items-center justify-center shrink-0">E</span>
         <h3 class="card-title text-base">连接 Emby</h3>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3">
+      <div class="fg">
         <label class="form-control w-full">
           <span class="label-text mb-1">服务地址</span>
           <input name="baseUrl" value="<%= cfg.emby.baseUrl %>" placeholder="http://127.0.0.1:8096" class="input input-bordered w-full">
@@ -156,7 +164,7 @@
         <span class="w-8 h-8 rounded-lg bg-primary/15 text-primary font-bold text-base flex items-center justify-center shrink-0">N</span>
         <h3 class="card-title text-base">连接 Navidrome</h3>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3">
+      <div class="fg">
         <label class="form-control w-full">
           <span class="label-text mb-1">服务地址</span>
           <input name="baseUrl" value="<%= cfg.navidrome.baseUrl %>" placeholder="http://127.0.0.1:4533" class="input input-bordered w-full">
@@ -201,7 +209,7 @@
         <span class="w-8 h-8 rounded-lg bg-primary/15 text-primary font-bold text-base flex items-center justify-center shrink-0">鱼</span>
         <h3 class="card-title text-base">连接 道理鱼</h3>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3">
+      <div class="fg">
         <label class="form-control w-full">
           <span class="label-text mb-1">服务地址</span>
           <input name="baseUrl" value="<%= cfg.daoliyu.baseUrl %>" placeholder="http://127.0.0.1:4000" class="input input-bordered w-full">
@@ -241,7 +249,7 @@
         <span class="w-8 h-8 rounded-lg bg-primary/15 text-primary font-bold text-base flex items-center justify-center shrink-0">S</span>
         <h3 class="card-title text-base">连接 Subsonic 服务器</h3>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3">
+      <div class="fg">
         <label class="form-control w-full">
           <span class="label-text mb-1">服务地址<span class="text-xs c-sub font-normal">（根地址，无需 /rest）</span></span>
           <input name="baseUrl" value="<%= cfg.subsonic.baseUrl %>" placeholder="http://127.0.0.1:4533" class="input input-bordered w-full">
@@ -278,7 +286,7 @@
         <span class="w-8 h-8 rounded-lg bg-primary/15 text-primary font-bold text-base flex items-center justify-center shrink-0">J</span>
         <h3 class="card-title text-base">连接 Jellyfin</h3>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3">
+      <div class="fg">
         <label class="form-control w-full">
           <span class="label-text mb-1">服务地址</span>
           <input name="baseUrl" value="<%= cfg.jellyfin.baseUrl %>" placeholder="http://127.0.0.1:8096" class="input input-bordered w-full">
