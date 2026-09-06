@@ -1,135 +1,194 @@
-<h2>歌单同步</h2>
+<div class="space-y-4">
 
-<p class="hint">LX 歌单 → <%= targetName %> 的自动同步。先创建任务，列表中可编辑/立即同步/暂停；运行中的逐首状态见「任务进度」页；榜单订阅在「榜单订阅」页。</p>
-
-<article>
-  <h3>我的歌单同步任务</h3>
-  <div id="task-table" hx-get="/api/tasks/table?scope=playlist" hx-trigger="load">加载中…</div>
-</article>
-
-<article>
-  <h3>自动新增同步任务</h3>
-  <form method="post" action="/api/config/autoadd" hx-post="/api/config/autoadd" hx-target="#autoadd-msg">
-    <label style="display:flex;align-items:center;gap:.35rem">
-      <input type="checkbox" name="enabled" value="1" <%= cfg.general.autoadd.enabled ? 'checked' : '' %>> 启用自动新增同步任务
-    </label>
-    <p class="hint" style="margin-top:.2rem">在启用日期之后新出现在 LX 中的歌单，将被自动创建同步任务并立即同步（该日期前已存在的不会自动添加）。</p>
-    <div class="prot-field">
-      <div class="row1"><span>启用日期</span><input type="date" name="baselineDate" value="<%= cfg.general.autoadd.baselineDate || '' %>"></div>
-      <p class="hint">只自动同步该日期之后新增的 LX 歌单（首次启用时自动记录现有歌单为基线）</p>
+  <!-- ===== 页头 ===== -->
+  <header>
+    <div class="flex items-center gap-2 flex-wrap">
+      <h2 class="text-lg font-extrabold tracking-tight">歌单同步</h2>
+      <span class="badge badge-ghost badge-sm font-semibold px-2 py-1">v<%= version %></span>
     </div>
-    <div class="prot-field">
-      <div class="row1"><span>检测计划</span><input name="checkCron" value="<%= cfg.general.autoadd.checkCron %>" placeholder="0 6 * * *"><small class="hint">分 时 日 月 周</small></div>
-      <p class="hint">空 = 仅手动，点击「立即检测」可立即进行一次检测</p>
-    </div>
+  </header>
 
-    <div class="flow-box" style="margin-top:.6rem">
-      <h4 style="margin:.2rem 0 .4rem">新任务默认设置</h4>
-      <label class="opt"><input type="checkbox" name="createSameNamePlaylist" value="1" <%= cfg.general.autoadd.createSameNamePlaylist ? 'checked' : '' %>> 同步到新建同名 <%= targetName %> 播放列表（歌单）</label>
-      <label class="opt"><input type="checkbox" id="aa-to-existing" onchange="toggleExistingId(this, 'aa')" <%= cfg.general.autoadd.embyTargetPlaylistIds.length ? 'checked' : '' %>> 同步到现有 <%= targetName %> 播放列表（歌单）</label>
-      <div class="existing-box" id="existing-boxaa" style="display:<%= cfg.general.autoadd.embyTargetPlaylistIds.length ? '' : 'none' %>">
-        <div id="existing-list-aa">
-          <% if (embyPlaylists.length) { %>
-            <% for (const p of embyPlaylists) { %>
-            <label style="display:flex;align-items:center;gap:.3rem;margin:.15rem 0">
-              <input type="checkbox" name="embyTarget" value="<%= p.id %>" <%= cfg.general.autoadd.embyTargetPlaylistIds.includes(p.id) ? 'checked' : '' %>> <%= p.name %>
-            </label>
-            <% } %>
-          <% } else { %>
-            <span class="hint">连接 Emby 后可选择</span>
-          <% } %>
-        </div>
-      </div>
-      <div class="line" style="margin-top:.5rem"><span>同步方式</span>
-        <select name="syncMode" onchange="showModeDescId(this, 'aa')">
-          <option value="incremental" <%= cfg.general.autoadd.syncMode === 'incremental' ? 'selected' : '' %>>增量（只加新歌）</option>
-          <option value="full" <%= cfg.general.autoadd.syncMode === 'full' ? 'selected' : '' %>>完全（<%= targetName %> 向 LX 看齐：增+删）</option>
-        </select>
-        <span class="mode-desc" id="mode-desc-aa"></span>
-      </div>
-<div class="line"><span>新任务定时 cron</span>
-        <input name="taskCron" value="<%= cfg.general.autoadd.taskCron || '' %>" placeholder="0 6 * * *"><small class="hint">空 = 创建后立即同步一次，之后仅手动</small>
+  <!-- ===== 任务列表 ===== -->
+  <section class="card bg-base-100 border border-base-300 shadow-sm">
+    <div class="card-body gap-3">
+      <h3 class="card-title text-base">我的歌单同步任务</h3>
+      <p class="text-xs c-sub leading-relaxed">运行中的逐首状态见「任务进度」；榜单订阅在「榜单订阅」页</p>
+      <div id="task-table" class="overflow-x-auto" hx-get="/api/tasks/table?scope=playlist" hx-trigger="load">
+        <p class="c-sub text-xs py-6 text-center">加载中…</p>
       </div>
     </div>
+  </section>
 
-    <div class="btn-row">
-      <button type="submit">保存设置</button>
-      <button type="button" class="secondary" hx-post="/api/autoadd/scan" hx-target="#autoadd-msg">立即检测</button>
-      <span id="autoadd-msg" class="msg"></span>
-    </div>
-    <div id="autoadd-panel" hx-get="/api/autoadd/panel" hx-trigger="load"></div>
-  </form>
-</article>
-
-<article>
-  <h3>手动新增同步任务</h3>
-  <form method="post" action="/api/tasks" hx-post="/api/tasks" hx-target="#manual-add-msg" hx-swap="innerHTML">
-    <div id="manual-add-msg" class="msg"></div>
-    <div class="flow-box">
-    <div class="add-flow">
-      <div class="lx-col">
-        <div class="svc-icon-col">
-          <img src="/static/lx.svg" alt="LX">
-          <button type="button" class="btn-sm secondary" hx-get="/api/lx/playlists/options" hx-target="#lx-select" hx-swap="innerHTML">刷新</button>
+  <!-- ===== 自动新增 ===== -->
+  <form method="post" action="/api/config/autoadd" hx-post="/api/config/autoadd" hx-target="#autoadd-msg"
+        class="card bg-base-100 border border-base-300 shadow-sm">
+    <div class="card-body gap-3.5">
+      <div class="flex items-center gap-3">
+        <span class="w-8 h-8 rounded-lg bg-primary/15 text-primary font-bold text-base flex items-center justify-center shrink-0">＋</span>
+        <div>
+          <h3 class="card-title text-base">自动新增同步任务</h3>
+          <p class="text-xs c-sub">启用后，新出现在 LX 中的歌单会被自动创建同步任务并立即同步</p>
         </div>
-        <div style="flex:1">
-          <label>LX 歌单</label>
-          <select name="lxPlaylistKey" id="lx-select" required>
-            <option value="" disabled selected>选择歌单…</option>
-            <% for (const p of lxPlaylists) { %>
-            <option value="<%= p.key %>"><%= p.name %>（<%= p.songCount %> 首）</option>
-            <% } %>
-          </select>
-        </div>
+        <label class="ml-auto flex items-center gap-2 cursor-pointer shrink-0">
+          <input type="checkbox" name="enabled" value="1" <%= cfg.general.autoadd.enabled ? 'checked' : '' %> class="checkbox checkbox-sm">
+          <span class="text-xs font-semibold">启用</span>
+        </label>
       </div>
 
-      <div class="arrow-col">
-        <span class="arrow-label">同步到 <%= targetName %> 中的<br>播放列表（歌单）</span>
-        <span class="arrow-icon"><img src="/static/logo.svg" alt="→"></span>
+      <div class="fg">
+        <label class="form-control w-full">
+          <span class="label-text mb-1">启用日期</span>
+          <input type="date" name="baselineDate" value="<%= cfg.general.autoadd.baselineDate || '' %>" class="input input-bordered w-full">
+          <span class="text-xs c-sub mt-1">只自动同步该日期之后新增的 LX 歌单（首次启用时自动记录现有歌单为基线）</span>
+        </label>
+        <label class="form-control w-full">
+          <span class="label-text mb-1">检测计划<span class="c-sub font-normal">（分 时 日 月 周）</span></span>
+          <input name="checkCron" value="<%= cfg.general.autoadd.checkCron %>" placeholder="0 6 * * *" class="input input-bordered w-full font-mono text-xs">
+          <span class="text-xs c-sub mt-1">空 = 仅手动，点「立即检测」可立即进行一次</span>
+        </label>
       </div>
 
-      <div class="target-col">
-        <div class="svc-icon-col">
-          <img src="/static/emby.svg" alt="Emby">
-          <button type="button" class="btn-sm secondary" hx-get="/api/emby/playlists/checkboxes" hx-target="#existing-list" hx-swap="innerHTML">刷新</button>
-        </div>
-        <div style="flex:1">
-          <label class="opt"><input type="checkbox" name="createSameNamePlaylist" value="1" checked> 同步到新建 <%= targetName %> 播放列表（歌单）</label>
-          <p class="hint opt-hint">新建一个与该 LX 歌单同名的 <%= targetName %> 歌单并加入歌曲</p>
-          <label class="opt"><input type="checkbox" id="to-existing" onchange="toggleExistingId(this, '')"> 同步到现有 <%= targetName %> 播放列表（歌单）</label>
-          <div class="existing-box" id="existing-box" style="display:none">
-            <div id="existing-list">
-              <% if (embyPlaylists.length) { %>
-                <% for (const p of embyPlaylists) { %>
-                <label style="display:flex;align-items:center;gap:.3rem;margin:.15rem 0">
-                  <input type="checkbox" name="embyTarget" value="<%= p.id %>"> <%= p.name %>
-                </label>
-                <% } %>
-              <% } else { %>
-                <span class="hint">连接 Emby 后可选择</span>
+      <div class="rounded-lg border border-base-300 bg-base-200/50 p-3 space-y-2">
+        <h4 class="text-xs font-bold c-sub">新任务默认设置</h4>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" name="createSameNamePlaylist" value="1" <%= cfg.general.autoadd.createSameNamePlaylist ? 'checked' : '' %> class="checkbox checkbox-sm">
+          <span class="text-sm">同步到新建同名 <%= targetName %> 播放列表（歌单）</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" id="aa-to-existing" onchange="toggleExistingId(this, 'aa')" <%= cfg.general.autoadd.embyTargetPlaylistIds.length ? 'checked' : '' %> class="checkbox checkbox-sm">
+          <span class="text-sm">同步到现有 <%= targetName %> 播放列表（歌单）</span>
+        </label>
+        <div class="existing-box" id="existing-boxaa" style="display:<%= cfg.general.autoadd.embyTargetPlaylistIds.length ? '' : 'none' %>">
+          <div id="existing-list-aa" class="bg-base-100 rounded-md border border-base-300 p-2 max-h-40 overflow-y-auto space-y-0.5">
+            <% if (embyPlaylists.length) { %>
+              <% for (const p of embyPlaylists) { %>
+              <label class="flex items-center gap-2 cursor-pointer py-0.5">
+                <input type="checkbox" name="embyTarget" value="<%= p.id %>" <%= cfg.general.autoadd.embyTargetPlaylistIds.includes(p.id) ? 'checked' : '' %> class="checkbox checkbox-xs">
+                <span class="text-sm truncate"><%= p.name %></span>
+              </label>
               <% } %>
+            <% } else { %>
+              <span class="hint text-xs">连接 <%= targetName %> 后可选择</span>
+            <% } %>
+          </div>
+        </div>
+        <div class="line" style="margin-top:.4rem">
+          <span class="text-sm font-medium w-24 shrink-0">同步方式</span>
+          <select name="syncMode" onchange="showModeDescId(this, 'aa')" class="select select-bordered">
+            <option value="incremental" <%= cfg.general.autoadd.syncMode === 'incremental' ? 'selected' : '' %>>增量（只加新歌）</option>
+            <option value="full" <%= cfg.general.autoadd.syncMode === 'full' ? 'selected' : '' %>>完全（<%= targetName %> 向 LX 看齐：增+删）</option>
+          </select>
+          <span class="mode-desc" id="mode-desc-aa"></span>
+        </div>
+        <div class="line">
+          <span class="text-sm font-medium w-24 shrink-0">定时 cron</span>
+          <input name="taskCron" value="<%= cfg.general.autoadd.taskCron || '' %>" placeholder="0 6 * * *" class="input input-bordered w-44 font-mono text-xs">
+          <small class="hint text-xs">空 = 创建后立即同步一次，之后仅手动</small>
+        </div>
+      </div>
+
+      <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-3">
+        <button type="submit" class="btn btn-primary">保存设置</button>
+        <button type="button" class="btn btn-outline" hx-post="/api/autoadd/scan" hx-target="#autoadd-msg">立即检测</button>
+        <span id="autoadd-msg" class="text-sm"></span>
+      </div>
+      <div id="autoadd-panel" hx-get="/api/autoadd/panel" hx-trigger="load"></div>
+    </div>
+  </form>
+
+  <!-- ===== 手动新增 ===== -->
+  <form method="post" action="/api/tasks" hx-post="/api/tasks" hx-target="#manual-add-msg" hx-swap="innerHTML"
+        class="card bg-base-100 border border-base-300 shadow-sm">
+    <div class="card-body gap-3.5">
+      <div class="flex items-center gap-3">
+        <span class="w-8 h-8 rounded-lg bg-primary/15 text-primary font-bold text-base flex items-center justify-center shrink-0">＋</span>
+        <div>
+          <h3 class="card-title text-base">手动新增同步任务</h3>
+          <p class="text-xs c-sub">把一个 LX 歌单同步到 <%= targetName %> 的播放列表</p>
+        </div>
+      </div>
+      <div id="manual-add-msg" class="text-sm"></div>
+
+      <div class="rounded-lg border border-base-300 bg-base-200/50 p-3">
+        <div class="add-flow">
+          <div class="lx-col">
+            <div class="svc-icon-col">
+              <img src="/static/lx.svg" alt="LX">
+              <button type="button" class="btn btn-outline btn-xs px-2" hx-get="/api/lx/playlists/options" hx-target="#lx-select" hx-swap="innerHTML">刷新</button>
+            </div>
+            <div style="flex:1;min-width:0">
+              <span class="label-text mb-1 inline-block">LX 歌单</span>
+              <select name="lxPlaylistKey" id="lx-select" required class="select select-bordered w-full">
+                <option value="" disabled selected>选择歌单…</option>
+                <% for (const p of lxPlaylists) { %>
+                <option value="<%= p.key %>"><%= p.name %>（<%= p.songCount %> 首）</option>
+                <% } %>
+              </select>
+            </div>
+          </div>
+
+          <div class="arrow-col">
+            <span class="arrow-label">同步到 <%= targetName %> 中的<br>播放列表（歌单）</span>
+            <span class="arrow-icon"><img src="/static/logo.svg" alt="→"></span>
+          </div>
+
+          <div class="target-col">
+            <div class="svc-icon-col">
+              <img src="/static/emby.svg" alt="Emby">
+              <button type="button" class="btn btn-outline btn-xs px-2" hx-get="/api/emby/playlists/checkboxes" hx-target="#existing-list" hx-swap="innerHTML">刷新</button>
+            </div>
+            <div style="flex:1;min-width:0">
+              <label class="flex items-center gap-2 cursor-pointer py-0.5">
+                <input type="checkbox" name="createSameNamePlaylist" value="1" checked class="checkbox checkbox-sm">
+                <span class="text-sm">同步到新建 <%= targetName %> 播放列表（歌单）</span>
+              </label>
+              <p class="hint opt-hint text-xs">新建一个与该 LX 歌单同名的 <%= targetName %> 歌单并加入歌曲</p>
+              <label class="flex items-center gap-2 cursor-pointer py-0.5">
+                <input type="checkbox" id="to-existing" onchange="toggleExistingId(this, '')" class="checkbox checkbox-sm">
+                <span class="text-sm">同步到现有 <%= targetName %> 播放列表（歌单）</span>
+              </label>
+              <div class="existing-box" id="existing-box" style="display:none">
+                <div id="existing-list" class="bg-base-100 rounded-md border border-base-300 p-2 max-h-40 overflow-y-auto space-y-0.5">
+                  <% if (embyPlaylists.length) { %>
+                    <% for (const p of embyPlaylists) { %>
+                    <label class="flex items-center gap-2 cursor-pointer py-0.5">
+                      <input type="checkbox" name="embyTarget" value="<%= p.id %>" class="checkbox checkbox-xs">
+                      <span class="text-sm truncate"><%= p.name %></span>
+                    </label>
+                    <% } %>
+                  <% } else { %>
+                    <span class="hint text-xs">连接 <%= targetName %> 后可选择</span>
+                  <% } %>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    </div>
-    <div class="line"><span>同步方式</span>
-      <select name="syncMode" onchange="showModeDescId(this, '')">
-        <option value="incremental">增量（只加新歌）</option>
-        <option value="full">完全（<%= targetName %> 向 LX 看齐：增+删）</option>
-      </select>
-      <span class="mode-desc" id="mode-desc"></span>
-    </div>
+      <div class="fg">
+        <div class="line items-center">
+          <span class="text-sm font-medium w-24 shrink-0">同步方式</span>
+          <select name="syncMode" onchange="showModeDescId(this, '')" class="select select-bordered">
+            <option value="incremental">增量（只加新歌）</option>
+            <option value="full">完全（<%= targetName %> 向 LX 看齐：增+删）</option>
+          </select>
+          <span class="mode-desc" id="mode-desc"></span>
+        </div>
+        <div class="line items-center">
+          <span class="text-sm font-medium w-24 shrink-0">定时 cron</span>
+          <input name="cronExpr" placeholder="0 6 * * *" class="input input-bordered font-mono text-xs">
+          <small class="hint text-xs">空 = 仅手动</small>
+        </div>
+      </div>
 
-<div class="line"><span>定时 cron（空 = 仅手动）</span>
-      <input name="cronExpr" placeholder="0 6 * * *"><small class="hint">分 时 日 月 周</small>
+      <div class="card-actions flex items-center gap-2 border-t border-base-200 pt-3">
+        <button type="submit" class="btn btn-primary">添加任务</button>
+      </div>
     </div>
-
-    <div class="btn-row"><button type="submit">添加</button></div>
   </form>
-</article>
+
+</div>
 
 <script>
 var syncModeSels = document.querySelectorAll('select[name="syncMode"]')

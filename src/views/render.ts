@@ -95,6 +95,8 @@ export const LAYOUT = `<!doctype html>
     /* 钉死根字号 16px:pico 桥 :root{font-size:var(--pico-font-size)} 在宽屏放大到 125%(20px),
        会把所有 rem 尺寸(控件 26px 等)实际放大 25% */
     :root { font-size: 16px; }
+    /* 复选框/单选勾选色统一品牌绿 */
+    input[type="checkbox"], input[type="radio"] { accent-color: var(--sfg); }
     html[data-theme="light"], html[data-theme="dark"], html[data-theme="corporate"], html[data-theme=""] {
       --p: var(--sfg-deep); --pf: oklch(0.38 0.1 152); --pc: oklch(0.97 0.01 152);
       --su: var(--sfg); --suf: oklch(0.62 0.12 153); --suc: var(--sfg-ink);
