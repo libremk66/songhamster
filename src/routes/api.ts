@@ -491,8 +491,11 @@ export function apiRouter(
       chartName: isChart ? chartName : undefined,
       maxCount: isChart ? maxCount : undefined,
     })
-    // 榜单订阅由榜单页刷新；歌单任务刷新任务表
-    res.send(isChart ? '<span class="ok">✅ 订阅已创建</span>' : await taskTableHtml())
+    // 任务列表已移至任务管理页——创建后提示，去任务管理页查看
+    const msg = isChart
+      ? ok(`订阅已创建（${name}）——请在「榜单订阅 · 我的订阅」查看与同步`)
+      : ok(`任务已创建（${name}）——请在「任务管理」页查看与操作`)
+    res.send(msg)
   })
 
   r.post('/task/:id/toggle', async (req, res) => {

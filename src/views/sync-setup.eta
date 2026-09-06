@@ -1,12 +1,6 @@
-<h2>同步设置</h2>
+<h2>歌单同步</h2>
 
-<article>
-  <h3>同步任务列表</h3>
-  <div id="task-table" hx-get="/api/tasks/table" hx-trigger="load">
-    加载中…
-  </div>
-</article>
-
+<p class="hint">创建/配置 LX 歌单 → <%= targetName %> 的同步任务。任务列表与运行状态见「任务管理」页；榜单订阅见「榜单订阅」页。</p>
 
 <article>
   <h3>自动新增同步任务</h3>
@@ -64,7 +58,8 @@
 
 <article>
   <h3>手动新增同步任务</h3>
-  <form method="post" action="/api/tasks" hx-post="/api/tasks" hx-target="#task-table" hx-swap="innerHTML">
+  <form method="post" action="/api/tasks" hx-post="/api/tasks" hx-target="#manual-add-msg" hx-swap="innerHTML">
+    <div id="manual-add-msg" class="msg"></div>
     <div class="flow-box">
     <div class="add-flow">
       <div class="lx-col">
@@ -132,19 +127,6 @@
 </article>
 
 <script>
-// ===== 全局：同步任务表单辅助（新增 + 行内编辑共用） =====
-var MODE_DESC = {
-  incremental: '增量：只下载源歌单里新增的歌，已成功的歌不重复处理。例：LX 歌单加了 2 首新歌 → 只下载这 2 首并加入目标歌单；其它已下载的歌不动。',
-  full: '完全：<%= targetName %> 播放列表向 LX 歌单看齐（以 LX 为准，单向同步）——LX 新增的歌会下载并加入；你在 LX 歌单里删除的歌，也会从 <%= targetName %> 播放列表中移除（本地文件默认保留）。例：删了 LX 歌单 3 首 → 同步后 <%= targetName %> 播放列表同步移除这 3 首。'
-}
-function toggleExistingId(el, suffix) {
-  var box = document.getElementById('existing-box' + suffix)
-  if (box) box.style.display = el.checked ? '' : 'none'
-}
-function showModeDescId(sel, suffix) {
-  var d = document.getElementById('mode-desc' + suffix)
-  if (d) d.textContent = MODE_DESC[sel.value] || ''
-}
 var syncModeSels = document.querySelectorAll('select[name="syncMode"]')
 showModeDescId(syncModeSels[0], 'aa') // 自动新增模块（页面第一个）
 if (syncModeSels[1]) showModeDescId(syncModeSels[1], '') // 新增同步任务
