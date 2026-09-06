@@ -8,6 +8,15 @@
                     background: oklch(var(--b1)); padding: .6rem .7rem; max-width: 100%; overflow-x: auto; }
   /* 桌面右侧歌曲区:占满整高、内容超高内部滚动(与左侧榜单框一致) */
   #ch-songs-box { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+  /* 订阅卡操作按钮:桌面同行右对齐;≤767px 独占一行可横滚 */
+  .ch-actions { display: flex; align-items: center; gap: .25rem; margin-left: auto; flex-wrap: nowrap; }
+  @media (max-width: 767.98px) {
+    .ch-actions { flex-basis: 100%; margin-left: 0; overflow-x: auto; padding-bottom: 2px; }
+  }
+  /* 榜单行横向防护:长名省略号、多行区横向滚动 */
+  #ch-boards .multi-box { overflow: auto; }
+  #ch-boards .ch-row { min-width: 0; }
+  #ch-boards .ch-row > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   /* 服务端片段里的旧式裸按钮:统一描边绿,去 pico 蓝 */
   #ch-boards button, #ch-songs-box button {
     background: transparent; border: 1px solid oklch(var(--bc) / 0.3); border-radius: .375rem;
