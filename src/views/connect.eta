@@ -34,6 +34,7 @@
     <label style="display:flex;align-items:center;gap:.3rem"><input type="radio" name="target" value="navidrome" <%= cfg.target === 'navidrome' ? 'checked' : '' %> onchange="markTargetChange()"> Navidrome</label>
     <label style="display:flex;align-items:center;gap:.3rem"><input type="radio" name="target" value="daoliyu" <%= cfg.target === 'daoliyu' ? 'checked' : '' %> onchange="markTargetChange()"> 道理鱼</label>
     <label style="display:flex;align-items:center;gap:.3rem"><input type="radio" name="target" value="subsonic" <%= cfg.target === 'subsonic' ? 'checked' : '' %> onchange="markTargetChange()"> Subsonic（飞牛/音云等）</label>
+    <label style="display:flex;align-items:center;gap:.3rem"><input type="radio" name="target" value="jellyfin" <%= cfg.target === 'jellyfin' ? 'checked' : '' %> onchange="markTargetChange()"> Jellyfin</label>
     <button type="button" id="target-apply-btn" disabled onclick="applyTarget()">确定</button>
     <span id="target-msg" class="msg"></span>
   </div>
@@ -171,6 +172,40 @@
 </form>
 </div>
 
+<div id="jf-box" style="display:<%= cfg.target === 'jellyfin' ? '' : 'none' %>">
+<form method="post" action="/api/config/jellyfin" hx-post="/api/config/jellyfin" hx-target="#jf-save-msg">
+  <article>
+    <h3>连接 Jellyfin</h3>
+    <div class="grid2">
+      <div><label>服务地址<input name="baseUrl" value="<%= cfg.jellyfin.baseUrl %>" placeholder="http://127.0.0.1:8096"></label></div>
+      <div>
+        <label>API key</label>
+        <div class="key-wrap">
+          <input type="password" name="apiKey" id="jf-key" value="<%= cfg.jellyfin.apiKey %>" autocomplete="off">
+          <button type="button" class="btn-sm secondary key-eye" onclick="toggleKey('jf-key', this)" title="显示/隐藏">👁</button>
+        </div>
+      </div>
+      <div style="grid-column: span 2">
+        <label>媒体库根路径（Jellyfin 视角；与 Emby 同源约定）
+          <input name="libraryRoot" value="<%= cfg.jellyfin.libraryRoot %>" placeholder="如 /D8/MOVIEPILOT/MUSIC/MusicTagWeb/LINK/LXSERVER/king/歌单同步">
+        </label>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button type="submit">保存</button>
+      <button type="button" class="secondary" hx-post="/api/test/jellyfin" hx-target="#jf-test-result">测试连接</button>
+      <button type="button" class="secondary" hx-post="/api/jellyfin/probe" hx-target="#jf-probe-result">探测媒体库</button>
+      <span id="jf-test-result" class="msg"></span>
+      <span id="jf-probe-result" class="msg"></span>
+      <span id="jf-save-msg" class="msg"></span>
+    </div>
+    <% if (cfg.jellyfin.mediaLibraryId) { %>
+      <p class="hint" style="margin:0">当前媒体库 Id: <code><%= cfg.jellyfin.mediaLibraryId %></code></p>
+    <% } %>
+  </article>
+</form>
+</div>
+
 <article>
   <h3>路径自检</h3>
   <div class="btn-row">
@@ -200,7 +235,7 @@
 <script>
 // 目标切换：先选择 → 点「确定」才生效（避免误切）。确定前锁定下方连接表单。
 var currentTarget = document.getElementById('target-box').dataset.current || 'emby'
-var TARGET_LABELS = { emby: 'Emby', navidrome: 'Navidrome', daoliyu: '道理鱼', subsonic: 'Subsonic' }
+var TARGET_LABELS = { emby: 'Emby', navidrome: 'Navidrome', daoliyu: '道理鱼', subsonic: 'Subsonic', jellyfin: 'Jellyfin' }
 function targetSelected() {
   var r = document.querySelector('input[name="target"]:checked')
   return r ? r.value : currentTarget
@@ -209,7 +244,7 @@ function targetPending() {
   return targetSelected() !== currentTarget
 }
 function setFormLocked(locked) {
-  var boxes = ['emby-box', 'nd-box', 'dly-box', 'sub-box']
+  var boxes = ['emby-box', 'nd-box', 'dly-box', 'sub-box', 'jf-box']
   for (var i = 0; i < boxes.length; i++) {
     var box = document.getElementById(boxes[i])
     if (!box) continue

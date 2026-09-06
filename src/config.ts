@@ -7,11 +7,12 @@ export const QUALITY_ORDER = ['master', 'atmos_plus', 'atmos', 'hires', 'flac24b
 export type Quality = (typeof QUALITY_ORDER)[number]
 
 /** 媒体服务器显示名 */
-export const TARGET_LABEL: Record<'emby' | 'navidrome' | 'daoliyu' | 'subsonic', string> = {
+export const TARGET_LABEL: Record<'emby' | 'navidrome' | 'daoliyu' | 'subsonic' | 'jellyfin', string> = {
   emby: 'Emby',
   navidrome: 'Navidrome',
   daoliyu: '道理鱼',
   subsonic: 'Subsonic',
+  jellyfin: 'Jellyfin',
 }
 
 /** 音质显示名（界面复选框标签） */
@@ -62,6 +63,16 @@ export interface DownloadProtection {
   resolveIntervalSec: number
 }
 
+/** Emby/Jellyfin 共享连接段（同构 API） */
+export interface EmbyServerCfg {
+  baseUrl: string
+  apiKey: string
+  /** 媒体库根路径（服务器容器视角，用于探测库；如 /D8/.../LXSERVER/king/歌单同步） */
+  libraryRoot: string
+  /** 媒体库 Id（连接后自动探测填入） */
+  mediaLibraryId?: string
+}
+
 export interface AppConfig {
   lxserver: {
     baseUrl: string
@@ -71,14 +82,8 @@ export interface AppConfig {
     /** 下载落盘根目录（宿主机路径，如 .../LXSERVER/king）——Emby 库扫描此目录的子目录 */
     downloadRoot: string
   }
-  emby: {
-    baseUrl: string
-    apiKey: string
-    /** Emby 媒体库根路径（Emby 视角，用于探测库；如 /D8/.../LXSERVER/king/歌单同步） */
-    libraryRoot: string
-    /** 媒体库 Id（连接后自动探测填入） */
-    mediaLibraryId?: string
-  }
+  emby: EmbyServerCfg
+  jellyfin: EmbyServerCfg
   navidrome: {
     baseUrl: string
     username: string
@@ -102,7 +107,7 @@ export interface AppConfig {
     password: string
   }
   /** 媒体服务器目标：emby | navidrome | daoliyu | subsonic */
-  target: 'emby' | 'navidrome' | 'daoliyu' | 'subsonic'
+  target: 'emby' | 'navidrome' | 'daoliyu' | 'subsonic' | 'jellyfin'
   download: {
     /** 勾选的音质，按高→低尝试；未勾选绝不使用 */
     qualities: Quality[]
@@ -179,6 +184,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   navidrome: { baseUrl: '', username: '', password: '', libraryRoot: '' },
   daoliyu: { baseUrl: '', username: '', password: '', libraryRoot: '' },
   subsonic: { baseUrl: '', username: '', password: '' },
+  jellyfin: { baseUrl: '', apiKey: '', libraryRoot: '' },
   target: 'emby',
   download: {
     qualities: ['flac24bit', 'flac'],
@@ -260,6 +266,7 @@ export function loadConfig(): AppConfig {
     navidrome: { ...DEFAULT_CONFIG.navidrome, ...fileCfg?.navidrome },
     daoliyu: { ...DEFAULT_CONFIG.daoliyu, ...fileCfg?.daoliyu },
     subsonic: { ...DEFAULT_CONFIG.subsonic, ...fileCfg?.subsonic },
+    jellyfin: { ...DEFAULT_CONFIG.jellyfin, ...fileCfg?.jellyfin },
     download: {
       ...DEFAULT_CONFIG.download,
       ...fileCfg?.download,

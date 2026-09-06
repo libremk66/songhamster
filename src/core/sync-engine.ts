@@ -359,13 +359,11 @@ export class SyncEngine {
       const cfg = this.cfg()
       let embySong = knownId ? { embySongId: knownId, lastVerifiedAt: new Date().toISOString() } : null
       if (!embySong) {
-        let libraryId = cfg.emby.mediaLibraryId
+        // 媒体库 id 始终由当前适配器解析（各服务器配置段不同——Emby/Jellyfin/其他）
+        const libraryId = (await this.emby.resolveLibraryId()) ?? undefined
         if (!libraryId) {
-          libraryId = (await this.emby.resolveLibraryId()) ?? undefined
-          if (!libraryId) {
-            logger.warn('[emby] 未找到匹配媒体库，跳过入库')
-            return false
-          }
+          logger.warn('[emby] 未找到匹配媒体库，跳过入库')
+          return false
         }
         // 精确扫描媒体库
         await this.emby.scanLibrary(libraryId)

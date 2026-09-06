@@ -8,13 +8,19 @@ import type {
   MediaSong,
 } from './media-server.js'
 
+/** Emby/Jellyfin 共用（API 同源）：segment 指定读取配置段 emby | jellyfin */
 export class EmbyAdapter implements MediaServerAdapter {
-  readonly kind = 'emby' as const
+  readonly kind: 'emby' | 'jellyfin'
 
-  constructor(private cfg: () => AppConfig) {}
+  constructor(
+    private cfg: () => AppConfig,
+    private segment: 'emby' | 'jellyfin' = 'emby',
+  ) {
+    this.kind = segment
+  }
 
   private get c() {
-    return this.cfg().emby
+    return this.cfg()[this.segment]
   }
 
   private async request(path: string, init?: RequestInit): Promise<any> {
@@ -82,30 +88,61 @@ export class EmbyAdapter implements MediaServerAdapter {
       .map((vf: any) => ({ id: String(vf.ItemId), name: String(vf.Name), locations: vf.Locations ?? [] }))
   }
 
-  /** 精确扫描单个媒体库 */
+  /** 精确扫描单个媒体库（Jellyfin 需 body；Emby 兼容） */
   async scanLibrary(libraryId: string): Promise<void> {
-    await this.request(`/Items/${libraryId}/Refresh`, { method: 'POST' })
+    await this.request(`/Items/${libraryId}/Refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    })
+  }
+
+  private uidCache: string | null = null
+
+  /** Jellyfin 需 UserId（Emby 不需要）；缓存首个用户 */
+  private async jellyfinUserId(): Promise<string | undefined> {
+    if (this.segment !== 'jellyfin') return undefined
+    if (!this.uidCache) {
+      const users = await this.request('/Users').catch(() => [])
+      this.uidCache = Array.isArray(users) && users.length ? String(users[0].Id) : ''
+    }
+    return this.uidCache || undefined
+  }
+
+  /** Jellyfin 需 UserId + MediaType（Emby 不需要） */
+  private async playlistOwner(): Promise<{ userId?: string; mediaType?: string }> {
+    if (this.segment !== 'jellyfin') return {}
+    return { userId: await this.jellyfinUserId(), mediaType: 'Audio' }
   }
 
   async createPlaylist(name: string, itemIds?: string[]): Promise<{ id: string }> {
     const qs = new URLSearchParams({ Name: name })
     if (itemIds?.length) qs.set('Ids', itemIds.join(','))
+    const owner = await this.playlistOwner()
+    if (owner.userId) qs.set('UserId', owner.userId)
+    if (owner.mediaType) qs.set('MediaType', owner.mediaType)
     const data = await this.request(`/Playlists?${qs}`, { method: 'POST' })
     return { id: String(data?.Id ?? data?.id) }
   }
 
-  /** 幂等加入歌单（返回实际新增数） */
+  /** 幂等加入歌单（返回实际新增数）；Jellyfin 参数为 ids 且需 userId */
   async addItems(playlistId: string, itemIds: string[]): Promise<{ added: number }> {
     if (!itemIds.length) return { added: 0 }
-    const qs = new URLSearchParams({ Ids: itemIds.join(',') })
+    const key = this.segment === 'jellyfin' ? 'ids' : 'Ids'
+    const qs = new URLSearchParams({ [key]: itemIds.join(',') })
+    const uid = await this.jellyfinUserId()
+    if (uid) qs.set('userId', uid)
     const data = await this.request(`/Playlists/${playlistId}/Items?${qs}`, { method: 'POST' })
     return { added: Number(data?.ItemAddedCount ?? itemIds.length) }
   }
 
-  /** 从歌单移除（完全同步删歌用；entryIds 为歌单内条目 Id） */
+  /** 从歌单移除（完全同步删歌用；entryIds 为歌单内条目 Id）；Jellyfin 参数 entryIds + userId */
   async removeItems(playlistId: string, entryIds: string[]): Promise<void> {
     if (!entryIds.length) return
-    const qs = new URLSearchParams({ EntryIds: entryIds.join(',') })
+    const key = this.segment === 'jellyfin' ? 'entryIds' : 'EntryIds'
+    const qs = new URLSearchParams({ [key]: entryIds.join(',') })
+    const uid = await this.jellyfinUserId()
+    if (uid) qs.set('userId', uid)
     await this.request(`/Playlists/${playlistId}/Items?${qs}`, { method: 'DELETE' })
   }
 
@@ -167,9 +204,12 @@ export class EmbyAdapter implements MediaServerAdapter {
     return null
   }
 
-  /** 歌单当前条目（含 PlaylistItemId，供 removeItems） */
+  /** 歌单当前条目（含 PlaylistItemId，供 removeItems）；Jellyfin 需 userId */
   async listPlaylistItems(playlistId: string): Promise<MediaPlaylistItem[]> {
-    const data = await this.request(`/Playlists/${playlistId}/Items`)
+    const qs = new URLSearchParams()
+    const uid = await this.jellyfinUserId()
+    if (uid) qs.set('userId', uid)
+    const data = await this.request(`/Playlists/${playlistId}/Items${qs.toString() ? '?' + qs : ''}`)
     return (data?.Items ?? []).map((it: any) => ({
       itemId: String(it.Id),
       entryId: it.PlaylistItemId ? String(it.PlaylistItemId) : undefined,

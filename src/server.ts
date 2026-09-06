@@ -26,6 +26,7 @@ function makeServer(): MediaServerAdapter {
   if (config.target === 'navidrome') return new NavidromeAdapter(() => config)
   if (config.target === 'daoliyu') return new DaoliyuAdapter(() => config)
   if (config.target === 'subsonic') return new SubsonicAdapter(() => config)
+  if (config.target === 'jellyfin') return new EmbyAdapter(() => config, 'jellyfin')
   return new EmbyAdapter(() => config)
 }
 
@@ -89,14 +90,14 @@ app.use(authRequired(() => config))
 // 媒体服务器目标切换（emby | navidrome）：保存并即时重建适配器（引擎/路由经 proxy 自动跟随）
 app.post('/api/config/target', (req, res) => {
   const t = String((req.body ?? {}).target ?? '')
-  if (t !== 'emby' && t !== 'navidrome' && t !== 'daoliyu' && t !== 'subsonic') {
+  if (t !== 'emby' && t !== 'navidrome' && t !== 'daoliyu' && t !== 'subsonic' && t !== 'jellyfin') {
     return res.status(400).send('<span class="bad">❌ 未知目标</span>')
   }
   config.target = t
   saveConfig(config)
   serverImpl = makeServer()
   logger.info(`[server] 媒体服务器目标切换为 ${t}`)
-  res.send(`<span class="ok">✅ 已切换目标：${t === 'navidrome' ? 'Navidrome' : t === 'daoliyu' ? '道理鱼' : t === 'subsonic' ? 'Subsonic' : 'Emby'}（同步任务将操作该服务器）</span>`)
+  res.send(`<span class="ok">✅ 已切换目标：${t === 'navidrome' ? 'Navidrome' : t === 'daoliyu' ? '道理鱼' : t === 'subsonic' ? 'Subsonic' : t === 'jellyfin' ? 'Jellyfin' : 'Emby'}（同步任务将操作该服务器）</span>`)
 })
 
 app.use('/api', apiRouter(config, lx, server, engine, scheduler))

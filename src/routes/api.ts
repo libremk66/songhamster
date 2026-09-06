@@ -4,6 +4,7 @@ import { QUALITY_ORDER, QUALITY_LABELS, TARGET_LABEL } from '../config.js'
 import { saveConfig } from '../config.js'
 import { LxServerAdapter } from '../adapters/lxserver.js'
 import type { MediaServerAdapter } from '../adapters/media-server.js'
+import { EmbyAdapter } from '../adapters/emby.js'
 import { NavidromeAdapter } from '../adapters/navidrome.js'
 import { DaoliyuAdapter } from '../adapters/daoliyu.js'
 import { SubsonicAdapter } from '../adapters/subsonic.js'
@@ -44,6 +45,12 @@ export function apiRouter(
     if (cfg.target === 'navidrome') {
       if (!serverPath.startsWith('/')) return dl + '/' + serverPath
       return serverPath.startsWith(dl) ? serverPath : localizeEmbyPath(cfg, serverPath)
+    }
+    if (cfg.target === 'jellyfin') {
+      // 与 Emby 同源：libraryRoot（jellyfin 段）前缀 → downloadRoot
+      const lib = cfg.jellyfin.libraryRoot?.replace(/\/+$/, '')
+      if (lib && serverPath.startsWith(lib + '/')) return dl + serverPath.slice(lib.length)
+      return serverPath.startsWith(dl) ? serverPath : null
     }
     if (cfg.target === 'daoliyu') {
       // filePath 为容器内绝对路径（与 downloadRoot 同源）：libraryRoot 前缀 → downloadRoot
@@ -182,6 +189,40 @@ export function apiRouter(
         res.send(ok(`已识别媒体库根：<code>${escapeHtml(root)}</code>（已保存）`))
       } else {
         res.send(err('未探测到媒体库扫描路径（请先在道理鱼 Web 配置媒体库并全量扫描一次）'))
+      }
+    } catch (e) {
+      res.send(err((e as Error).message))
+    }
+  })
+
+  // ===== Jellyfin 连接（与 Emby API 同源） =====
+  r.post('/config/jellyfin', (req, res) => {
+    const b = req.body ?? {}
+    cfg.jellyfin.baseUrl = String(b.baseUrl ?? '').trim()
+    cfg.jellyfin.apiKey = String(b.apiKey ?? '').trim()
+    cfg.jellyfin.libraryRoot = String(b.libraryRoot ?? '').trim()
+    saveConfig(cfg)
+    res.send(ok('Jellyfin 连接配置已保存'))
+  })
+
+  r.post('/test/jellyfin', async (_req, res) => {
+    const t = await new EmbyAdapter(() => cfg, 'jellyfin').test()
+    res.send(t.ok ? ok('Jellyfin 连接正常') : err(`Jellyfin ${t.error}`))
+  })
+
+  r.post('/jellyfin/probe', async (_req, res) => {
+    try {
+      const jf = new EmbyAdapter(() => cfg, 'jellyfin')
+      const libs = await jf.listLibraries()
+      if (!libs.length) return res.send(err('未找到音乐类媒体库（请先在 Jellyfin 后台建媒体库并扫描）'))
+      const id = await jf.resolveLibraryId()
+      if (id) {
+        cfg.jellyfin.mediaLibraryId = id
+        saveConfig(cfg)
+        res.send(ok(`已识别媒体库 Id=${id}（匹配 libraryRoot）`))
+      } else {
+        const list = libs.map((l) => `${l.name}(${l.id})`).join('、')
+        res.send(err(`libraryRoot 未匹配到库，现有音乐库: ${list}（请修正路径）`))
       }
     } catch (e) {
       res.send(err((e as Error).message))
