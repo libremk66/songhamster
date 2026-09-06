@@ -85,13 +85,24 @@ export const LAYOUT = `<!doctype html>
 
     /* ===== 紧凑密度：控件 26px、输入 12px、按钮瘦身贴文字、卡片内边距 14px ===== */
     .btn { height: 1.625rem; min-height: 1.625rem; padding-left: .55rem; padding-right: .55rem; font-size: .75rem; border-radius: .375rem; }
-    /* 主操作(填充型)比常规按钮再小一号:字号 11px、更窄内边距,成组视觉更轻盈
-       配色:低饱和绿(oklch 0.5/0.085/152),替代主题默认蓝,明暗主题一致 */
+    /* ===== 全站品牌绿(唯一强调色;error 红保留功能性) =====
+       --sfg:亮绿(填充/徽章/状态点)  --sfg-deep:深绿(链接/文字/描边)  --sfg-ink:绿上深字 */
+    :root {
+      --sfg: oklch(0.7 0.12 153);
+      --sfg-deep: oklch(0.44 0.1 152);
+      --sfg-ink: oklch(0.16 0.03 152);
+    }
+    html[data-theme="light"], html[data-theme="dark"], html[data-theme="corporate"], html[data-theme=""] {
+      --p: var(--sfg-deep); --pf: oklch(0.38 0.1 152); --pc: oklch(0.97 0.01 152);
+      --su: var(--sfg); --suf: oklch(0.62 0.12 153); --suc: var(--sfg-ink);
+      --wa: oklch(0.8 0.07 152); --waf: oklch(0.74 0.09 152); --wac: oklch(0.28 0.07 152);
+    }
+    /* 主操作(填充型):亮绿底 + 深绿字;字号 11px、窄内边距 */
     .btn-primary { padding-left: .4rem; padding-right: .4rem; font-size: .6875rem; font-weight: 600;
-                   background-color: oklch(0.5 0.085 152); border-color: oklch(0.5 0.085 152); color: oklch(0.985 0.005 152); }
-    .btn-primary:hover, .btn-primary:focus-visible { background-color: oklch(0.45 0.085 152); border-color: oklch(0.45 0.085 152); }
-    .btn-primary:active { background-color: oklch(0.41 0.085 152); border-color: oklch(0.41 0.085 152); }
-    .btn-primary:disabled { background-color: oklch(0.62 0.04 152); border-color: oklch(0.62 0.04 152); }
+                   background-color: var(--sfg); border-color: var(--sfg); color: var(--sfg-ink); }
+    .btn-primary:hover, .btn-primary:focus-visible { background-color: oklch(0.62 0.12 153); border-color: oklch(0.62 0.12 153); }
+    .btn-primary:active { background-color: oklch(0.56 0.12 153); border-color: oklch(0.56 0.12 153); }
+    .btn-primary:disabled { background-color: oklch(0.8 0.06 153); border-color: oklch(0.8 0.06 153); color: oklch(0.35 0.04 152); }
     /* pico 桥对 button[type=submit] 强制 width:100%(特异性更高),钉回自适应宽度 */
     button.btn[type="submit"] { width: auto; }
     /* pico 桥的 line-height:1.5+上下内边距会把文字挤偏;去上下内边距 + line-height:1,交还 flex 居中 */
