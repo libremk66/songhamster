@@ -7,10 +7,11 @@ export const QUALITY_ORDER = ['master', 'atmos_plus', 'atmos', 'hires', 'flac24b
 export type Quality = (typeof QUALITY_ORDER)[number]
 
 /** 媒体服务器显示名 */
-export const TARGET_LABEL: Record<'emby' | 'navidrome' | 'daoliyu', string> = {
+export const TARGET_LABEL: Record<'emby' | 'navidrome' | 'daoliyu' | 'subsonic', string> = {
   emby: 'Emby',
   navidrome: 'Navidrome',
   daoliyu: '道理鱼',
+  subsonic: 'Subsonic',
 }
 
 /** 音质显示名（界面复选框标签） */
@@ -95,8 +96,13 @@ export interface AppConfig {
     /** 媒体库根路径（Daoliyu 容器视角，与 downloadRoot 同源；如 /D8/.../LXSERVER/king） */
     libraryRoot: string
   }
-  /** 媒体服务器目标：emby | navidrome | daoliyu */
-  target: 'emby' | 'navidrome' | 'daoliyu'
+  subsonic: {
+    baseUrl: string
+    username: string
+    password: string
+  }
+  /** 媒体服务器目标：emby | navidrome | daoliyu | subsonic */
+  target: 'emby' | 'navidrome' | 'daoliyu' | 'subsonic'
   download: {
     /** 勾选的音质，按高→低尝试；未勾选绝不使用 */
     qualities: Quality[]
@@ -172,6 +178,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   emby: { baseUrl: 'http://127.0.0.1:8096', apiKey: '', libraryRoot: '' },
   navidrome: { baseUrl: '', username: '', password: '', libraryRoot: '' },
   daoliyu: { baseUrl: '', username: '', password: '', libraryRoot: '' },
+  subsonic: { baseUrl: '', username: '', password: '' },
   target: 'emby',
   download: {
     qualities: ['flac24bit', 'flac'],
@@ -252,6 +259,7 @@ export function loadConfig(): AppConfig {
     emby: { ...DEFAULT_CONFIG.emby, ...fileCfg?.emby },
     navidrome: { ...DEFAULT_CONFIG.navidrome, ...fileCfg?.navidrome },
     daoliyu: { ...DEFAULT_CONFIG.daoliyu, ...fileCfg?.daoliyu },
+    subsonic: { ...DEFAULT_CONFIG.subsonic, ...fileCfg?.subsonic },
     download: {
       ...DEFAULT_CONFIG.download,
       ...fileCfg?.download,

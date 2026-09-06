@@ -33,6 +33,7 @@
     <label style="display:flex;align-items:center;gap:.3rem"><input type="radio" name="target" value="emby" <%= cfg.target === 'emby' ? 'checked' : '' %> onchange="markTargetChange()"> Emby</label>
     <label style="display:flex;align-items:center;gap:.3rem"><input type="radio" name="target" value="navidrome" <%= cfg.target === 'navidrome' ? 'checked' : '' %> onchange="markTargetChange()"> Navidrome</label>
     <label style="display:flex;align-items:center;gap:.3rem"><input type="radio" name="target" value="daoliyu" <%= cfg.target === 'daoliyu' ? 'checked' : '' %> onchange="markTargetChange()"> 道理鱼</label>
+    <label style="display:flex;align-items:center;gap:.3rem"><input type="radio" name="target" value="subsonic" <%= cfg.target === 'subsonic' ? 'checked' : '' %> onchange="markTargetChange()"> Subsonic</label>
     <button type="button" id="target-apply-btn" disabled onclick="applyTarget()">确定</button>
     <span id="target-msg" class="msg"></span>
   </div>
@@ -144,6 +145,32 @@
 </form>
 </div>
 
+<div id="sub-box" style="display:<%= cfg.target === 'subsonic' ? '' : 'none' %>">
+<form method="post" action="/api/config/subsonic" hx-post="/api/config/subsonic" hx-target="#sub-save-msg">
+  <article>
+    <h3>连接 Subsonic 服务器</h3>
+    <div class="grid2">
+      <div><label>服务地址（根地址，无需 /rest）<input name="baseUrl" value="<%= cfg.subsonic.baseUrl %>" placeholder="http://127.0.0.1:4533"></label></div>
+      <div>
+        <label>账号密码</label>
+        <div class="key-wrap" style="gap:.3rem">
+          <input name="username" value="<%= cfg.subsonic.username %>" placeholder="用户名" style="flex:1">
+          <input type="password" name="password" id="sub-key" value="<%= cfg.subsonic.password %>" autocomplete="off" style="flex:1">
+          <button type="button" class="btn-sm secondary key-eye" onclick="toggleKey('sub-key', this)" title="显示/隐藏">👁</button>
+        </div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button type="submit">保存</button>
+      <button type="button" class="secondary" hx-post="/api/test/subsonic" hx-target="#sub-test-result">测试连接</button>
+      <span id="sub-test-result" class="msg"></span>
+      <span id="sub-save-msg" class="msg"></span>
+    </div>
+    <p class="hint" style="margin:.3rem 0 0">通用 Subsonic/OpenSubsonic 协议（Navidrome、音云等皆可）。⚠️ 协议限制：无文件路径（查重可看、回收站定位不可用）、无位深/采样率（24bit 按 FLAC 判定）。</p>
+  </article>
+</form>
+</div>
+
 <article>
   <h3>路径自检</h3>
   <div class="btn-row">
@@ -173,7 +200,7 @@
 <script>
 // 目标切换：先选择 → 点「确定」才生效（避免误切）。确定前锁定下方连接表单。
 var currentTarget = document.getElementById('target-box').dataset.current || 'emby'
-var TARGET_LABELS = { emby: 'Emby', navidrome: 'Navidrome', daoliyu: '道理鱼' }
+var TARGET_LABELS = { emby: 'Emby', navidrome: 'Navidrome', daoliyu: '道理鱼', subsonic: 'Subsonic' }
 function targetSelected() {
   var r = document.querySelector('input[name="target"]:checked')
   return r ? r.value : currentTarget
@@ -182,7 +209,7 @@ function targetPending() {
   return targetSelected() !== currentTarget
 }
 function setFormLocked(locked) {
-  var boxes = ['emby-box', 'nd-box', 'dly-box']
+  var boxes = ['emby-box', 'nd-box', 'dly-box', 'sub-box']
   for (var i = 0; i < boxes.length; i++) {
     var box = document.getElementById(boxes[i])
     if (!box) continue

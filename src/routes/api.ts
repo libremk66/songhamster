@@ -6,6 +6,7 @@ import { LxServerAdapter } from '../adapters/lxserver.js'
 import type { MediaServerAdapter } from '../adapters/media-server.js'
 import { NavidromeAdapter } from '../adapters/navidrome.js'
 import { DaoliyuAdapter } from '../adapters/daoliyu.js'
+import { SubsonicAdapter } from '../adapters/subsonic.js'
 import * as repo from '../store/repo.js'
 import { SyncEngine } from '../core/sync-engine.js'
 import { Scheduler } from '../scheduler/index.js'
@@ -185,6 +186,21 @@ export function apiRouter(
     } catch (e) {
       res.send(err((e as Error).message))
     }
+  })
+
+  // ===== Subsonic 服务器（通用协议） =====
+  r.post('/config/subsonic', (req, res) => {
+    const b = req.body ?? {}
+    cfg.subsonic.baseUrl = String(b.baseUrl ?? '').trim()
+    cfg.subsonic.username = String(b.username ?? '').trim()
+    cfg.subsonic.password = String(b.password ?? '').trim()
+    saveConfig(cfg)
+    res.send(ok('Subsonic 连接配置已保存'))
+  })
+
+  r.post('/test/subsonic', async (_req, res) => {
+    const t = await new SubsonicAdapter(() => cfg).test()
+    res.send(t.ok ? ok('Subsonic 连接正常') : err(`Subsonic ${t.error}`))
   })
 
   // ===== 榜单订阅 API =====

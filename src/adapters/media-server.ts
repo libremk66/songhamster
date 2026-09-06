@@ -8,7 +8,7 @@
  *  - quality：QUALITY_ORDER 档位字符串（master/atmos_plus/atmos/hires/flac24bit/flac/320k/192k/128k/null）
  */
 
-export type MediaServerKind = 'emby' | 'navidrome' | 'daoliyu'
+export type MediaServerKind = 'emby' | 'navidrome' | 'daoliyu' | 'subsonic'
 
 export interface MediaPlaylist {
   id: string
