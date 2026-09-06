@@ -3,9 +3,11 @@
   .ch2 { display: grid; grid-template-columns: minmax(0, 34rem) minmax(0, 1fr); gap: 1rem; align-items: stretch; }
   .ch2 > div { height: 100%; display: flex; flex-direction: column; }
   @media (max-width: 1023.98px) { .ch2 { grid-template-columns: 1fr; } .ch2 > div { height: auto; } }
-  /* 移动端榜单行内展开框(点「查看歌曲」在该榜单下开合) */
+  /* 移动端榜单行内展开框(点「查看歌曲」在该榜单下开合;超宽内容横向滚动) */
   .ch-songs-panel { margin: .4rem 0 .6rem; border: 1px solid oklch(var(--bc) / .15); border-radius: .5rem;
-                    background: oklch(var(--b1)); padding: .6rem .7rem; }
+                    background: oklch(var(--b1)); padding: .6rem .7rem; max-width: 100%; overflow-x: auto; }
+  /* 桌面右侧歌曲区:占满整高、内容超高内部滚动(与左侧榜单框一致) */
+  #ch-songs-box { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
   /* 服务端片段里的旧式裸按钮:统一描边绿,去 pico 蓝 */
   #ch-boards button, #ch-songs-box button {
     background: transparent; border: 1px solid oklch(var(--bc) / 0.3); border-radius: .375rem;
