@@ -129,3 +129,22 @@ setsid bash -c 'nohup npm run dev >> server.log 2>&1 < /dev/null & echo $! > ser
 - [ ] htmx 局部刷新的片段样式与宿主一致、空态/加载态有文案
 - [ ] 密码字段 eye 可切换;表单锁定态(disabled)可见
 - [ ] 移动端:汉堡导航可用、表单可用、触控 34px
+
+## 12. 视觉定稿(2026-09-06,已落地)
+
+- **品牌绿**:`--sfg` oklch(0.7/0.12/153) 亮绿(填充/徽章/勾选/选中菜单底)、`--sfg-deep` 深绿(文字/链接)、`--sfg-ink` 绿上深字。error 红保留功能性。主题主色/成功/警示变量已映射到品牌绿(html[data-theme] 覆盖),checkbox accent + `--chkbg/--chkfg` 同步
+- **控件密度**:26px 高/12px 字;主按钮 11px/600 贴文字;卡片内边距 14px;根字号已钉 16px(防 pico 放大)
+- **页面内容区背景**:左上白 → 右下浅灰渐变(::before,字面量 oklch+prefers-color-scheme 两套)+ 26px 灰网格从左上向右下 mask 渐隐(::after)。伪元素 `z-index:-1` 需父级 `position:relative; z-index:0` 建 stacking
+- **侧栏**:270px,sticky 100vh 视口固定,用户栏常驻;菜单=圆角框(悬停浅绿底/选中 `--sfg` 底+`--sfg-ink` 字);登出=电源图标(form 不要内联 display:inline,会压过 flex 居中)
+- **菜单/内容卡内文字**:次级文字用 `.c-sub/.c-mid`(主题变量半透明),禁裸 opacity 类
+
+## 13. 开发坑速查(全部踩过,先查这里)
+
+1. **根字号**:pico 桥 `:root{font-size:var(--pico-font-size)}` 宽屏放大到 125% → LAYOUT 里 `:root{font-size:16px}` 钉死(曾致所有 rem 控件虚大 25%)
+2. **Tailwind 变体/任意值类在本项目常失效**(md:grid-cols-2、grid-cols-[…] 时灵时不灵)→ 布局一律自带 CSS 类 `.fg/.lxg/.ch2/.prow/.hist-tab`,不要新写变体依赖
+3. **新增 daisy/tailwind 类后必须 `npm run build:css`**(content 扫描 src/views+render.ts;未编译症状:无边框 select、w-2 圆点不可见、grid 不生效)
+4. **改 .eta 必须重启进程**(eta cache:true;tsx 不监听 .eta)。重启要杀干净防僵尸占端口(见 §8),症状:改了没生效=旧进程服务
+5. **daisy 主题变量是裸通道值**(--b1=`100% 0 0`),不能直接当颜色用;`oklch(var(--b1))` 嵌套在渐变里整条失效 → 需要处用字面量 oklch + 媒体查询,或用完整颜色变量(如 --sfg 本身是完整 oklch 字符串,var(--sfg) 可直接用)
+6. **pico 桥特异性战争**(加载序在 daisy 后):`button[type=submit]{width:100%}` → 需更高特异覆盖;`label:has(radio){width:fit-content}` → label 显式 width:100%;input 尺寸规则带 !important;`.btn` 去 line-height/padding 干扰
+7. **移动端横向溢出**:grid 列用 `1fr` 会被长内容撑破(轨道 min=auto)→ `minmax(0,1fr)`;长行容器要 overflow-x:auto + 内层 min-width:0 + ellipsis
+8. **回归节奏**:改 render.ts 后 curl 带 session cookie grep 新标记验证(避免"没生效"误判)
