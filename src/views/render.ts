@@ -70,16 +70,25 @@ export const LAYOUT = `<!doctype html>
     aside.sidebar .brand img { width: 2.1rem; height: 2.1rem; border-radius: .35em; flex-shrink: 0; }
     aside.sidebar .brand-sub { font-size: 1.35rem; color: oklch(var(--bc) / 0.6); margin-bottom: 2rem; }
     aside.sidebar nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-    aside.sidebar nav li + li { border-top: 1px solid oklch(var(--bc) / 0.08); } /* 上下横线分隔 */
     aside.sidebar nav a {
-      display: block; padding: .55rem .25rem; font-size: 1.35em; /* 加大字号 */
+      display: block; padding: .6rem .25rem .85rem; font-size: 1.35em; /* 加大字号 */
       color: oklch(var(--bc)); text-decoration: none; transition: color .15s, text-shadow .15s;
     }
+    /* 每项下方居中横线:占列宽 6/10,两端向末端渐变变浅 */
+    aside.sidebar nav a::after {
+      content: ''; display: block; width: 60%; height: 1px; margin: .55rem auto 0;
+      background: linear-gradient(90deg, transparent 0%, oklch(var(--bc) / 0.22) 22%, oklch(var(--bc) / 0.22) 78%, transparent 100%);
+    }
     aside.sidebar nav a:hover { color: var(--sfg-deep); }
+    /* 当前选中:横线变粗变绿(两端同样渐变变浅)+ 文字辉光 */
     aside.sidebar nav a.active {
       font-weight: 700; color: var(--sfg);
       text-shadow: 0 0 14px color-mix(in oklab, var(--sfg) 70%, transparent),
                    0 0 4px color-mix(in oklab, var(--sfg) 55%, transparent); /* 选中绿色辉光 */
+    }
+    aside.sidebar nav a.active::after {
+      height: 3px;
+      background: linear-gradient(90deg, transparent 0%, var(--sfg) 22%, var(--sfg) 78%, transparent 100%);
     }
     aside.sidebar .sidebar-foot { margin-top: auto; padding-top: .8rem; font-size: .88em; }
     aside.sidebar .foot-help { display:block; margin-bottom:.2rem; color: oklch(var(--p)); text-decoration:none; }
@@ -273,12 +282,15 @@ export const LAYOUT = `<!doctype html>
       .mob-panel .mob-sub { color: oklch(var(--bc) / .6); font-size: .95rem; margin: .15rem 0 1.4rem; }
       .mob-panel ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .2rem; overflow-y: auto; }
       .mob-panel ul { gap: 0; }
-      .mob-panel li + li { border-top: 1px solid oklch(var(--bc) / 0.08); }
-      .mob-panel li a { display: block; padding: .7rem .6rem; font-size: 1.15em; color: oklch(var(--bc)); text-decoration: none;
+      .mob-panel li a { display: block; padding: .7rem .6rem .9rem; font-size: 1.15em; color: oklch(var(--bc)); text-decoration: none;
                         transition: color .15s, text-shadow .15s; }
+      .mob-panel li a::after { content: ''; display: block; width: 60%; height: 1px; margin: .5rem auto 0;
+        background: linear-gradient(90deg, transparent 0%, oklch(var(--bc) / 0.2) 22%, oklch(var(--bc) / 0.2) 78%, transparent 100%); }
       .mob-panel li a:hover { color: var(--sfg-deep); }
       .mob-panel li a.active { font-weight: 700; color: var(--sfg);
         text-shadow: 0 0 12px color-mix(in oklab, var(--sfg) 65%, transparent), 0 0 3px color-mix(in oklab, var(--sfg) 50%, transparent); }
+      .mob-panel li a.active::after { height: 3px;
+        background: linear-gradient(90deg, transparent 0%, var(--sfg) 22%, var(--sfg) 78%, transparent 100%); }
       .mob-panel .mob-foot { margin-top: auto; padding-top: .7rem; border-top: 1px solid oklch(var(--bc) / .15); font-size: .82em; color: oklch(var(--bc) / .6); }
       /* 移动端触控友好:控件回大到 34px */
       .btn { height: 2.125rem; min-height: 2.125rem; font-size: .8125rem; }
