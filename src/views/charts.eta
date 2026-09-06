@@ -9,7 +9,8 @@
   /* 桌面右侧歌曲区:占满整高、内容超高内部滚动(与左侧榜单框一致) */
   #ch-songs-box { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
   /* 订阅卡操作按钮:桌面同行右对齐;≤767px 独占一行可横滚 */
-  .ch-actions { display: flex; align-items: center; gap: .25rem; margin-left: auto; flex-wrap: nowrap; }
+  .ch-actions { display: flex; align-items: center; gap: .25rem; margin-left: auto; flex-wrap: nowrap;
+                align-self: center; /* 按钮组相对左列两行信息垂直居中 */ }
   @media (max-width: 767.98px) {
     .ch-actions { flex-basis: 100%; margin-left: 0; overflow-x: auto; padding-bottom: 2px; }
   }
