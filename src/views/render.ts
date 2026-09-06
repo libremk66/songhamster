@@ -61,7 +61,7 @@ export const LAYOUT = `<!doctype html>
     body.app { display: flex; min-height: 100vh; margin: 0; padding-bottom: .75rem; } /* 底部留白(移动端) */
     @media (min-width: 1024px) { body.app { padding-bottom: 0; } } /* 桌面无底部留白 */
     aside.sidebar {
-      width: 300px; flex-shrink: 0; padding: 1.6rem 1.4rem;
+      width: 270px; flex-shrink: 0; padding: 1.6rem 1.4rem; /* 300px 缩窄十分之一 */
       border-right: 1px solid oklch(var(--bc) / 0.15);
       display: none; /* 移动端默认隐藏 */
     }
@@ -69,10 +69,31 @@ export const LAYOUT = `<!doctype html>
     aside.sidebar .brand { font-weight: 800; font-size: 1.75rem; line-height: 1.1; margin-bottom: .3rem; display: flex; align-items: center; gap: .5rem; }
     aside.sidebar .brand img { width: 2.1rem; height: 2.1rem; border-radius: .35em; flex-shrink: 0; }
     aside.sidebar .brand-sub { font-size: 1.35rem; color: oklch(var(--bc) / 0.6); margin-bottom: 2rem; }
-    aside.sidebar nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; }
-    aside.sidebar nav a { display: block; padding: .7rem 1rem; border-radius: 8px; font-size: 1.2em; color: oklch(var(--bc)); text-decoration: none; }
-    aside.sidebar nav a:hover { background: oklch(var(--p) / 0.15); }
-    aside.sidebar nav a.active { font-weight: 700; background: oklch(var(--p) / 0.2); color: oklch(var(--p)); }
+    aside.sidebar nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .2rem; }
+    aside.sidebar nav li + li { border-top: 1px solid oklch(var(--bc) / 0.06); } /* 菜单项间细横线 */
+    aside.sidebar nav a {
+      position: relative; display: block; padding: .7rem 1rem; border-radius: 8px; font-size: 1.15em;
+      color: oklch(var(--bc)); text-decoration: none; overflow: hidden;
+      /* 右侧渐变色 + 左上→右下渐隐的灰色大网格(覆盖在文字之下) */
+      background-image:
+        linear-gradient(115deg, transparent 30%, color-mix(in oklab, var(--sfg) 14%, transparent) 135%),
+        repeating-linear-gradient(0deg, transparent 0 25px, oklch(var(--bc) / 0.055) 25px 26px),
+        repeating-linear-gradient(90deg, transparent 0 25px, oklch(var(--bc) / 0.055) 25px 26px);
+      background-origin: border-box;
+    }
+    aside.sidebar nav a::before { /* 渐隐蒙版:仅作用于装饰背景层 */
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      background: inherit;
+      -webkit-mask-image: linear-gradient(135deg, #000 25%, rgba(0,0,0,.45) 55%, transparent 85%);
+      mask-image: linear-gradient(135deg, #000 25%, rgba(0,0,0,.45) 55%, transparent 85%);
+      opacity: .55;
+    }
+    aside.sidebar nav a:hover { background-color: color-mix(in oklab, var(--sfg) 14%, transparent);
+                                box-shadow: 0 0 12px color-mix(in oklab, var(--sfg) 28%, transparent); }
+    aside.sidebar nav a.active { font-weight: 700; color: var(--sfg-deep);
+      box-shadow: 0 0 14px color-mix(in oklab, var(--sfg) 30%, transparent),
+                  inset 0 0 0 1px color-mix(in oklab, var(--sfg) 45%, transparent);
+      background-color: color-mix(in oklab, var(--sfg) 20%, transparent); }
     aside.sidebar .sidebar-foot { margin-top: auto; padding-top: .8rem; font-size: .88em; }
     aside.sidebar .foot-help { display:block; margin-bottom:.2rem; color: oklch(var(--p)); text-decoration:none; }
     aside.sidebar .foot-ver { color: oklch(var(--bc) / 0.6); font-size: .82em; }
@@ -242,9 +263,22 @@ export const LAYOUT = `<!doctype html>
       .mob-panel .mob-logo { width: 2rem; height: 2rem; border-radius: .35em; }
       .mob-panel .mob-sub { color: oklch(var(--bc) / .6); font-size: .95rem; margin: .15rem 0 1.4rem; }
       .mob-panel ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .2rem; overflow-y: auto; }
-      .mob-panel li a { display: block; padding: .72rem .9rem; border-radius: 9px; font-size: 1.06em; color: oklch(var(--bc)); text-decoration: none; }
-      .mob-panel li a:hover { background: oklch(var(--p) / .15); }
-      .mob-panel li a.active { font-weight: 700; background: oklch(var(--p) / .2); color: oklch(var(--p)); }
+      .mob-panel ul { gap: .15rem; }
+      .mob-panel li + li { border-top: 1px solid oklch(var(--bc) / 0.06); }
+      .mob-panel li a { position: relative; display: block; padding: .72rem .9rem; border-radius: 9px; font-size: 1.06em; color: oklch(var(--bc)); text-decoration: none; overflow: hidden;
+        background-image:
+          linear-gradient(115deg, transparent 35%, color-mix(in oklab, var(--sfg) 12%, transparent) 135%),
+          repeating-linear-gradient(0deg, transparent 0 25px, oklch(var(--bc) / 0.05) 25px 26px),
+          repeating-linear-gradient(90deg, transparent 0 25px, oklch(var(--bc) / 0.05) 25px 26px); }
+      .mob-panel li a::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: inherit;
+        -webkit-mask-image: linear-gradient(135deg, #000 25%, rgba(0,0,0,.45) 55%, transparent 85%);
+        mask-image: linear-gradient(135deg, #000 25%, rgba(0,0,0,.45) 55%, transparent 85%); opacity: .5; }
+      .mob-panel li a:hover { background-color: color-mix(in oklab, var(--sfg) 14%, transparent);
+                              box-shadow: 0 0 12px color-mix(in oklab, var(--sfg) 28%, transparent); }
+      .mob-panel li a.active { font-weight: 700; color: var(--sfg-deep);
+        box-shadow: 0 0 14px color-mix(in oklab, var(--sfg) 30%, transparent),
+                    inset 0 0 0 1px color-mix(in oklab, var(--sfg) 45%, transparent);
+        background-color: color-mix(in oklab, var(--sfg) 20%, transparent); }
       .mob-panel .mob-foot { margin-top: auto; padding-top: .7rem; border-top: 1px solid oklch(var(--bc) / .15); font-size: .82em; color: oklch(var(--bc) / .6); }
       /* 移动端触控友好:控件回大到 34px */
       .btn { height: 2.125rem; min-height: 2.125rem; font-size: .8125rem; }
@@ -286,7 +320,9 @@ export const LAYOUT = `<!doctype html>
           <span class="u">👤 <%= it.authUser || '未登录' %></span>
           <% if (it.authUser) { %>
             <form method="post" action="/api/auth/logout" style="display:inline">
-              <button type="submit" class="btn btn-ghost btn-xs px-2">登出</button>
+              <button type="submit" class="btn btn-ghost btn-xs px-2" title="登出" aria-label="登出">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg>
+              </button>
             </form>
           <% } %>
         <% } else { %>
