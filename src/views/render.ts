@@ -85,20 +85,24 @@ export const LAYOUT = `<!doctype html>
     aside.sidebar .foot-help { display:block; margin-bottom:.2rem; color: oklch(var(--p)); text-decoration:none; }
     aside.sidebar .foot-ver { color: oklch(var(--bc) / 0.6); font-size: .82em; }
     aside.sidebar .foot-hr { border:0; border-top:1px solid oklch(var(--bc) / 0.15); margin:.6rem 0; }
-    aside.sidebar .foot-acct { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
-    aside.sidebar .foot-acct form { display:inline-flex; align-items:center; } /* 图标按钮与用户名同轴居中 */
-    aside.sidebar .foot-acct .btn { display:inline-flex; align-items:center; justify-content:center; padding-inline:.45rem; }
+    aside.sidebar .foot-acct { display:flex; align-items:center; gap:.5rem; flex-wrap:nowrap; }
+    aside.sidebar .foot-acct form { display:inline-flex; align-items:center; margin:0; } /* 图标按钮与用户名同轴居中 */
+    aside.sidebar .foot-acct .btn { display:inline-flex; align-items:center; justify-content:center; padding-inline:.45rem; flex-shrink:0; }
     aside.sidebar .foot-acct .btn svg { display:block; }
-    aside.sidebar .foot-acct .u { font-size:1.6em; line-height:1; overflow:hidden; text-overflow:ellipsis; max-width: 170px; }
+    aside.sidebar .foot-acct .u { display:inline-flex; align-items:center; gap:.3rem; height:26px; line-height:26px;
+                                  font-size:1.05em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; max-width: 170px; }
 
     main.content { flex: 1; min-width: 0; padding: 1.4rem 2rem; display: flex; flex-direction: column; align-items: center;
                    position: relative; z-index: 0; }
     /* 内容区背景:左白 → 右淡绿渐变(::before),叠加左上→右下渐隐的灰网格(::after,独立蒙版) */
     main.content::before, main.content::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: -1; }
+    :root { --sfg-soft: color-mix(in oklab, var(--b1) 82%, var(--sfg) 18%); } /* 预混合淡绿(备用) */
     main.content::before {
-      /* 左上白 → 右下淡绿(与网格渐隐同向) */
-      background: linear-gradient(135deg, oklch(var(--b1)) 0%, oklch(var(--b1)) 32%,
-                                  color-mix(in oklab, var(--b1) 84%, var(--sfg) 16%) 100%);
+      /* 左上白 → 右下淡绿(与网格渐隐同向);主题变量在 daisy 中为裸通道值,直接当色值无效,故用字面量+媒体查询 */
+      background-image: linear-gradient(135deg, oklch(0.995 0.002 100) 0%, oklch(0.99 0.008 150) 18%, oklch(0.92 0.055 155) 100%);
+    }
+    @media (prefers-color-scheme: dark) {
+      main.content::before { background-image: linear-gradient(135deg, oklch(0.2 0.005 260) 0%, oklch(0.22 0.01 170) 22%, oklch(0.3 0.06 155) 100%); }
     }
     main.content::after {
       background-image:
