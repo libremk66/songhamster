@@ -64,7 +64,11 @@ export const LAYOUT = `<!doctype html>
       width: 270px; flex-shrink: 0; padding: 1.6rem 1.4rem; /* 300px 缩窄十分之一 */
       border-right: 1px solid oklch(var(--bc) / 0.15);
       display: none; /* 移动端默认隐藏 */
+      /* 视口固定:内容页再长,用户栏/登出也常驻可见 */
+      position: sticky; top: 0; height: 100vh;
     }
+    aside.sidebar > div:first-child { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+    aside.sidebar nav { flex: 1; overflow-y: auto; min-height: 0; }
     @media (min-width: 1024px) { aside.sidebar { display: flex; flex-direction: column; } }
     aside.sidebar .brand { font-weight: 800; font-size: 1.75rem; line-height: 1.1; margin-bottom: .3rem; display: flex; align-items: center; gap: .5rem; }
     aside.sidebar .brand img { width: 2.1rem; height: 2.1rem; border-radius: .35em; flex-shrink: 0; }
