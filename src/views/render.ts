@@ -58,8 +58,8 @@ export const LAYOUT = `<!doctype html>
   <script src="/static/htmx.min.js"></script>
   <style>
     /* ===== SongFerry 布局微调（基于 DaisyUI 主题变量） ===== */
-    body.app { display: flex; min-height: 100vh; margin: 0; padding-bottom: 4rem; } /* pb 给移动端 btm-nav 留位 */
-    @media (min-width: 1024px) { body.app { padding-bottom: 0; } } /* 桌面无 btm-nav */
+    body.app { display: flex; min-height: 100vh; margin: 0; padding-bottom: .75rem; } /* 底部留白(移动端) */
+    @media (min-width: 1024px) { body.app { padding-bottom: 0; } } /* 桌面无底部留白 */
     aside.sidebar {
       width: 300px; flex-shrink: 0; padding: 1.6rem 1.4rem;
       border-right: 1px solid oklch(var(--bc) / 0.15);
@@ -151,9 +151,61 @@ export const LAYOUT = `<!doctype html>
     .checkbox-row { display:flex; gap:1.4rem; flex-wrap:wrap; align-items:center; margin:.25rem 0; }
     .checkbox-row label { display:flex; align-items:center; gap:.25rem; margin-bottom:0; }
     p { margin-bottom: .4rem; }
+
+    /* ===== 移动端导航(<1024px):顶部汉堡条 + 左侧滑出面板;checkbox hack 无 JS ===== */
+    #nav-toggle { display: none; }
+    .mob-nav, .mob-backdrop, .mob-panel { display: none; }
+    @media (max-width: 1023.98px) {
+      .mob-nav {
+        display: flex; align-items: center; gap: .6rem;
+        position: fixed; top: 0; left: 0; right: 0; z-index: 70;
+        height: 3.1rem; padding: 0 .8rem;
+        background: oklch(var(--b1) / .92); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        border-bottom: 1px solid oklch(var(--bc) / .12);
+      }
+      .mob-nav .burger {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 2.3rem; height: 2.3rem; border-radius: 8px; cursor: pointer;
+        border: 1px solid oklch(var(--bc) / .25); background: transparent; color: oklch(var(--bc));
+        font-size: 1.3rem; line-height: 1;
+      }
+      .mob-nav .burger:active { background: oklch(var(--p) / .2); }
+      .mob-nav .mob-brand { font-weight: 800; font-size: 1.12rem; }
+      .mob-backdrop {
+        position: fixed; inset: 0; z-index: 80; background: rgba(0,0,0,.45);
+        opacity: 0; pointer-events: none; transition: opacity .18s ease;
+      }
+      .mob-panel {
+        display: flex; flex-direction: column;
+        position: fixed; top: 0; left: 0; bottom: 0; z-index: 90;
+        width: 280px; max-width: 84vw;
+        background: oklch(var(--b1)); padding: 1.1rem 1rem;
+        box-shadow: 0 0 24px rgba(0,0,0,.25);
+        transform: translateX(-106%); transition: transform .2s ease;
+      }
+      #nav-toggle:checked ~ .mob-backdrop { opacity: 1; pointer-events: auto; }
+      #nav-toggle:checked ~ .mob-panel { transform: translateX(0); }
+      .mob-panel .mob-head { display: flex; align-items: center; gap: .5rem; font-weight: 800; font-size: 1.5rem; }
+      .mob-panel .mob-logo { width: 2rem; height: 2rem; border-radius: .35em; }
+      .mob-panel .mob-sub { color: oklch(var(--bc) / .6); font-size: .95rem; margin: .15rem 0 1.4rem; }
+      .mob-panel ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .2rem; overflow-y: auto; }
+      .mob-panel li a { display: block; padding: .72rem .9rem; border-radius: 9px; font-size: 1.06em; color: oklch(var(--bc)); text-decoration: none; }
+      .mob-panel li a:hover { background: oklch(var(--p) / .15); }
+      .mob-panel li a.active { font-weight: 700; background: oklch(var(--p) / .2); color: oklch(var(--p)); }
+      .mob-panel .mob-foot { margin-top: auto; padding-top: .7rem; border-top: 1px solid oklch(var(--bc) / .15); font-size: .82em; color: oklch(var(--bc) / .6); }
+      main.content { padding: 4.4rem .7rem 1rem; } /* 顶部让出汉堡条高度 */
+    }
   </style>
 </head>
 <body class="app">
+
+  <!-- 移动端(<1024px)导航:汉堡按钮 checkbox 驱动,点击滑出面板 -->
+  <input type="checkbox" id="nav-toggle" autocomplete="off" aria-hidden="true">
+  <header class="mob-nav">
+    <label for="nav-toggle" class="burger" role="button" aria-label="打开菜单" title="菜单">☰</label>
+    <span class="mob-brand">🎵 SongFerry</span>
+  </header>
+  <label for="nav-toggle" class="mob-backdrop" aria-hidden="true"></label>
 
   <aside class="sidebar">
     <div>
@@ -193,6 +245,18 @@ export const LAYOUT = `<!doctype html>
     <%~ it.body %>
     </div>
   </main>
+
+  <!-- 移动端菜单面板(桌面端 display:none 不渲染影响) -->
+  <nav class="mob-panel" aria-label="移动端导航">
+    <div class="mob-head"><img src="/static/logo.svg" alt="logo" class="mob-logo">SongFerry</div>
+    <div class="mob-sub">LX 歌单自动同步入库</div>
+    <ul>
+      <% for (const item of it.nav) { %>
+        <li><a href="/<%= item.id %>" class="<%= item.id === it.active ? 'active' : '' %>"><%= item.label %></a></li>
+      <% } %>
+    </ul>
+    <div class="mob-foot">v<%= it.version %> · <% if (it.authEnabled && it.authUser) { %>👤 <%= it.authUser %><% } else if (it.authEnabled) { %>未登录<% } else { %>认证未启用<% } %></div>
+  </nav>
 
   <script>
 // ===== 全局：同步任务表单辅助（歌单同步页共用） =====
