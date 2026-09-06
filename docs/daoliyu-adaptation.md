@@ -83,6 +83,13 @@
 - Subsonic `removeFromPlaylist` → Unknown endpoint
 → **结论：道理鱼播放列表对外 API 只增不减，完全同步（full）模式不可支持，Daoliyu 适配强制 incremental（归档只增）**；如需减法只能等官方开放 API 或 UI 手动。
 
+**歌单目录机制（用户 Web UI 确认，2026-09-06）**：道理鱼支持"目录即歌单"——
+- ① 选择目录的**一级子目录自动生成歌单**（目录名=歌单名）
+- ② m3u 文件在歌曲入库后生成对应歌单
+- SongFerry 落盘结构（downloadRoot/歌单同步/<歌单名>/）与①**天然同构**：若"歌单目录"指向 `歌单同步`，每个歌单文件夹自动成为道理鱼歌单、REALTIME 监听下新文件自动纳入 → **同步入库后 SongFerry 甚至无需 API 维护播放列表**
+- ⚠️ 配置端点 REST 预留未实现（/api/admin/playlists/directory → 501）——需 Web UI 手动设置一次
+- 待验证：设置歌单目录 = 歌单同步 后，已有子目录（华语/我喜欢的/QQ·热歌榜/手动下载）是否自动生成歌单
+
 **适配要点**：
 - kind='daoliyu'，路径本地化 = filePath 去掉容器根前缀（同 Emby localize 思路）
 - quality 判定：detectedContainer/fileFormat + bitDepth + sampleRate/bitrate → QUALITY_ORDER
