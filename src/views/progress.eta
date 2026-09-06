@@ -4,7 +4,6 @@
   <header>
     <div class="flex items-center gap-2 flex-wrap">
       <h2 class="text-lg font-extrabold tracking-tight">任务进度</h2>
-      <span class="badge badge-ghost badge-sm font-semibold px-2 py-1">v<%= version %></span>
       <span class="badge badge-outline badge-sm font-normal px-2 py-1 text-xs">每 3 秒自动刷新</span>
     </div>
   </header>
