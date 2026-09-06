@@ -1,8 +1,9 @@
 <style>
   /* 榜单浏览双栏:左榜单列表(34rem 弹性)、右歌曲区;等高(桌面) */
   .ch2 { display: grid; grid-template-columns: minmax(0, 34rem) minmax(0, 1fr); gap: 1rem; align-items: stretch; }
-  .ch2 > div { height: 100%; display: flex; flex-direction: column; }
-  @media (max-width: 1023.98px) { .ch2 { grid-template-columns: 1fr; } .ch2 > div { height: auto; } }
+  .ch2 > div { height: 100%; min-width: 0; display: flex; flex-direction: column; }
+  /* 移动端必须 minmax(0,1fr):1fr 的 min=auto 会被长榜单行内容撑出窗口 */
+  @media (max-width: 1023.98px) { .ch2 { grid-template-columns: minmax(0, 1fr); } .ch2 > div { height: auto; } }
   /* 移动端榜单行内展开框(点「查看歌曲」在该榜单下开合;超宽内容横向滚动) */
   .ch-songs-panel { margin: .4rem 0 .6rem; border: 1px solid oklch(var(--bc) / .15); border-radius: .5rem;
                     background: oklch(var(--b1)); padding: .6rem .7rem; max-width: 100%; overflow-x: auto; }
