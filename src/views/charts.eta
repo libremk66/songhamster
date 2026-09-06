@@ -180,10 +180,7 @@ function chManualDownload(source, bangid) {
   var checks = box ? Array.from(box.querySelectorAll('.ch-sel:checked')) : []
   if (!checks.length) return
   var keys = checks.map(function (c) { return c.value })
-  var btn = document.getElementById('ch-dl-btn')
   var msg = document.getElementById('ch-dl-msg')
-  if (btn) { btn.disabled = true; btn.textContent = '下载中…' }
-  if (msg) msg.innerHTML = '<span class="hint">⏳ 下载中（落盘 手动下载 目录，不进歌单）…</span>'
   fetch('/api/charts/manual-download', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -191,15 +188,12 @@ function chManualDownload(source, bangid) {
   })
     .then(function (r) { return r.text() })
     .then(function (html) {
-      if (msg) msg.innerHTML = html
-      // 刷新 ✅ 标记
-      setTimeout(function () {
-        var sel = document.getElementById('ch-source')
-        var cur = box && box.querySelector('h3')
-        if (msg) { msg.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) }
-      }, 300)
+      if (msg) { msg.innerHTML = html; msg.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) }
+      // 提交成功：清空勾选、按钮复位
+      checks.forEach(function (c) { c.checked = false })
+      chSelCount()
     })
-    .catch(function (e) { if (msg) msg.innerHTML = '<span class="bad">下载请求失败：' + e + '</span>' })
+    .catch(function (e) { if (msg) msg.innerHTML = '<span class="bad">提交失败：' + e + '</span>' })
 }
 chLoadBoards()
 </script>

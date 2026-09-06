@@ -238,16 +238,19 @@ export function apiRouter(
     const keysRaw = Array.isArray(b.songKeys) ? b.songKeys.map(String) : String(b.songKeys ?? '').split(',').map((x) => x.trim()).filter(Boolean)
     if (!source || !bangid || !keysRaw.length) return res.send(err('参数缺失（source/bangid/songKeys）'))
     try {
-      if (engine.isRunning) return res.send(err('已有任务在运行（全局单飞），稍后再试'))
+      if (engine.isRunning) return res.send(err('已有任务在运行（全局单飞），请稍后再试'))
       const want = new Set(keysRaw)
       const full = await lx.getChartSongs(source, bangid)
       const songs = full.filter((sg) => want.has(sg.songKey))
       if (!songs.length) return res.send(err('所选歌曲均无法从榜单解析（可能已跌出榜单），请刷新后重试'))
-      const r = await engine.runManualDownload(songs)
-      res.send(
-        ok(`手动下载完成：成功 ${r.ok} ｜ 已存在跳过 ${r.dup} ｜ 失败 ${r.fail}${r.unsatisfied ? ' ｜ 无可用音质 ' + r.unsatisfied : ''}`) +
-          `<p class="hint">文件已落盘 <code>downloadRoot/手动下载/</code>，媒体服务器扫描后入库（未加入任何播放列表）。历史可在「历史记录」页查看。</p>`,
-      )
+      // 异步提交：立即返回，任务后台跑（进度/历史页可查看；落盘 downloadRoot/手动下载）
+      void engine
+        .runManualDownload(songs)
+        .then((r) => {
+          logger.info(`[charts] 手动下载后台完成: ok=${r.ok} fail=${r.fail} dup=${r.dup} unsatisfied=${r.unsatisfied}`)
+        })
+        .catch((e) => logger.warn(`[charts] 手动下载后台异常: ${(e as Error).message}`))
+      res.send(ok(`已提交下载任务（${songs.length} 首）——请在「任务进度」或「历史记录」页查看`))
     } catch (e) {
       res.send(err((e as Error).message))
     }
