@@ -104,7 +104,8 @@ setsid bash -c 'nohup npm run dev >> server.log 2>&1 < /dev/null & echo $! > ser
 | settings | 🟡 表单页待迁(照 connect 规范) |
 | charts(榜单订阅) | ✅ 已完成(2026-09-06) |
 | progress(任务进度) | ✅ 已完成(2026-09-06) |
-| library / history / logs | 🟡 内容页待迁(卡片+表格) |
+| history(历史记录) | ✅ 已完成(2026-09-06,双 tab+批次卡+明细/洗版表) |
+| library / logs | 🟡 内容页待迁(卡片+表格) |
 | partials ×9(task-table/progress-table/dupe-*/upgrade-*/history-items/chart-subs) | 🟡 与宿主页同迁 |
 
 迁移顺序建议:表单页 → 内容页 → partials → **删 pico 桥 + render.ts 兼容 CSS**。
