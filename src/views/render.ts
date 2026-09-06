@@ -83,16 +83,16 @@ export const LAYOUT = `<!doctype html>
     main.content { flex: 1; min-width: 0; padding: 1.4rem 2rem; display: flex; flex-direction: column; align-items: center; }
     .page { width: 100%; max-width: 1280px; }
 
-    /* ===== 紧凑密度：控件高度 30px、输入 13px、卡片内边距 16px ===== */
-    .btn { height: 1.875rem; min-height: 1.875rem; padding-left: .7rem; padding-right: .7rem; font-size: .8125rem; }
+    /* ===== 紧凑密度：控件 26px、输入 12px、按钮瘦身贴文字、卡片内边距 14px ===== */
+    .btn { height: 1.625rem; min-height: 1.625rem; padding-left: .55rem; padding-right: .55rem; font-size: .75rem; border-radius: .375rem; }
     /* !important: pico 桥的 input:not(...) 属性选择器特异性更高,不加 important 会被压回 ~42px */
-    .input, .select, .textarea { height: 1.875rem !important; min-height: 1.875rem !important; font-size: .8125rem !important; padding: 0 .6rem !important; }
-    .card-body { padding: 1rem; }
-    .card-title { font-size: .95rem; }
-    .label-text { font-size: .8125rem; }
+    .input, .select, .textarea { height: 1.625rem !important; min-height: 1.625rem !important; font-size: .75rem !important; padding: 0 .5rem !important; border-radius: .375rem !important; }
+    .card-body { padding: .875rem; }
+    .card-title { font-size: .9rem; }
+    .label-text { font-size: .75rem; }
 
     /* ===== 兼容 Pico 旧类（迁移期间过渡，逐步移除） ===== */
-    body { font-size: 13.5px; }
+    body { font-size: 13px; }
     h2 { font-size: 1.35em; margin-bottom: .55em; }
     h3 { font-size: 1.05em; margin-bottom: .3em; }
     .hint { color: oklch(var(--bc) / 0.6); font-size: .84em; }
@@ -201,6 +201,9 @@ export const LAYOUT = `<!doctype html>
       .mob-panel li a:hover { background: oklch(var(--p) / .15); }
       .mob-panel li a.active { font-weight: 700; background: oklch(var(--p) / .2); color: oklch(var(--p)); }
       .mob-panel .mob-foot { margin-top: auto; padding-top: .7rem; border-top: 1px solid oklch(var(--bc) / .15); font-size: .82em; color: oklch(var(--bc) / .6); }
+      /* 移动端触控友好:控件回大到 34px */
+      .btn { height: 2.125rem; min-height: 2.125rem; font-size: .8125rem; }
+      .input, .select, .textarea { height: 2.125rem !important; min-height: 2.125rem !important; font-size: .8125rem !important; }
       main.content { padding: 4.4rem .7rem 1rem; } /* 顶部让出汉堡条高度 */
     }
   </style>

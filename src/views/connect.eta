@@ -49,7 +49,7 @@
         </label>
       </div>
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-4">
-        <button type="submit" class="btn btn-primary px-5">保存配置</button>
+        <button type="submit" class="btn btn-primary">保存配置</button>
         <button type="button" class="btn btn-outline" hx-post="/api/test/lx" hx-target="#lx-test-result">测试连接</button>
         <span id="lx-test-result" class="text-sm min-w-44"></span>
         <span id="lx-save-msg" class="text-sm w-full md:w-auto"></span>
@@ -85,7 +85,7 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-3">
-        <button type="button" id="target-apply-btn" class="btn btn-primary px-8" disabled onclick="applyTarget()">确定切换</button>
+        <button type="button" id="target-apply-btn" class="btn btn-primary" disabled onclick="applyTarget()">确定切换</button>
         <span id="target-msg" class="text-sm"></span>
       </div>
       <div id="target-pending-hint" class="alert alert-warning text-sm py-2.5 hidden rounded-xl"></div>
@@ -127,7 +127,7 @@
         </p>
       <% } %>
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-4">
-        <button type="submit" class="btn btn-primary px-5">保存配置</button>
+        <button type="submit" class="btn btn-primary">保存配置</button>
         <button type="button" class="btn btn-outline" hx-post="/api/test/emby" hx-target="#emby-test-result">测试连接</button>
         <button type="button" class="btn btn-ghost border border-base-300" hx-post="/api/emby/probe" hx-target="#emby-probe-result">探测媒体库</button>
         <span id="emby-test-result" class="text-sm"></span>
@@ -172,7 +172,7 @@
         </p>
       <% } %>
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-4">
-        <button type="submit" class="btn btn-primary px-5">保存配置</button>
+        <button type="submit" class="btn btn-primary">保存配置</button>
         <button type="button" class="btn btn-outline" hx-post="/api/test/navidrome" hx-target="#nd-test-result">测试连接</button>
         <button type="button" class="btn btn-ghost border border-base-300" hx-post="/api/navidrome/probe" hx-target="#nd-probe-result">探测媒体库</button>
         <span id="nd-test-result" class="text-sm"></span>
@@ -212,7 +212,7 @@
         </label>
       </div>
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-4">
-        <button type="submit" class="btn btn-primary px-5">保存配置</button>
+        <button type="submit" class="btn btn-primary">保存配置</button>
         <button type="button" class="btn btn-outline" hx-post="/api/test/daoliyu" hx-target="#dly-test-result">测试连接</button>
         <button type="button" class="btn btn-ghost border border-base-300" hx-post="/api/daoliyu/probe" hx-target="#dly-probe-result">探测媒体库根</button>
         <span id="dly-test-result" class="text-sm"></span>
@@ -251,7 +251,7 @@
         <span>通用 Subsonic/OpenSubsonic 协议（Navidrome、音云等皆可）。协议限制：无文件路径（查重可看、回收站定位不可用）、无位深/采样率（24bit 按 FLAC 判定）。</span>
       </p>
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-4">
-        <button type="submit" class="btn btn-primary px-5">保存配置</button>
+        <button type="submit" class="btn btn-primary">保存配置</button>
         <button type="button" class="btn btn-outline" hx-post="/api/test/subsonic" hx-target="#sub-test-result">测试连接</button>
         <span id="sub-test-result" class="text-sm"></span>
         <span id="sub-save-msg" class="text-sm w-full md:w-auto"></span>
@@ -293,7 +293,7 @@
         </p>
       <% } %>
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-4">
-        <button type="submit" class="btn btn-primary px-5">保存配置</button>
+        <button type="submit" class="btn btn-primary">保存配置</button>
         <button type="button" class="btn btn-outline" hx-post="/api/test/jellyfin" hx-target="#jf-test-result">测试连接</button>
         <button type="button" class="btn btn-ghost border border-base-300" hx-post="/api/jellyfin/probe" hx-target="#jf-probe-result">探测媒体库</button>
         <span id="jf-test-result" class="text-sm"></span>
@@ -312,7 +312,7 @@
           <h3 class="card-title text-base">路径自检</h3>
           <p class="text-xs opacity-60 mt-0.5">检查下载目录可写、媒体库匹配情况，并给出路径关系提示</p>
         </div>
-        <button type="button" class="btn btn-outline px-5" hx-post="/api/paths/check" hx-target="#paths-result" hx-swap="innerHTML">运行自检</button>
+        <button type="button" class="btn btn-outline" hx-post="/api/paths/check" hx-target="#paths-result" hx-swap="innerHTML">运行自检</button>
       </div>
       <div id="paths-result" class="text-sm rounded-xl bg-base-200/60 p-3 min-h-10"></div>
     </div>
