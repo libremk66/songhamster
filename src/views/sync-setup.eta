@@ -8,6 +8,14 @@
     .arrow-col { width: auto !important; padding: .2rem 0 !important; }
     .arrow-label, .add-flow label span { overflow-wrap: anywhere; white-space: normal; }
   }
+  /* 自动新增:左字段/右默认设置 各半(桌面),窄屏换行堆叠 */
+  .aa-split { display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; align-items: flex-start; }
+  .aa-split > .aa-field-col, .aa-split > .aa-panel { flex: 1 1 0; min-width: 260px; }
+  /* 手动新增左右选区各自成框 */
+  .manual-box { flex: 1; min-width: 0; border: 1px solid oklch(var(--bc) / .18); border-radius: .5rem;
+                background: oklch(var(--b1)); padding: .6rem .75rem; }
+  /* 任务操作列:横向不换行(移动端表格滚动时按钮横排) */
+  #task-table .act { display: flex; gap: .35rem; flex-wrap: nowrap; white-space: nowrap; justify-content: flex-end; }
 </style>
 <div class="space-y-4">
 
@@ -45,8 +53,8 @@
         </label>
       </div>
 
-      <div class="flex flex-wrap items-start gap-x-6 gap-y-3">
-      <div class="flex flex-col gap-3" style="width:240px">
+      <div class="aa-split">
+      <div class="aa-field-col flex flex-col gap-3">
         <label class="form-control w-full">
           <span class="label-text mb-1">启用日期</span>
           <input type="date" name="baselineDate" value="<%= cfg.general.autoadd.baselineDate || '' %>" class="input input-bordered w-full">
@@ -59,7 +67,7 @@
         </label>
       </div>
 
-      <div class="rounded-lg border border-base-300 bg-base-200/50 p-3 space-y-2" style="flex:1 1 300px;min-width:280px">
+      <div class="aa-panel rounded-lg border border-base-300 bg-base-200/50 p-3 space-y-2">
         <h4 class="text-xs font-bold c-sub">新任务默认设置</h4>
         <label class="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" name="createSameNamePlaylist" value="1" <%= cfg.general.autoadd.createSameNamePlaylist ? 'checked' : '' %> class="checkbox checkbox-sm">
@@ -124,7 +132,7 @@
       <div class="rounded-lg border border-base-300 bg-base-200/50 p-3">
         <div class="add-flow" style="max-width:860px;margin-inline:auto">
           <div class="lx-col">
-            <div style="flex:1;min-width:0">
+            <div class="manual-box">
               <div class="flow-label-row">
                 <span class="label-text font-semibold">LX 歌单</span>
                 <button type="button" class="btn btn-outline btn-xs px-2" hx-get="/api/lx/playlists/options" hx-target="#lx-select" hx-swap="innerHTML">刷新</button>
@@ -144,7 +152,7 @@
           </div>
 
           <div class="target-col">
-            <div style="flex:1;min-width:0">
+            <div class="manual-box">
               <div class="flow-label-row">
                 <span class="label-text font-semibold">目标 · <%= targetName %> 播放列表</span>
                 <button type="button" class="btn btn-outline btn-xs px-2" hx-get="/api/emby/playlists/checkboxes" hx-target="#existing-list" hx-swap="innerHTML">刷新</button>
