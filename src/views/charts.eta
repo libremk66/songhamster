@@ -12,42 +12,7 @@
       <article style="margin-bottom:0">
         <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
           <label style="margin:0">平台
-            <select id="ch-source" style="width:10rem" onchange="function chSelCount() {
-  var box = document.getElementById('ch-songs-box')
-  var btns = box ? box.querySelectorAll('.ch-sel:checked') : []
-  var btn = document.getElementById('ch-dl-btn')
-  if (btn) {
-    btn.disabled = btns.length === 0
-    btn.textContent = '⬇ 下载所选（' + btns.length + '）'
-  }
-}
-function chManualDownload(source, bangid) {
-  var box = document.getElementById('ch-songs-box')
-  var checks = box ? Array.from(box.querySelectorAll('.ch-sel:checked')) : []
-  if (!checks.length) return
-  var keys = checks.map(function (c) { return c.value })
-  var btn = document.getElementById('ch-dl-btn')
-  var msg = document.getElementById('ch-dl-msg')
-  if (btn) { btn.disabled = true; btn.textContent = '下载中…' }
-  if (msg) msg.innerHTML = '<span class="hint">⏳ 下载中（落盘 手动下载 目录，不进歌单）…</span>'
-  fetch('/api/charts/manual-download', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ source: source, bangid: bangid, songKeys: keys }),
-  })
-    .then(function (r) { return r.text() })
-    .then(function (html) {
-      if (msg) msg.innerHTML = html
-      // 刷新 ✅ 标记
-      setTimeout(function () {
-        var sel = document.getElementById('ch-source')
-        var cur = box && box.querySelector('h3')
-        if (msg) { msg.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) }
-      }, 300)
-    })
-    .catch(function (e) { if (msg) msg.innerHTML = '<span class="bad">下载请求失败：' + e + '</span>' })
-}
-chLoadBoards()">
+            <select id="ch-source" style="width:10rem" onchange="chLoadBoards()">
               <% for (const p of [{k:'tx',n:'QQ音乐'},{k:'kw',n:'酷我音乐'},{k:'wy',n:'网易云音乐'},{k:'kg',n:'酷狗音乐'},{k:'mg',n:'咪咕音乐'},{k:'bd',n:'百度音乐'}]) { %>
               <option value="<%= p.k %>"><%= p.n %></option>
               <% } %>
@@ -200,6 +165,41 @@ function chSubscribe(source, bangid, name) {
         if (sel.options[i].value === bangid) { sel.selectedIndex = i; break }
       }
     })
+}
+function chSelCount() {
+  var box = document.getElementById('ch-songs-box')
+  var btns = box ? box.querySelectorAll('.ch-sel:checked') : []
+  var btn = document.getElementById('ch-dl-btn')
+  if (btn) {
+    btn.disabled = btns.length === 0
+    btn.textContent = '⬇ 下载所选（' + btns.length + '）'
+  }
+}
+function chManualDownload(source, bangid) {
+  var box = document.getElementById('ch-songs-box')
+  var checks = box ? Array.from(box.querySelectorAll('.ch-sel:checked')) : []
+  if (!checks.length) return
+  var keys = checks.map(function (c) { return c.value })
+  var btn = document.getElementById('ch-dl-btn')
+  var msg = document.getElementById('ch-dl-msg')
+  if (btn) { btn.disabled = true; btn.textContent = '下载中…' }
+  if (msg) msg.innerHTML = '<span class="hint">⏳ 下载中（落盘 手动下载 目录，不进歌单）…</span>'
+  fetch('/api/charts/manual-download', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ source: source, bangid: bangid, songKeys: keys }),
+  })
+    .then(function (r) { return r.text() })
+    .then(function (html) {
+      if (msg) msg.innerHTML = html
+      // 刷新 ✅ 标记
+      setTimeout(function () {
+        var sel = document.getElementById('ch-source')
+        var cur = box && box.querySelector('h3')
+        if (msg) { msg.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) }
+      }, 300)
+    })
+    .catch(function (e) { if (msg) msg.innerHTML = '<span class="bad">下载请求失败：' + e + '</span>' })
 }
 chLoadBoards()
 </script>
