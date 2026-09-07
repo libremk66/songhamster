@@ -37,6 +37,10 @@
   <!-- ===== 创建 / 监听 ===== -->
   <section class="card bg-base-100 border border-base-300 shadow-sm">
     <div class="card-body gap-3">
+      <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 class="card-title text-base">创建歌单同步任务</h3>
+        <span class="text-xs c-sub">选择歌单创建单个任务;或开启监听,新出现的歌单自动同步</span>
+      </div>
       <div class="flex gap-1 border-b border-base-200">
         <button type="button" class="st-tab active" id="ctab1" onclick="switchCT(1)"><svg aria-hidden="true"><use href="#i-plus"/></svg>选择歌单 · 创建同步任务</button>
         <button type="button" class="st-tab" id="ctab2" onclick="switchCT(2)"><svg aria-hidden="true"><use href="#i-pulse"/></svg>监听同步 · 自动新增</button>
