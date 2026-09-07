@@ -257,6 +257,26 @@ export function hasTaskSongRef(taskId: number, songKey: string): boolean {
   return !!r
 }
 
+/** origin 分组统计:made=总数,paused=停用数(模式切换任务策略/状态条用) */
+export function taskOriginStats(): Record<string, { made: number; paused: number }> {
+  const rows = getDb()
+    .prepare('SELECT origin, enabled, COUNT(*) AS n FROM sync_task GROUP BY origin, enabled')
+    .all() as { origin: string; enabled: number; n: number }[]
+  const out: Record<string, { made: number; paused: number }> = {}
+  for (const r of rows) {
+    out[r.origin] = out[r.origin] ?? { made: 0, paused: 0 }
+    out[r.origin].made += r.n
+    if (!r.enabled) out[r.origin].paused += r.n
+  }
+  return out
+}
+
+/** 按 origin 启停任务(切换模式 A+C 的一键暂停/恢复);返回受影响数 */
+export function setTasksEnabledByOrigin(origin: string, enabled: boolean): number {
+  const info = getDb().prepare('UPDATE sync_task SET enabled = ? WHERE origin = ?').run(enabled ? 1 : 0, origin)
+  return info.changes
+}
+
 /** 某歌的全部文件(镜像删除策略 delete 用) */
 export function listFilesForSong(songKey: string): { fileId: number; filePath: string }[] {
   return getDb().prepare('SELECT id AS fileId, filePath FROM song_files WHERE songKey = ?').all(songKey) as {

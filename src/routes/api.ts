@@ -12,6 +12,7 @@ import * as repo from '../store/repo.js'
 import { SyncEngine } from '../core/sync-engine.js'
 import { Scheduler } from '../scheduler/index.js'
 import { autoaddScan, initBaselineIfNeeded, autoaddStatus } from '../core/autoadd.js'
+import { listenScan, listenStatus, originOfMode } from '../core/listen.js'
 import { hashPassword, verifyPassword } from '../auth.js'
 import { scanLowQuality, findBestCandidate, upgradeOne, recordUpgrade } from '../core/upgrade.js'
 import { scanDuplicates, planCleanup, type DupeGroup, type DupeItem } from '../core/dupe.js'
@@ -809,6 +810,51 @@ export function apiRouter(
     saveConfig(cfg)
     scheduler.reload()
     res.send(ok('监听设置已保存'))
+  })
+
+  // ===== 监听同步(新模型)=====
+  r.post('/listen/scan', async (_req, res) => {
+    if (!cfg.general.listen.enabled) return res.send(err('请先启用监听(标签2)'))
+    try {
+      const rr = await listenScan(cfg, lx, engine)
+      if (rr.created > 0) res.send(ok('监听检测完成:自动创建 ' + rr.created + ' 个任务并同步(' + rr.names.join('、') + ')' + (rr.skipped ? ';规则跳过 ' + rr.skipped + ' 个' : '')))
+      else res.send(ok('监听检测完成:无新增歌单' + (rr.skipped ? '(规则跳过 ' + rr.skipped + ' 个)' : '')))
+    } catch (e) {
+      res.send(err('监听检测失败:' + (e as Error).message))
+    }
+  })
+
+  r.get('/listen/status', (_req, res) => {
+    res.json({ ok: true, enabled: cfg.general.listen.enabled, activeMode: cfg.general.listen.activeMode, groups: repo.taskOriginStats(), scan: listenStatus })
+  })
+
+  // 模式切换(A+C):默认保持旧模式任务运行;taskPolicy=pause 时一键暂停旧 origin 组
+  r.post('/listen/switch', (req, res) => {
+    const b = req.body ?? {}
+    const mode = String(b.mode ?? '')
+    if (mode !== 'all' && mode !== 'filtered') return res.status(400).send(err('mode 必须为 all|filtered'))
+    const L = cfg.general.listen
+    const oldMode = L.activeMode
+    L.activeMode = mode
+    let paused = 0
+    if (String(b.taskPolicy ?? '') === 'pause' && oldMode !== mode) {
+      paused = repo.setTasksEnabledByOrigin(originOfMode(oldMode), false)
+    }
+    saveConfig(cfg)
+    scheduler.reload()
+    const modeTxt = (m: string) => (m === 'all' ? '完全同步' : '条件增量')
+    res.send(ok(`已切换为「${modeTxt(mode)}」` + (paused ? `,并暂停旧「${modeTxt(oldMode)}」自动创建的任务 ${paused} 个(可随时恢复)` : ',旧模式任务保持运行')))
+  })
+
+  // 恢复被暂停的 origin 组
+  r.post('/listen/resume', (req, res) => {
+    const b = req.body ?? {}
+    const mode = String(b.mode ?? '')
+    if (mode !== 'all' && mode !== 'filtered') return res.status(400).send(err('mode 必须为 all|filtered'))
+    const n = repo.setTasksEnabledByOrigin(originOfMode(mode), true)
+    saveConfig(cfg)
+    scheduler.reload()
+    res.send(ok(`已恢复 ${n} 个任务(origin=${originOfMode(mode)})`))
   })
 
   // ===== 自动新增同步任务 =====
