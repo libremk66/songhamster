@@ -20,7 +20,7 @@
   <header>
     <div class="flex items-center gap-2 flex-wrap">
       <h2 class="text-lg font-extrabold tracking-tight">歌单同步</h2>
-      <span class="badge badge-outline badge-sm font-normal px-2 py-1 text-xs" id="mode-chip">-</span>
+      <span class="badge badge-outline badge-sm font-normal px-2 py-1 text-xs" id="mode-chip"><%= listen.enabled ? (listen.activeMode === 'all' ? '监听已启用 · 完全同步' : '监听已启用 · 条件增量') : '监听未启用' %></span>
     </div>
   </header>
 
@@ -238,7 +238,6 @@ function pickMode(scope, val) {
   }
 }
 (function () {
-  document.getElementById('mode-chip').textContent = <%= JSON.stringify(listen.enabled ? (listen.activeMode === 'all' ? '监听已启用 · 完全同步' : '监听已启用 · 条件增量') : '监听未启用') %>
   pickMode('mk', 'incremental')
 })()
 </script>
