@@ -223,7 +223,8 @@ function dSwitchPanel(n) {
   document.getElementById('dp2').style.display = n === 2 ? '' : 'none'
   document.getElementById('dtab1').classList.toggle('active', n === 1)
   document.getElementById('dtab2').classList.toggle('active', n === 2)
-  dBanner(); dSync('p1'); dSync('p2'); dSync('p2b')
+  if (n === 2) dBanner()
+  dSync('p1'); dSync('p2'); dSync('p2b')
 }
 function dSwitchSub(n) {
   document.getElementById('dsp1').style.display = n === 1 ? '' : 'none'
@@ -268,8 +269,12 @@ function dSubEnable(p) {
     document.getElementById('p_master').checked = true
     var other = p === 'p2' ? 'p2b' : 'p2'
     document.getElementById(other + '_enable').checked = false
-    if (dT.active && dT.active !== p) dAsk(p, dT.active)  // 模式切换 → A+C 确认
-    else dBanner()
+    var oldMode = dT.active
+    if (oldMode && oldMode !== p) {
+      if (dT[p].paused > 0) dBanner()                    // 切回的模式自己带暂停任务 → 直接给恢复
+      else if (dT[oldMode].made - dT[oldMode].paused > 0) dAsk(p, oldMode)  // 旧模式还有运行中的任务 → 询问
+      else { dT.active = p; dBanner() }
+    } else { dT.active = p; dBanner() }
   } else { dBanner() }
   dSync(p); dSync(p === 'p2' ? 'p2b' : 'p2')
 }
@@ -292,6 +297,7 @@ function dAsk(newMode, oldMode) {
 }
 function dPolicy(choice, oldMode, newMode) {
   if (choice === 'pause') dT[oldMode].paused = dT[oldMode].made
+  dT.active = newMode
   var el = document.getElementById('d_excl')
   el.innerHTML = choice === 'pause'
     ? '⏸️ 已暂停旧「' + (oldMode === 'all' ? '完全同步' : '条件增量') + '」自动创建的 ' + dT[oldMode].made + ' 个任务(可随时恢复,未删除任何任务)。当前模式:「' + (newMode === 'all' ? '完全同步' : '条件增量') + '」已生效。'
