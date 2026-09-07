@@ -461,6 +461,40 @@ export function apiRouter(
     return res.send(base)
   })
 
+  // 批量创建(选择歌单多选):一次为多个 LX 歌单建同步任务(同默认设置)
+  r.post('/tasks/bulk', async (req, res) => {
+    const b = req.body ?? {}
+    const raw = b.lxPlaylistKey
+    const keys = (Array.isArray(raw) ? raw : raw ? [raw] : []).map(String).filter(Boolean)
+    if (!keys.length) return res.status(400).send(err('未选择 LX 歌单'))
+    const keyToName = await lxKeyToName()
+    const existing = new Set(repo.listTasks().map((t) => t.lxPlaylistKey))
+    const created: string[] = []
+    const skipped: string[] = []
+    for (const key of keys) {
+      if (existing.has(key)) { skipped.push(keyToName[key] ?? key); continue }
+      const name = keyToName[key] ?? key
+      repo.createTask({
+        lxPlaylistKey: key,
+        lxPlaylistName: name,
+        embyTargetPlaylistIds: (Array.isArray(b.embyTarget) ? b.embyTarget : b.embyTarget ? [b.embyTarget] : []).map(String),
+        createSameNamePlaylist: bool(b.createSameNamePlaylist),
+        cronExpr: String(b.cronExpr ?? '').trim() || null,
+        syncMode: b.syncMode === 'full' ? 'full' : 'incremental',
+        mode: b.mode === 'mirror' || b.mode === 'incremental' ? b.mode : undefined,
+        delPolicy: ['keep', 'delete', 'archive'].includes(b.delPolicy) ? b.delPolicy : undefined,
+        archivePlaylist: String(b.archivePlaylist ?? '').trim() || undefined,
+        taskType: 'playlist',
+      })
+      created.push(name)
+    }
+    scheduler.reload()
+    const msg = []
+    if (created.length) msg.push(ok('已创建 ' + created.length + ' 个任务:' + created.join('、') + '——请在「任务管理」页查看与操作'))
+    if (skipped.length) msg.push('<span class="c-sub">已跳过(已存在):' + skipped.join('、') + '</span>')
+    res.send(msg.join('<br>') || err('所选歌单均已有任务'))
+  })
+
   r.post('/tasks', async (req, res) => {
     scheduler.reload()
     const b = req.body ?? {}
