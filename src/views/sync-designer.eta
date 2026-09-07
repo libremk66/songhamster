@@ -39,7 +39,7 @@
       <!-- ============ 面板1:单任务创建 ============ -->
       <div id="dp1">
         <div class="space-y-3">
-          <!-- 框1 -->
+
           <div class="dsec p-3">
             <h3 class="text-sm font-bold mb-2">框 1 · 选择 LX 歌单(源)</h3>
             <select id="p1_src" class="select select-bordered w-full" style="max-width:22rem">
@@ -50,7 +50,7 @@
             <p class="text-xs c-sub mt-1">正式版将展示 LX 全部歌单(与现在「手动新增」下拉一致)</p>
           </div>
 
-          <!-- 框2 目标 -->
+
           <div class="dsec p-3">
             <h3 class="text-sm font-bold mb-2">框 2 · 同步到 <%= targetName %> 的目标播放列表/歌单</h3>
             <label class="drow">
@@ -70,7 +70,7 @@
             </div>
           </div>
 
-          <!-- 框3 方式+删除策略 -->
+
           <div class="dsec p-3">
             <h3 class="text-sm font-bold mb-2">框 3 · 同步方式</h3>
             <div class="space-y-1.5">
@@ -92,7 +92,7 @@
             </div>
           </div>
 
-          <!-- 框4 -->
+
           <div class="dsec p-3">
             <h3 class="text-sm font-bold mb-2">框 4 · 定时 cron(空=仅手动)</h3>
             <div class="flex flex-wrap items-center gap-2">

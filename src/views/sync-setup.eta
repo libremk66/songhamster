@@ -52,7 +52,7 @@
       <div id="cpanel1">
         <form method="post" action="/api/tasks" hx-post="/api/tasks" hx-target="#manual-add-msg" hx-swap="innerHTML" class="space-y-3">
           <div class="rounded-lg border border-base-300 p-3">
-            <h4 class="text-sm font-bold mb-2"><span class="c-sub">框1</span> · 选择 LX 歌单</h4>
+            <h4 class="text-sm font-bold mb-2">选择 LX 歌单</h4>
             <div class="flex flex-wrap items-center gap-2">
               <select name="lxPlaylistKey" id="lx-select" required class="select select-bordered" style="min-width:20rem">
                 <option value="" disabled selected>选择歌单…</option>
@@ -65,7 +65,7 @@
           </div>
 
           <div class="rounded-lg border border-base-300 p-3">
-            <h4 class="text-sm font-bold mb-2"><span class="c-sub">框2</span> · 同步到 <%= targetName %> 的目标播放列表/歌单</h4>
+            <h4 class="text-sm font-bold mb-2">同步到 <%= targetName %> 的目标播放列表/歌单</h4>
             <label class="flex items-center gap-2 cursor-pointer py-0.5">
               <input type="checkbox" name="createSameNamePlaylist" value="1" checked class="checkbox checkbox-sm">
               <span class="text-sm">同名播放列表/歌单(<b>同步时自动生成</b>)</span>
@@ -89,7 +89,7 @@
           </div>
 
           <div class="rounded-lg border border-base-300 p-3">
-            <h4 class="text-sm font-bold mb-2"><span class="c-sub">框3</span> · 同步方式</h4>
+            <h4 class="text-sm font-bold mb-2">同步方式</h4>
             <label class="dopt" onclick="pickMode('mk','incremental')">
               <input type="radio" name="mode" value="incremental" checked class="radio radio-sm">
               <span><span class="dopt-title">1 · 增量同步</span><br><span class="text-xs c-sub">LX 新增 → 同步;LX 删除不处理,目标歌单只增不减</span></span>
@@ -107,7 +107,7 @@
           </div>
 
           <div class="rounded-lg border border-base-300 p-3 flex flex-wrap items-center gap-2">
-            <h4 class="text-sm font-bold"><span class="c-sub">框4</span> 定时 cron</h4>
+            <h4 class="text-sm font-bold">定时 cron</h4>
             <input name="cronExpr" class="input input-bordered font-mono text-xs" style="width:12rem" placeholder="0 6 * * *">
             <span class="text-xs c-sub">空 = 仅手动(创建后立即同步一次)</span>
           </div>
