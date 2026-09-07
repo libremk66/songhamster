@@ -145,54 +145,87 @@
             </label>
           </div>
 
-          <div id="ls_all_box" class="rounded-lg border border-base-300 p-3 space-y-2 <%= listen.activeMode === 'all' ? '' : 'hidden' %>">
-            <h4 class="text-sm font-bold">完全模式 · 新任务默认设置</h4>
-            <div class="flex flex-wrap gap-x-5 gap-y-2 items-center">
-              <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="all[createSameNamePlaylist]" value="1" <%= listen.all.createSameNamePlaylist ? 'checked' : '' %> class="checkbox checkbox-sm"><span class="text-sm">同名播放列表(自动生成)</span></label>
-              <select name="all[taskMode]" class="select select-bordered">
-                <option value="incremental" <%= listen.all.taskMode === 'incremental' ? 'selected' : '' %>>增量</option>
-                <option value="mirror" <%= listen.all.taskMode === 'mirror' ? 'selected' : '' %>>镜像</option>
-              </select>
-              <select name="all[delPolicy]" class="select select-bordered">
-                <option value="keep">删除处理1(歌单移除+文件不删)</option>
-                <option value="delete" <%= listen.all.delPolicy === 'delete' && fileDeleteOK ? 'selected' : '' %> <%= fileDeleteOK ? '' : 'disabled' %>>处理2:歌单移除+删文件<% if (!fileDeleteOK) { %>(当前 <%= targetName %> 不支持)<% } %></option>
-                <option value="archive" <%= listen.all.delPolicy === 'archive' ? 'selected' : '' %>>处理3:移入归档歌单</option>
-              </select>
-              <input name="all[archivePlaylist]" class="input input-bordered input-sm" style="width:11rem" value="<%= listen.all.archivePlaylist %>">
-              <span class="text-xs c-sub">新任务 cron</span>
-              <input name="all[taskCron]" class="input input-bordered input-sm font-mono text-xs" style="width:9rem" value="<%= listen.all.taskCron %>">
-            </div>
-          </div>
+          <div id="ls_all_box" class="rounded-lg border border-base-300 p-3 <%= listen.activeMode === 'all' ? '' : 'hidden' %>">
+  <h4 class="text-sm font-bold mb-2">完全模式 · 新任务默认设置</h4>
+  <div class="flex flex-wrap gap-2">
+    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="all[createSameNamePlaylist]" value="1" <%= listen.all.createSameNamePlaylist ? 'checked' : '' %> class="checkbox checkbox-sm"><span class="text-sm">同名播放列表/歌单(自动生成)</span></label>
+    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="pA_exist" class="checkbox checkbox-sm" onchange="existToggle('pA')"><span class="text-sm">同步到已有播放列表/歌单</span></label>
+  </div>
+  <div id="pA_existbox" style="display:none" class="ml-6 mt-1">
+    <div class="flex flex-wrap gap-x-4">
+      <% if (embyPlaylists.length) { %><% for (const p of embyPlaylists) { %>
+      <label class="flex items-center gap-2 cursor-pointer py-0.5"><input type="checkbox" name="all[embyTarget]" value="<%= p.id %>" class="checkbox checkbox-xs"><span class="text-sm"><%= p.name %></span></label>
+      <% } %><% } else { %><span class="text-xs c-sub">连接 <%= targetName %> 后可选择</span><% } %>
+    </div>
+  </div>
+  <div class="mt-1">
+    <label class="dopt" onclick="LPick('pA','incremental')">
+      <input type="radio" name="all[taskMode]" value="incremental" <%= listen.all.taskMode === 'incremental' ? 'checked' : '' %> class="radio radio-sm">
+      <span><span class="dopt-title">1 · 增量同步</span><span class="text-xs c-sub"> 只增不减</span></span>
+    </label>
+    <label class="dopt" onclick="LPick('pA','mirror')">
+      <input type="radio" name="all[taskMode]" value="mirror" <%= listen.all.taskMode === 'mirror' ? 'checked' : '' %> class="radio radio-sm">
+      <span><span class="dopt-title">2 · 镜像同步</span><span class="text-xs c-sub"> 增删都同步到 <%= targetName %></span></span>
+    </label>
+    <div id="pA_del" style="display:none" class="mt-1">
+      <h5 class="text-xs font-bold c-sub mb-1">LX 端删除时处理方式:</h5>
+      <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="all[delPolicy]" value="keep" <%= listen.all.delPolicy === 'keep' ? 'checked' : '' %> class="radio radio-sm"><span class="text-sm"><b>处理1</b> 歌单移除 + 文件不删(默认)</span></label>
+      <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="all[delPolicy]" value="delete" <%= listen.all.delPolicy === 'delete' ? 'checked' : '' %> class="radio radio-sm" <%= fileDeleteOK ? '' : 'disabled' %>><span class="text-sm"><b>处理2</b> 歌单移除 + 媒体库删文件<% if (fileDeleteOK) { %><span class="c-sub">(可恢复)</span><% } else { %><span class="text-error">(当前 <%= targetName %> 不支持)</span><% } %></span></label>
+      <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="all[delPolicy]" value="archive" <%= listen.all.delPolicy === 'archive' ? 'checked' : '' %> class="radio radio-sm"><span class="text-sm"><b>处理3</b> 移入归档歌单: <input name="all[archivePlaylist]" class="input input-bordered input-sm" style="width:11rem" value="<%= listen.all.archivePlaylist %>"></span></label>
+    </div>
+  </div>
+  <div class="flex flex-wrap items-center gap-2 mt-1 pt-2 border-t border-base-200">
+    <span class="text-sm">新任务 cron(空=建后立即一次)</span>
+    <input name="all[taskCron]" class="input input-bordered input-sm font-mono text-xs" style="width:9rem" value="<%= listen.all.taskCron %>">
+  </div>
+</div>
 
-          <div id="ls_filtered_box" class="rounded-lg border border-base-300 p-3 space-y-2 <%= listen.activeMode === 'filtered' ? '' : 'hidden' %>">
-            <h4 class="text-sm font-bold">条件模式 · 规则筛选</h4>
-            <div class="flex flex-col gap-3 md:flex-row">
-              <div class="rounded-lg border border-base-300 p-2.5 flex-1">
-                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="filtered[rules][exclude][enabled]" value="1" <%= listen.filtered.rules.exclude.enabled ? 'checked' : '' %> class="checkbox checkbox-xs"><span class="text-sm font-semibold">排除</span><span class="text-xs c-sub">(命中不同步)</span></label>
-                <input name="filtered[rules][exclude][keywords]" class="input input-bordered input-sm w-full mt-1" placeholder="歌单名关键词,逗号分隔" value="<%= listen.filtered.rules.exclude.keywords.join(',') %>">
-              </div>
-              <div class="rounded-lg border border-base-300 p-2.5 flex-1">
-                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="filtered[rules][match][enabled]" value="1" <%= listen.filtered.rules.match.enabled ? 'checked' : '' %> class="checkbox checkbox-xs"><span class="text-sm font-semibold">匹配</span><span class="text-xs c-sub">(命中才同步)</span></label>
-                <input name="filtered[rules][match][keywords]" class="input input-bordered input-sm w-full mt-1" placeholder="歌单名关键词,逗号分隔" value="<%= listen.filtered.rules.match.keywords.join(',') %>">
-              </div>
-            </div>
-            <p class="text-xs c-sub">语义:排除优先;只开匹配=仅命中项;只开排除=全量减排除。变更只影响之后新出现的歌单(不回溯)。</p>
-            <h5 class="text-sm font-bold pt-1">条件模式 · 新任务默认设置</h5>
-            <div class="flex flex-wrap gap-x-4 gap-y-2 items-center">
-              <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="filtered[params][createSameNamePlaylist]" value="1" <%= listen.filtered.params.createSameNamePlaylist ? 'checked' : '' %> class="checkbox checkbox-sm"><span class="text-sm">同名自动生成</span></label>
-              <select name="filtered[params][taskMode]" class="select select-bordered">
-                <option value="incremental" <%= listen.filtered.params.taskMode === 'incremental' ? 'selected' : '' %>>增量</option>
-                <option value="mirror" <%= listen.filtered.params.taskMode === 'mirror' ? 'selected' : '' %>>镜像</option>
-              </select>
-              <select name="filtered[params][delPolicy]" class="select select-bordered">
-                <option value="keep">删除处理1</option>
-                <option value="delete" <%= listen.filtered.params.delPolicy === 'delete' && fileDeleteOK ? 'selected' : '' %> <%= fileDeleteOK ? '' : 'disabled' %>>处理2<% if (!fileDeleteOK) { %>(不支持)<% } %></option>
-                <option value="archive" <%= listen.filtered.params.delPolicy === 'archive' ? 'selected' : '' %>>处理3</option>
-              </select>
-              <input name="filtered[params][archivePlaylist]" class="input input-bordered input-sm" style="width:10rem" value="<%= listen.filtered.params.archivePlaylist %>">
-              <input name="filtered[params][taskCron]" class="input input-bordered input-sm font-mono text-xs" style="width:9rem" value="<%= listen.filtered.params.taskCron %>" placeholder="任务 cron">
-            </div>
-          </div>
+<div id="ls_filtered_box" class="rounded-lg border border-base-300 p-3 <%= listen.activeMode === 'filtered' ? '' : 'hidden' %>">
+  <h4 class="text-sm font-bold mb-2">条件模式 · 规则筛选</h4>
+  <div class="flex flex-col gap-3 md:flex-row">
+    <div class="rounded-lg border border-base-300 p-2.5 flex-1">
+      <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="filtered[rules][exclude][enabled]" value="1" <%= listen.filtered.rules.exclude.enabled ? 'checked' : '' %> class="checkbox checkbox-xs"><span class="text-sm font-semibold">排除</span><span class="text-xs c-sub">(命中不同步)</span></label>
+      <input name="filtered[rules][exclude][keywords]" class="input input-bordered input-sm w-full mt-1" placeholder="歌单名关键词,逗号分隔" value="<%= listen.filtered.rules.exclude.keywords.join(',') %>">
+    </div>
+    <div class="rounded-lg border border-base-300 p-2.5 flex-1">
+      <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="filtered[rules][match][enabled]" value="1" <%= listen.filtered.rules.match.enabled ? 'checked' : '' %> class="checkbox checkbox-xs"><span class="text-sm font-semibold">匹配</span><span class="text-xs c-sub">(命中才同步)</span></label>
+      <input name="filtered[rules][match][keywords]" class="input input-bordered input-sm w-full mt-1" placeholder="歌单名关键词,逗号分隔" value="<%= listen.filtered.rules.match.keywords.join(',') %>">
+    </div>
+  </div>
+  <p class="text-xs c-sub mt-1">语义:排除优先;只开匹配=仅命中项;只开排除=全量减排除。变更只影响之后新出现的歌单(不回溯)。</p>
+  <h5 class="text-sm font-bold pt-2 mb-2">条件模式 · 新任务默认设置</h5>
+  <div class="flex flex-wrap gap-2">
+    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="filtered[params][createSameNamePlaylist]" value="1" <%= listen.filtered.params.createSameNamePlaylist ? 'checked' : '' %> class="checkbox checkbox-sm"><span class="text-sm">同名播放列表/歌单(自动生成)</span></label>
+    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="pF_exist" class="checkbox checkbox-sm" onchange="existToggle('pF')"><span class="text-sm">同步到已有播放列表/歌单</span></label>
+  </div>
+  <div id="pF_existbox" style="display:none" class="ml-6 mt-1">
+    <div class="flex flex-wrap gap-x-4">
+      <% if (embyPlaylists.length) { %><% for (const p of embyPlaylists) { %>
+      <label class="flex items-center gap-2 cursor-pointer py-0.5"><input type="checkbox" name="filtered[params][embyTarget]" value="<%= p.id %>" class="checkbox checkbox-xs"><span class="text-sm"><%= p.name %></span></label>
+      <% } %><% } else { %><span class="text-xs c-sub">连接 <%= targetName %> 后可选择</span><% } %>
+    </div>
+  </div>
+  <div class="mt-1">
+    <label class="dopt" onclick="LPick('pF','incremental')">
+      <input type="radio" name="filtered[params][taskMode]" value="incremental" <%= listen.filtered.params.taskMode === 'incremental' ? 'checked' : '' %> class="radio radio-sm">
+      <span><span class="dopt-title">1 · 增量同步</span><span class="text-xs c-sub"> 只增不减</span></span>
+    </label>
+    <label class="dopt" onclick="LPick('pF','mirror')">
+      <input type="radio" name="filtered[params][taskMode]" value="mirror" <%= listen.filtered.params.taskMode === 'mirror' ? 'checked' : '' %> class="radio radio-sm">
+      <span><span class="dopt-title">2 · 镜像同步</span><span class="text-xs c-sub"> 增删都同步到 <%= targetName %></span></span>
+    </label>
+    <div id="pF_del" style="display:none" class="mt-1">
+      <h5 class="text-xs font-bold c-sub mb-1">LX 端删除时处理方式:</h5>
+      <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="filtered[params][delPolicy]" value="keep" <%= listen.filtered.params.delPolicy === 'keep' ? 'checked' : '' %> class="radio radio-sm"><span class="text-sm"><b>处理1</b> 歌单移除 + 文件不删(默认)</span></label>
+      <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="filtered[params][delPolicy]" value="delete" <%= listen.filtered.params.delPolicy === 'delete' ? 'checked' : '' %> class="radio radio-sm" <%= fileDeleteOK ? '' : 'disabled' %>><span class="text-sm"><b>处理2</b> 歌单移除 + 媒体库删文件<% if (fileDeleteOK) { %><span class="c-sub">(可恢复)</span><% } else { %><span class="text-error">(当前 <%= targetName %> 不支持)</span><% } %></span></label>
+      <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="filtered[params][delPolicy]" value="archive" <%= listen.filtered.params.delPolicy === 'archive' ? 'checked' : '' %> class="radio radio-sm"><span class="text-sm"><b>处理3</b> 移入归档歌单: <input name="filtered[params][archivePlaylist]" class="input input-bordered input-sm" style="width:11rem" value="<%= listen.filtered.params.archivePlaylist %>"></span></label>
+    </div>
+  </div>
+  <div class="flex flex-wrap items-center gap-2 mt-1 pt-2 border-t border-base-200">
+    <span class="text-sm">新任务 cron(空=建后立即一次)</span>
+    <input name="filtered[params][taskCron]" class="input input-bordered input-sm font-mono text-xs" style="width:9rem" value="<%= listen.filtered.params.taskCron %>">
+  </div>
+</div>
 
           <div class="flex flex-wrap items-center gap-2">
             <button type="button" class="btn btn-outline btn-xs px-2" hx-post="/listen/switch" hx-vals='{"mode":"<%= listen.activeMode %>","taskPolicy":"pause"}' hx-target="#listen-msg">暂停当前模式自动任务(可恢复)</button>
@@ -243,7 +276,28 @@ function pickMode(scope, val) {
     document.getElementById('mode-chip').textContent = '监听:' + (all ? '完全同步' : '条件增量')
   }
 }
+// 监听默认参数区:与单任务同构的联动(按 pA=all / pF=filtered 前缀)
+function LPick(p, val) {
+  var name = p === 'pA' ? 'all[taskMode]' : 'filtered[params][taskMode]'
+  var r = document.querySelector('input[name="' + name + '"][value="' + val + '"]')
+  if (r) r.checked = true
+  tuneParams(p)
+}
+function existToggle(p) {
+  var ex = document.getElementById(p + '_exist').checked
+  document.getElementById(p + '_existbox').style.display = ex ? '' : 'none'
+}
+function tuneParams(p) {
+  var name = p === 'pA' ? 'all[taskMode]' : 'filtered[params][taskMode]'
+  var sel = document.querySelector('input[name="' + name + '"]:checked')
+  var mirror = sel && sel.value === 'mirror'
+  document.getElementById(p + '_del').style.display = mirror ? '' : 'none'
+  var delName = p === 'pA' ? 'all[delPolicy]' : 'filtered[params][delPolicy]'
+  var archName = p === 'pA' ? 'all[archivePlaylist]' : 'filtered[params][archivePlaylist]'
+  document.querySelectorAll('input[name="' + delName + '"], input[name="' + archName + '"]').forEach(function (x) { x.disabled = !mirror })
+}
 (function () {
   pickMode('mk', 'incremental')
+  tuneParams('pA'); tuneParams('pF')
 })()
 </script>
