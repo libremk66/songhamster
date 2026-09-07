@@ -49,6 +49,11 @@ export function pagesRouter(getCfg: () => AppConfig, lx: LxServerAdapter, emby: 
     res.type('html').send(renderPage('options', { ...base('options', _req), qOrder: QUALITY_ORDER, qLabels: QUALITY_LABELS }))
   })
 
+  // 同步任务设计器(原型 Phase A:仅交互验证,引擎未接入)
+  r.get('/sync-designer', (_req, res) => {
+    res.type('html').send(renderPage('sync-designer', base('sync-designer', _req)))
+  })
+
   r.get('/sync-setup', async (_req, res) => {
     let lxPlaylists: { key: string; name: string; songCount: number }[] = []
     let embyPlaylists: { id: string; name: string; itemCount?: number }[] = []
