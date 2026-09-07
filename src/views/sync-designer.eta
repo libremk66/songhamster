@@ -111,15 +111,25 @@
 
       <!-- ============ 面板2:监听同步 ============ -->
       <div id="dp2" style="display:none">
-        <div class="flex gap-1 border-b border-base-200 mb-3">
-          <button type="button" class="dt-tab active" id="dsub1" onclick="dSwitchSub(1)"><svg aria-hidden="true"><use href="#i-sync"/></svg>子标签1 · 完全同步(所有歌单)</button>
-          <button type="button" class="dt-tab" id="dsub2" onclick="dSwitchSub(2)"><svg aria-hidden="true"><use href="#i-listSearch"/></svg>子标签2 · 条件增量同步(规则筛选)</button>
+        <div class="flex items-center gap-3 flex-wrap mb-2">
+          <div class="flex gap-1 border-b border-base-200">
+            <button type="button" class="dt-tab active" id="dsub1" onclick="dSwitchSub(1)"><svg aria-hidden="true"><use href="#i-sync"/></svg>子标签1 · 完全同步(所有歌单)</button>
+            <button type="button" class="dt-tab" id="dsub2" onclick="dSwitchSub(2)"><svg aria-hidden="true"><use href="#i-listSearch"/></svg>子标签2 · 条件增量同步(规则筛选)</button>
+          </div>
+          <label class="flex items-center gap-2 cursor-pointer ml-auto">
+            <span class="text-sm font-semibold">监听总开关</span>
+            <input type="checkbox" id="p_master" checked class="checkbox checkbox-sm" onchange="dMaster()">
+          </label>
+        </div>
+        <div id="d_excl" class="d-note mb-3" style="display:none;border-left-color:#f59e0b;background:color-mix(in oklab,#f59e0b 8%,transparent)">
+          ⚠️ <b>完全同步与条件增量互斥</b>:两者监听同一事件源(LX 新歌单),不能并存——开启其中一种会<b>自动关闭另一种</b>。
+          已由旧模式自动创建的任务<b>保持运行</b>,不会自动暂停或删除;如需停用请到任务列表手动操作(正式版会提供「一键停用旧模式任务 N 个」入口)。
         </div>
 
         <!-- 子1 完全同步 -->
         <div id="dsp1" class="space-y-3">
           <div class="dsec p-3">
-            <label class="drow"><input type="checkbox" id="p2_enable" checked class="checkbox checkbox-sm" onchange="dSync('p2')"><span class="text-sm font-semibold">启用监听(完全同步)</span></label>
+            <label class="drow"><input type="checkbox" id="p2_enable" checked class="checkbox checkbox-sm" onchange="dSubEnable('p2')"><span class="text-sm font-semibold">启用(完全同步模式)</span></label>
             <p class="text-xs c-sub mt-1">将现有所有歌单及将来新增的歌单全部自动同步;首次启用自动记录当前 LX 歌单为基线,之后新出现的歌单立即建任务。</p>
             <div class="flex flex-wrap items-center gap-2 mt-2">
               <span class="text-sm">检测计划 cron</span><input id="p2_check" class="input input-bordered font-mono text-xs" style="width:10rem" value="0 7 * * *">
@@ -157,7 +167,7 @@
         <!-- 子2 条件增量 -->
         <div id="dsp2" style="display:none" class="space-y-3">
           <div class="dsec p-3">
-            <label class="drow"><input type="checkbox" id="p2b_enable" class="checkbox checkbox-sm" onchange="dSync('p2b')"><span class="text-sm font-semibold">启用监听(条件增量同步)</span></label>
+            <label class="drow"><input type="checkbox" id="p2b_enable" class="checkbox checkbox-sm" onchange="dSubEnable('p2b')"><span class="text-sm font-semibold">启用(条件增量模式)</span></label>
             <p class="text-xs c-sub mt-1">按规则筛选「哪些 LX 歌单值得自动同步」;规则变更只影响之后新出现的歌单,已建任务不回溯。</p>
           </div>
           <div class="dsec p-3">
@@ -213,7 +223,7 @@ function dSwitchPanel(n) {
   document.getElementById('dp2').style.display = n === 2 ? '' : 'none'
   document.getElementById('dtab1').classList.toggle('active', n === 1)
   document.getElementById('dtab2').classList.toggle('active', n === 2)
-  dSync('p1'); dSync('p2'); dSync('p2b')
+  dShowExcl(); dSync('p1'); dSync('p2'); dSync('p2b')
 }
 function dSwitchSub(n) {
   document.getElementById('dsp1').style.display = n === 1 ? '' : 'none'
@@ -222,31 +232,35 @@ function dSwitchSub(n) {
   document.getElementById('dsub2').classList.toggle('active', n === 2)
   dSync('p2'); dSync('p2b')
 }
-function dPick(p, mode) {
-  var r = document.querySelector('input[name="' + p + '_mode"][value="' + mode + '"]')
-  if (r) r.checked = true
-  dSync(p)
+// 监听器互斥:两种模式不能并存,开一个自动关另一个(总开关 p_master 统一控制)
+function dMaster() {
+  var on = document.getElementById('p_master').checked
+  if (!on) { document.getElementById('p2_enable').checked = false; document.getElementById('p2b_enable').checked = false }
+  document.getElementById('d_excl').style.display = ''
+  if (!on) document.getElementById('d_excl').innerHTML = '⏸️ 监听总开关已关闭:不会自动为新歌单建任务,已建任务照常运行。'
+  else dShowExcl()
+  dSync('p2'); dSync('p2b')
 }
-function dSync(p) {
-  // 目标区显隐
-  var exBox = document.getElementById(p + '_existbox')
-  if (exBox) exBox.style.display = document.getElementById(p + '_exist').checked ? '' : 'none'
-  var exNote = document.getElementById(p + '_exnote')
-  if (exNote) exNote.style.display = (document.getElementById(p + '_exist').checked && document.querySelector('input[name="' + p + '_mode"][value="mirror"]').checked) ? '' : 'none'
-  // 规则区(仅 p2b)
-  if (p === 'p2b') {
-    document.getElementById('p2b_exbox').style.display = document.getElementById('p2b_exOn').checked ? '' : 'none'
-    document.getElementById('p2b_inbox').style.display = document.getElementById('p2b_inOn').checked ? '' : 'none'
+function dShowExcl() {
+  var a = document.getElementById('p2_enable').checked
+  var b = document.getElementById('p2b_enable').checked
+  var el = document.getElementById('d_excl')
+  if (a && b) { // 理论上被 dSubEnable 拦住,兜底
+    b = false; document.getElementById('p2b_enable').checked = false
   }
-  // 方式卡选中态 + 删除策略显示
-  var sel = (document.querySelector('input[name="' + p + '_mode"]:checked') || {}).value
-  var oi = document.getElementById(p + '_opt_inc'), om = document.getElementById(p + '_opt_mirror')
-  if (oi) oi.classList.toggle('sel', sel === 'inc')
-  if (om) om.classList.toggle('sel', sel === 'mirror')
-  var delBox = document.getElementById(p + '_delbox')
-  if (delBox) delBox.style.display = sel === 'mirror' ? '' : 'none'
-  // 概要
-  dSum(p)
+  if (a) el.innerHTML = '✅ 当前模式:<b>完全同步</b>(对所有 LX 歌单生效)。与「条件增量」互斥——点另一个子标签并启用会自动关闭本模式。已建任务保持运行。'
+  else if (b) el.innerHTML = '✅ 当前模式:<b>条件增量同步</b>(仅规则命中的歌单)。与「完全同步」互斥——启用后「完全」自动关闭。已建任务保持运行。'
+  else el.innerHTML = '⚠️ 尚未启用任何模式——监听开启但不会自动建任务(可选择下面一种模式启用)。'
+  el.style.display = ''
+}
+function dSubEnable(p) {
+  var self = document.getElementById(p + '_enable')
+  if (self.checked) { document.getElementById('p_master').checked = true }
+  if (self.checked) { // 开自己 = 关对方
+    var other = p === 'p2' ? 'p2b' : 'p2'
+    document.getElementById(other + '_enable').checked = false
+  }
+  dShowExcl(); dSync(p); dSync(p === 'p2' ? 'p2b' : 'p2')
 }
 function dSum(p) {
   var sum = document.getElementById(p + '_sum')
@@ -275,5 +289,28 @@ function dSum(p) {
   }
   sum.innerHTML = '📋 <b>' + (p === 'p1' ? '将创建任务' : p === 'p2' ? '完全同步监听' : '条件增量监听') + '</b>: ' + parts.join(' ｜ ')
 }
-dSync('p1'); dSync('p2'); dSync('p2b')
+function dPick(p, mode) {
+  var r = document.querySelector('input[name="' + p + '_mode"][value="' + mode + '"]')
+  if (r) r.checked = true
+  dSync(p)
+}
+function dSync(p) {
+  if (p !== 'p1' && !document.getElementById(p + '_enable').checked) { dSum(p); return }
+  var exBox = document.getElementById(p + '_existbox')
+  if (exBox) exBox.style.display = document.getElementById(p + '_exist').checked ? '' : 'none'
+  var exNote = document.getElementById(p + '_exnote')
+  if (exNote) exNote.style.display = (document.getElementById(p + '_exist').checked && document.querySelector('input[name="' + p + '_mode"][value="mirror"]').checked) ? '' : 'none'
+  if (p === 'p2b') {
+    document.getElementById('p2b_exbox').style.display = document.getElementById('p2b_exOn').checked ? '' : 'none'
+    document.getElementById('p2b_inbox').style.display = document.getElementById('p2b_inOn').checked ? '' : 'none'
+  }
+  var sel = (document.querySelector('input[name="' + p + '_mode"]:checked') || {}).value
+  var oi = document.getElementById(p + '_opt_inc'), om = document.getElementById(p + '_opt_mirror')
+  if (oi) oi.classList.toggle('sel', sel === 'inc')
+  if (om) om.classList.toggle('sel', sel === 'mirror')
+  var delBox = document.getElementById(p + '_delbox')
+  if (delBox) delBox.style.display = sel === 'mirror' ? '' : 'none'
+  dSum(p)
+}
+dShowExcl(); dSync('p1'); dSync('p2'); dSync('p2b')
 </script>
