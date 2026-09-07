@@ -265,16 +265,17 @@ function dBanner() {
 }
 function dSubEnable(p) {
   var self = document.getElementById(p + '_enable')
+  var newMode = p === 'p2' ? 'all' : 'filtered'   // 页面前缀 → 模式键
   if (self.checked) {
     document.getElementById('p_master').checked = true
     var other = p === 'p2' ? 'p2b' : 'p2'
     document.getElementById(other + '_enable').checked = false
     var oldMode = dT.active
-    if (oldMode && oldMode !== p) {
-      if (dT[p].paused > 0) dBanner()                    // 切回的模式自己带暂停任务 → 直接给恢复
-      else if (dT[oldMode].made - dT[oldMode].paused > 0) dAsk(p, oldMode)  // 旧模式还有运行中的任务 → 询问
-      else { dT.active = p; dBanner() }
-    } else { dT.active = p; dBanner() }
+    if (oldMode && oldMode !== newMode) {
+      if (dT[newMode].paused > 0) dBanner()                    // 切回的模式自己带暂停任务 → 直接给恢复
+      else if (dT[oldMode].made - dT[oldMode].paused > 0) dAsk(newMode, oldMode)  // 旧模式还有运行中的任务 → 询问
+      else { dT.active = newMode; dBanner() }
+    } else { dT.active = newMode; dBanner() }
   } else { dBanner() }
   dSync(p); dSync(p === 'p2' ? 'p2b' : 'p2')
 }
