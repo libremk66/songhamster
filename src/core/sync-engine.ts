@@ -1,15 +1,16 @@
 import { EventEmitter } from 'node:events'
 import path from 'node:path'
 import { rmSync, renameSync } from 'node:fs'
-import type { AppConfig, Quality } from '../config.js'
-import { HIGH_RES_FLAC, QUALITY_ORDER } from '../config.js'
+import type { AppConfig, DelPolicy, Quality } from '../config.js'
+import { HIGH_RES_FLAC, QUALITY_ORDER, DEFAULT_ARCHIVE_PLAYLIST, supportsFileDelete } from '../config.js'
 import type { LxSong } from '../adapters/lxserver.js'
 import { LxServerAdapter } from '../adapters/lxserver.js'
 import type { MediaServerAdapter } from '../adapters/media-server.js'
 import { moveToPlaylistDir, renderFilename } from './file-manager.js'
 import { validateFile, sniffFlacBits } from './validator.js'
 import * as repo from '../store/repo.js'
-import { getDb } from '../store/db.js'
+import { getDb, taskSemantics } from '../store/db.js'
+import { moveToTrash } from './trash.js'
 import { logger } from './logger.js'
 
 export interface EngineEvents {
@@ -90,21 +91,23 @@ export class SyncEngine {
         songs = await this.lx.getSongs(task.lxPlaylistKey)
       }
 
-      // diff
+      // diff:新语义 mode(null=旧任务按 syncMode 映射:full→mirror+keep)
+      const sem = taskSemantics(task)
+      const mirror = sem.taskMode === 'mirror'
       let toDownload: LxSong[]
       let toRemove: string[] = []
-      if (isChart || task.syncMode !== 'full') {
+      if (isChart || !mirror) {
         toDownload = this.diffIncremental(taskId, songs)
       } else {
         const d = this.diffFull(taskId, songs)
         toDownload = d.toDownload
         toRemove = d.toRemove
       }
-      logger.info(`[engine] ${isChart ? `榜单 ${task.lxPlaylistName}（范围 ${songs.length} 首）` : `源歌单 ${songs.length} 首`} | 待下载 ${toDownload.length} | 待移除 ${toRemove.length}`)
+      logger.info(`[engine] ${isChart ? `榜单 ${task.lxPlaylistName}（范围 ${songs.length} 首）` : `源歌单 ${songs.length} 首`} | 模式=${sem.taskMode}/${sem.delPolicy} | 待下载 ${toDownload.length} | 待移除 ${toRemove.length}`)
 
-      // 完全同步：移除已删除的歌
+      // 镜像:按删除策略处理已删除的歌
       if (toRemove.length > 0) {
-        const removed = await this.removeSongs(taskId, task, toRemove)
+        const removed = await this.removeSongs(taskId, task, toRemove, sem)
         removedCount = removed
       }
 
@@ -531,35 +534,113 @@ export class SyncEngine {
     }
   }
 
-  /** 完全同步：移除源歌单已删除的歌（从目标歌单移除；文件默认保留） */
-  private async removeSongs(taskId: number, task: ReturnType<typeof repo.getTask> & {}, songKeys: string[]): Promise<number> {
+  /**
+   * 镜像同步:按删除策略移除源歌单已删除的歌(delPolicy 见 docs/sync-redesign-spec.md)
+   * - keep   : 从受管播放列表移除,文件保留(默认;旧 full 等价)
+   * - delete : 同时把独占文件移入回收站(能力受限目标自动降级 keep),并触发媒体库扫描
+   * - archive: 移除后把曲目加入归档歌单(文件保留,status/ref 清理以便 LX 重加时能重新入列)
+   * provenance:新语义任务(mode 非空)只处理"本任务加入过"的条目(strictOwned);
+   *           旧 full 任务(mode=null)保持历史行为(兼容迁移)。
+   */
+  private async removeSongs(
+    taskId: number,
+    task: ReturnType<typeof repo.getTask> & {},
+    songKeys: string[],
+    sem: { taskMode: 'incremental' | 'mirror'; delPolicy: DelPolicy },
+  ): Promise<number> {
     let removed = 0
+    let movedFiles = 0
     const cfg = this.cfg()
-    const playlistIds: string[] = [...task.embyTargetPlaylistIdsParsed]
+    const strictOwned = task.mode != null // 新语义任务启用所有权;旧 full 保持旧行为
+    const delFile = sem.delPolicy === 'delete' && supportsFileDelete(cfg.target)
+    const archive = sem.delPolicy === 'archive'
+    if (sem.delPolicy === 'delete' && !delFile) {
+      logger.warn(`[engine] task#${taskId} 删除策略=delete 但目标 ${cfg.target} 不支持物理删文件 → 已降级为 keep`)
+    }
+
+    // 受管播放列表:同名自动列表恒受管;已有列表按所有权
+    const entries: { pid: string; managed: boolean }[] = []
+    for (const pid of new Set(task.embyTargetPlaylistIdsParsed)) entries.push({ pid, managed: false })
     if (task.createSameNamePlaylist) {
       const same = await this.findPlaylistByName(task.lxPlaylistName)
-      if (same) playlistIds.push(same.id)
+      if (same) entries.push({ pid: same.id, managed: true })
     }
+
+    let archiveId: string | null = null
+    const ensureArchive = async (): Promise<string | null> => {
+      if (archiveId) return archiveId
+      try {
+        const name = task.archivePlaylist?.trim() || DEFAULT_ARCHIVE_PLAYLIST
+        const ex = await this.findPlaylistByName(name)
+        if (ex) { archiveId = ex.id; return archiveId }
+        const np = await this.emby.createPlaylist(name)
+        archiveId = np.id
+        return archiveId
+      } catch (e) {
+        logger.warn(`[engine] 归档歌单不可用: ${(e as Error).message}`)
+        return null
+      }
+    }
+
     for (const songKey of songKeys) {
       const map = repo.getEmbyMap(songKey)
       if (!map) continue
-      for (const pid of new Set(playlistIds)) {
-        const items = await this.emby.listPlaylistItems(pid)
+      const owned = strictOwned ? repo.hasTaskSongRef(taskId, songKey) : true
+      if (!owned) {
+        logger.info(`[engine] ${songKey} 非本任务加入(所有权保护) → 不动其歌单成员`)
+        continue
+      }
+      let removedHere = false
+      for (const e of entries) {
+        if (!e.managed && !strictOwned) continue // 旧任务:managed 语义 = 全部
+        const items = await this.emby.listPlaylistItems(e.pid)
         const entry = items.find((it) => it.itemId === map.embySongId)
         if (entry?.entryId) {
-          await this.emby.removeItems(pid, [entry.entryId])
+          await this.emby.removeItems(e.pid, [entry.entryId])
           removed++
+          removedHere = true
         }
       }
-      // 清理引用与状态（文件保留，除非开 cleanupOrphanFiles）
+      if (!removedHere) continue
+      // archive:曲目进归档歌单(文件不动)
+      if (archive) {
+        const aid = await ensureArchive()
+        if (aid) {
+          try {
+            await this.emby.addItems(aid, [map.embySongId])
+            logger.info(`[engine] ${songKey} → 归档歌单`)
+          } catch (e) {
+            logger.warn(`[engine] 归档加曲失败: ${(e as Error).message}`)
+          }
+        }
+      }
+      // delete:独占文件移回收站(被其它任务引用则保留)
+      if (delFile) {
+        for (const f of repo.listFilesForSong(songKey)) {
+          if (repo.fileRefCount(f.fileId) > 1) {
+            logger.info(`[engine] ${songKey} 文件仍被其它任务引用 → 保留`)
+            continue
+          }
+          try {
+            moveToTrash(cfg, f.filePath)
+            movedFiles++
+          } catch (e) {
+            logger.warn(`[engine] 移回收站失败 ${f.filePath}: ${(e as Error).message}`)
+          }
+        }
+      }
+      // 清理引用与状态(允许 LX 日后重新加入时能再次入列/入歌单)
       getDb().prepare('DELETE FROM task_song_ref WHERE taskId = ? AND songKey = ?').run(taskId, songKey)
       getDb().prepare('DELETE FROM current_song_status WHERE taskId = ? AND songKey = ?').run(taskId, songKey)
     }
-    // 清理孤立文件（可选）
-    if (cfg.general.cleanupOrphanFiles) {
-      // 交给维护任务/界面按钮触发，此处仅记录
-      console.log('[engine] cleanupOrphanFiles 开启，孤立文件待维护任务处理')
+    // 物理删除后触发媒体库扫描清理缺失条目(Emby/Jellyfin;Navidrome 文件监听自动处理)
+    if (movedFiles > 0 && (cfg.target === 'emby' || cfg.target === 'jellyfin')) {
+      try {
+        const lib = await this.emby.resolveLibraryId()
+        if (lib) await this.emby.scanLibrary(lib)
+      } catch { /* 扫描失败不阻断 */ }
     }
+    if (movedFiles > 0) logger.info(`[engine] 删除策略=delete:${movedFiles} 个文件移入回收站(可恢复)`)
     return removed
   }
 }

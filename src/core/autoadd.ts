@@ -37,6 +37,7 @@ export async function autoaddScan(
       createSameNamePlaylist: a.createSameNamePlaylist,
       cronExpr: a.taskCron?.trim() || null,
       syncMode: a.syncMode,
+      origin: 'auto-all', // 监听自动创建分组(切换策略/一键停用用)
       dedupCheck: a.dedupCheck,
       dedupMinQuality: a.dedupMinQuality,
     })

@@ -100,6 +100,11 @@ export interface ListenConfig {
 
 export const DEFAULT_ARCHIVE_PLAYLIST = '歌单同步任务归档'
 
+/** 支持"镜像删除处理2(物理删文件)"的目标服务器;其余(道理鱼/Subsonic)置灰 */
+export function supportsFileDelete(target: AppConfig['target']): boolean {
+  return target === 'emby' || target === 'navidrome' || target === 'jellyfin'
+}
+
 function baseListenParams(): ListenParams {
   return {
     createSameNamePlaylist: true,

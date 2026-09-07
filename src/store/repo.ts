@@ -249,6 +249,22 @@ export function fileRefCount(fileId: number): number {
   return r.n
 }
 
+/** 本任务是否加入过该歌(provenance:镜像删除只处理"自己加过的") */
+export function hasTaskSongRef(taskId: number, songKey: string): boolean {
+  const r = getDb()
+    .prepare('SELECT 1 AS x FROM task_song_ref WHERE taskId = ? AND songKey = ? LIMIT 1')
+    .get(taskId, songKey) as { x: number } | undefined
+  return !!r
+}
+
+/** 某歌的全部文件(镜像删除策略 delete 用) */
+export function listFilesForSong(songKey: string): { fileId: number; filePath: string }[] {
+  return getDb().prepare('SELECT id AS fileId, filePath FROM song_files WHERE songKey = ?').all(songKey) as {
+    fileId: number
+    filePath: string
+  }[]
+}
+
 // ===== emby_song_map =====
 
 export function getEmbyMap(songKey: string): { embySongId: string; lastVerifiedAt: string } | null {
