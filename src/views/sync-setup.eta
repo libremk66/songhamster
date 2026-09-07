@@ -54,17 +54,23 @@
           <div class="rounded-lg border border-base-300 p-3">
             <h4 class="text-sm font-bold mb-2">选择 LX 歌单</h4>
             <div class="flex flex-wrap items-center gap-2">
-              <select name="lxPlaylistKey" id="lx-select" required multiple size="7" class="select select-bordered" style="min-width:20rem" onchange="selCount()">
-                <% for (const p of lxPlaylists) { %>
-                <option value="<%= p.key %>"><%= p.name %>（<%= p.songCount %> 首）</option>
-                <% } %>
-              </select>
+              <div class="rounded-lg border border-base-300 p-2 overflow-y-auto" style="max-height:15rem;width:26rem;max-width:100%">
+                <div id="lx-list">
+                  <% for (const p of lxPlaylists) { %>
+                  <label class="flex items-center gap-2 cursor-pointer py-0.5">
+                    <input type="checkbox" name="lxPlaylistKey" value="<%= p.key %>" class="checkbox checkbox-xs" onchange="lxCount()">
+                    <span class="text-sm"><%= p.name %>（<%= p.songCount %> 首）</span>
+                  </label>
+                  <% } %>
+                  <% if (!lxPlaylists.length) { %><p class="text-xs c-sub py-3 text-center">未获取到 LX 歌单(连接 LX 后刷新)</p><% } %>
+                </div>
+              </div>
               <div class="flex flex-col gap-2">
-                <button type="button" class="btn btn-outline btn-xs px-2" hx-get="/api/lx/playlists/options" hx-target="#lx-select" hx-swap="innerHTML" onclick="setTimeout(selCount,100)">刷新</button>
+                <button type="button" class="btn btn-outline btn-xs px-2" onclick="lxRefresh()">刷新</button>
                 <span class="text-xs c-sub" id="sel-count">已选 0 个</span>
               </div>
             </div>
-            <p class="text-xs c-sub mt-1">支持<b>多选</b>(Ctrl/Cmd/Shift + 点击),一次为多个歌单创建任务(默认设置相同)。</p>
+            <p class="text-xs c-sub mt-1">逐项勾选可一次为多个歌单创建任务(默认设置相同)。</p>
           </div>
 
           <div class="rounded-lg border border-base-300 p-3">
@@ -78,16 +84,18 @@
               <span class="text-sm">同步到<b>已有</b>播放列表/歌单</span>
             </label>
   <div id="mk_existbox" style="display:none" class="ml-6 mt-1">
-    <% if (embyPlaylists.length) { %>
-    <select name="embyTarget" multiple size="5" class="select select-bordered" style="width:26rem;max-width:100%">
-      <% for (const p of embyPlaylists) { %>
-      <option value="<%= p.id %>"><%= p.name %></option>
+    <div class="rounded-lg border border-base-300 p-2 overflow-y-auto" style="max-height:11rem;width:24rem;max-width:100%">
+      <% if (embyPlaylists.length) { %>
+        <% for (const p of embyPlaylists) { %>
+        <label class="flex items-center gap-2 cursor-pointer py-0.5">
+          <input type="checkbox" name="embyTarget" value="<%= p.id %>" class="checkbox checkbox-xs">
+          <span class="text-sm"><%= p.name %></span>
+        </label>
+        <% } %>
+      <% } else { %>
+        <span class="text-xs c-sub">连接 <%= targetName %> 后可选择</span>
       <% } %>
-    </select>
-    <p class="text-xs c-sub mt-1">按住 Ctrl/Cmd 多选;所选播放列表将同时作为同步目标(镜像删除只处理本任务产生的歌曲)</p>
-    <% } else { %>
-    <span class="text-xs c-sub">连接 <%= targetName %> 后可选择</span>
-    <% } %>
+    </div>
   </div>
             <div id="mk_note" class="d-note mt-2" style="display:none">🔒 镜像 + 已有歌单:只移除/加入<b>本任务产生的歌曲</b>;你手动加的与接管前已存在的歌曲不动(所有权追踪)。</div>
           </div>
@@ -155,19 +163,21 @@
     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="all[createSameNamePlaylist]" value="1" <%= listen.all.createSameNamePlaylist ? 'checked' : '' %> class="checkbox checkbox-sm"><span class="text-sm">同名播放列表/歌单(自动生成)</span></label>
     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="pA_exist" class="checkbox checkbox-sm" onchange="existToggle('pA')"><span class="text-sm">同步到已有播放列表/歌单</span></label>
   </div>
-  <div id="pA_existbox" style="display:none" class="ml-6 mt-1">
-    <% if (embyPlaylists.length) { %>
-    <select name="all[embyTarget]" multiple size="5" class="select select-bordered" style="width:24rem;max-width:100%">
-      <% for (const p of embyPlaylists) { %>
-      <option value="<%= p.id %>"><%= p.name %></option>
+    <div id="pA_existbox" style="display:none" class="ml-6 mt-1">
+    <div class="rounded-lg border border-base-300 p-2 overflow-y-auto" style="max-height:11rem;width:24rem;max-width:100%">
+      <% if (embyPlaylists.length) { %>
+        <% for (const p of embyPlaylists) { %>
+        <label class="flex items-center gap-2 cursor-pointer py-0.5">
+          <input type="checkbox" name="all[embyTarget]" value="<%= p.id %>" class="checkbox checkbox-xs">
+          <span class="text-sm"><%= p.name %></span>
+        </label>
+        <% } %>
+      <% } else { %>
+        <span class="text-xs c-sub">连接 <%= targetName %> 后可选择</span>
       <% } %>
-    </select>
-    <p class="text-xs c-sub mt-1">按住 Ctrl/Cmd 多选;所选播放列表将同时作为同步目标(镜像删除只处理本任务产生的歌曲)</p>
-    <% } else { %>
-    <span class="text-xs c-sub">连接 <%= targetName %> 后可选择</span>
-    <% } %>
+    </div>
   </div>
-  <div class="mt-1">
+<div class="mt-1">
     <label class="dopt" onclick="LPick('pA','incremental')">
       <input type="radio" name="all[taskMode]" value="incremental" <%= listen.all.taskMode === 'incremental' ? 'checked' : '' %> class="radio radio-sm">
       <span><span class="dopt-title">1 · 增量同步</span><span class="text-xs c-sub"> 只增不减</span></span>
@@ -210,19 +220,21 @@
     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="filtered[params][createSameNamePlaylist]" value="1" <%= listen.filtered.params.createSameNamePlaylist ? 'checked' : '' %> class="checkbox checkbox-sm"><span class="text-sm">同名播放列表/歌单(自动生成)</span></label>
     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="pF_exist" class="checkbox checkbox-sm" onchange="existToggle('pF')"><span class="text-sm">同步到已有播放列表/歌单</span></label>
   </div>
-  <div id="pF_existbox" style="display:none" class="ml-6 mt-1">
-    <% if (embyPlaylists.length) { %>
-    <select name="filtered[params][embyTarget]" multiple size="5" class="select select-bordered" style="width:24rem;max-width:100%">
-      <% for (const p of embyPlaylists) { %>
-      <option value="<%= p.id %>"><%= p.name %></option>
+    <div id="pF_existbox" style="display:none" class="ml-6 mt-1">
+    <div class="rounded-lg border border-base-300 p-2 overflow-y-auto" style="max-height:11rem;width:24rem;max-width:100%">
+      <% if (embyPlaylists.length) { %>
+        <% for (const p of embyPlaylists) { %>
+        <label class="flex items-center gap-2 cursor-pointer py-0.5">
+          <input type="checkbox" name="filtered[params][embyTarget]" value="<%= p.id %>" class="checkbox checkbox-xs">
+          <span class="text-sm"><%= p.name %></span>
+        </label>
+        <% } %>
+      <% } else { %>
+        <span class="text-xs c-sub">连接 <%= targetName %> 后可选择</span>
       <% } %>
-    </select>
-    <p class="text-xs c-sub mt-1">按住 Ctrl/Cmd 多选;所选播放列表将同时作为同步目标(镜像删除只处理本任务产生的歌曲)</p>
-    <% } else { %>
-    <span class="text-xs c-sub">连接 <%= targetName %> 后可选择</span>
-    <% } %>
+    </div>
   </div>
-  <div class="mt-1">
+<div class="mt-1">
     <label class="dopt" onclick="LPick('pF','incremental')">
       <input type="radio" name="filtered[params][taskMode]" value="incremental" <%= listen.filtered.params.taskMode === 'incremental' ? 'checked' : '' %> class="radio radio-sm">
       <span><span class="dopt-title">1 · 增量同步</span><span class="text-xs c-sub"> 只增不减</span></span>
@@ -270,10 +282,11 @@ function switchCT(n) {
   document.getElementById('ctab1').classList.toggle('active', n === 1)
   document.getElementById('ctab2').classList.toggle('active', n === 2)
 }
-function selCount() {
-  var n = document.getElementById('lx-select').selectedOptions.length
+function lxCount() {
+  var n = document.querySelectorAll('#lx-list input[name="lxPlaylistKey"]:checked').length
   document.getElementById('sel-count').textContent = '已选 ' + n + ' 个'
 }
+function lxRefresh() { location.reload() } // 重载拉最新歌单(含数量)
 function mkRefresh() {
   var c = document.getElementById('mk_exist').checked
   document.getElementById('mk_existbox').style.display = c ? '' : 'none'
