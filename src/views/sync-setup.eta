@@ -180,7 +180,8 @@
   </div>
 </div>
 
-<div id="ls_filtered_box" class="rounded-lg border border-base-300 p-3 <%= listen.activeMode === 'filtered' ? '' : 'hidden' %>">
+<div id="ls_filtered_box" class="space-y-2 <%= listen.activeMode === 'filtered' ? '' : 'hidden' %>">
+  <div class="rounded-lg border border-base-300 p-3">
   <h4 class="text-sm font-bold mb-2">条件模式 · 规则筛选</h4>
   <div class="flex flex-col gap-3 md:flex-row">
     <div class="rounded-lg border border-base-300 p-2.5 flex-1">
@@ -193,7 +194,9 @@
     </div>
   </div>
   <p class="text-xs c-sub mt-1">语义:排除优先;只开匹配=仅命中项;只开排除=全量减排除。变更只影响之后新出现的歌单(不回溯)。</p>
-  <h5 class="text-sm font-bold pt-2 mb-2">条件模式 · 新任务默认设置</h5>
+  </div>
+  <div class="rounded-lg border border-base-300 p-3">
+  <h4 class="text-sm font-bold mb-2">条件模式 · 新任务默认设置</h4>
   <div class="flex flex-wrap gap-2">
     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="filtered[params][createSameNamePlaylist]" value="1" <%= listen.filtered.params.createSameNamePlaylist ? 'checked' : '' %> class="checkbox checkbox-sm"><span class="text-sm">同名播放列表/歌单(自动生成)</span></label>
     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="pF_exist" class="checkbox checkbox-sm" onchange="existToggle('pF')"><span class="text-sm">同步到已有播放列表/歌单</span></label>
@@ -224,6 +227,7 @@
   <div class="flex flex-wrap items-center gap-2 mt-1 pt-2 border-t border-base-200">
     <span class="text-sm">新任务 cron(空=建后立即一次)</span>
     <input name="filtered[params][taskCron]" class="input input-bordered input-sm font-mono text-xs" style="width:9rem" value="<%= listen.filtered.params.taskCron %>">
+  </div>
   </div>
 </div>
 
