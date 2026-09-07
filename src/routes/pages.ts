@@ -1,6 +1,6 @@
 import { Router, type Request } from 'express'
 import type { AppConfig } from '../config.js'
-import { QUALITY_ORDER, QUALITY_LABELS, TARGET_LABEL } from '../config.js'
+import { QUALITY_ORDER, QUALITY_LABELS, TARGET_LABEL, supportsFileDelete } from '../config.js'
 import { LxServerAdapter } from '../adapters/lxserver.js'
 import type { MediaServerAdapter } from '../adapters/media-server.js'
 import { renderPage, VERSION } from '../views/render.js'
@@ -70,7 +70,7 @@ export function pagesRouter(getCfg: () => AppConfig, lx: LxServerAdapter, emby: 
         embyPlaylists = await emby.listPlaylists()
       } catch { /* 忽略 */ }
     }
-    res.type('html').send(renderPage('sync-setup', { ...base('sync-setup', _req), lxPlaylists, embyPlaylists, lxError, qOrder: QUALITY_ORDER, qLabels: QUALITY_LABELS }))
+    res.type('html').send(renderPage('sync-setup', { ...base('sync-setup', _req), lxPlaylists, embyPlaylists, lxError, qOrder: QUALITY_ORDER, qLabels: QUALITY_LABELS, listen: getCfg().general.listen, fileDeleteOK: supportsFileDelete(getCfg().target) }))
   })
 
   r.get('/progress', (_req, res) => {

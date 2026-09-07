@@ -837,7 +837,7 @@ export function apiRouter(
     const oldMode = L.activeMode
     L.activeMode = mode
     let paused = 0
-    if (String(b.taskPolicy ?? '') === 'pause' && oldMode !== mode) {
+    if (String(b.taskPolicy ?? '') === 'pause') {
       paused = repo.setTasksEnabledByOrigin(originOfMode(oldMode), false)
     }
     saveConfig(cfg)
