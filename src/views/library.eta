@@ -1,10 +1,11 @@
 <style>
   /* 双 tab(洗版/查重) */
-  .hist-tab { display: inline-flex; align-items: center; padding: .4rem .9rem; font-size: .8125rem; border-bottom: 2px solid transparent; color: oklch(var(--bc) / 0.7);
-              cursor: pointer; background: none; border-radius: 0; transition: color .15s, border-color .15s; }
+  .hist-tab { display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .9rem; font-size: .8125rem;
+              cursor: pointer; background: oklch(var(--b1)); color: oklch(var(--bc) / .75);
+              border: 1px solid oklch(var(--bc) / .22); border-radius: 999px; transition: color .15s, border-color .15s, background .15s; }
   .hist-tab svg { width: 1em; height: 1em; margin-right: .35em; }
-  .hist-tab:hover { color: var(--sfg-deep); }
-  .hist-tab.active { color: var(--sfg-deep); font-weight: 650; border-bottom-color: var(--sfg); }
+  .hist-tab:hover { border-color: var(--sfg); color: var(--sfg-deep); }
+  .hist-tab.active { background: var(--sfg); border-color: var(--sfg); color: var(--sfg-ink); font-weight: 650; }
   /* 规则行(标签+控件+提示) */
   .prow { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .4rem 0; }
   .prow > .p-lbl { width: 11em; flex-shrink: 0; font-size: .8125rem; font-weight: 500; }
@@ -19,7 +20,7 @@
   </header>
 
   <!-- ===== Tabs ===== -->
-  <div class="flex gap-1 border-b border-base-200">
+  <div class="flex flex-wrap gap-1.5">
     <button type="button" class="hist-tab active" id="lib-tab-wash"
       onclick="var a=document.getElementById('lib-panel-wash'),b=document.getElementById('lib-panel-dupe');a.style.display='';b.style.display='none';this.classList.add('active');document.getElementById('lib-tab-dupe').classList.remove('active')"><svg aria-hidden="true"><use href="#i-refresh"/></svg>安全洗版</button>
     <button type="button" class="hist-tab" id="lib-tab-dupe"

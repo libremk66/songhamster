@@ -1,11 +1,11 @@
 <style>
   /* 原型页专用:双主 tab + 子 tab */
-  .dt-tab { display: inline-flex; align-items: center; gap: .4rem; padding: .45rem 1rem; font-size: .875rem;
-            border-bottom: 2px solid transparent; color: oklch(var(--bc) / 0.7); cursor: pointer; background: none;
-            border-radius: 0; transition: color .15s, border-color .15s; }
+  .dt-tab { display: inline-flex; align-items: center; gap: .4rem; padding: .35rem .95rem; font-size: .875rem;
+            cursor: pointer; background: oklch(var(--b1)); color: oklch(var(--bc) / .75);
+            border: 1px solid oklch(var(--bc) / .22); border-radius: 999px; transition: color .15s, border-color .15s, background .15s; }
   .dt-tab svg { width: 1em; height: 1em; }
-  .dt-tab:hover { color: var(--sfg-deep); }
-  .dt-tab.active { color: var(--sfg-deep); font-weight: 650; border-bottom-color: var(--sfg); }
+  .dt-tab:hover { border-color: var(--sfg); color: var(--sfg-deep); }
+  .dt-tab.active { background: var(--sfg); border-color: var(--sfg); color: var(--sfg-ink); font-weight: 650; }
   .dsec { border: 1px solid oklch(var(--bc) / .15); border-radius: .6rem; background: oklch(var(--b1)); }
   .drow { display: flex; align-items: flex-start; gap: .5rem; padding: .45rem .3rem; border-radius: .5rem; cursor: pointer; }
   .drow:hover { background: color-mix(in oklab, var(--sfg) 8%, transparent); }
@@ -31,7 +31,7 @@
   <!-- ===== 主 Tab ===== -->
   <section class="card bg-base-100 border border-base-300 shadow-sm">
     <div class="card-body gap-3">
-      <div class="flex gap-1 border-b border-base-200">
+      <div class="flex flex-wrap gap-1.5">
         <button type="button" class="dt-tab active" id="dtab1" onclick="dSwitchPanel(1)"><svg aria-hidden="true"><use href="#i-swap"/></svg>标签1 · 选择歌单(创建单个任务)</button>
         <button type="button" class="dt-tab" id="dtab2" onclick="dSwitchPanel(2)"><svg aria-hidden="true"><use href="#i-pulse"/></svg>标签2 · 监听同步(自动化)</button>
       </div>
@@ -112,7 +112,7 @@
       <!-- ============ 面板2:监听同步 ============ -->
       <div id="dp2" style="display:none">
         <div class="flex items-center gap-3 flex-wrap mb-2">
-          <div class="flex gap-1 border-b border-base-200">
+          <div class="flex flex-wrap gap-1.5">
             <button type="button" class="dt-tab active" id="dsub1" onclick="dSwitchSub(1)"><svg aria-hidden="true"><use href="#i-sync"/></svg>子标签1 · 完全同步(所有歌单)</button>
             <button type="button" class="dt-tab" id="dsub2" onclick="dSwitchSub(2)"><svg aria-hidden="true"><use href="#i-listSearch"/></svg>子标签2 · 条件增量同步(规则筛选)</button>
           </div>

@@ -1,11 +1,15 @@
 <style>
   /* 本页 tab(创建/监听)与模式分段 */
-  .st-tab { display: inline-flex; align-items: center; gap: .4rem; padding: .45rem 1rem; font-size: .875rem;
-            border-bottom: 2px solid transparent; color: oklch(var(--bc) / 0.7); cursor: pointer; background: none;
-            border-radius: 0; transition: color .15s, border-color .15s; }
+  /* 主标题:主题绿底圆角条 */
+  .sec-green { display: block; background: var(--sfg); color: var(--sfg-ink); font-weight: 700; font-size: .95rem;
+               padding: .45rem .85rem; border-radius: .6rem; margin-bottom: .7rem; }
+  /* 子标签:胶囊,未选中白底/选中绿底(全站无直角) */
+  .st-tab { display: inline-flex; align-items: center; gap: .4rem; padding: .35rem .95rem; font-size: .875rem;
+            cursor: pointer; background: oklch(var(--b1)); color: oklch(var(--bc) / .75);
+            border: 1px solid oklch(var(--bc) / .22); border-radius: 999px; transition: color .15s, border-color .15s, background .15s; }
   .st-tab svg { width: 1em; height: 1em; }
-  .st-tab:hover { color: var(--sfg-deep); }
-  .st-tab.active { color: var(--sfg-deep); font-weight: 650; border-bottom-color: var(--sfg); }
+  .st-tab:hover { border-color: var(--sfg); color: var(--sfg-deep); }
+  .st-tab.active { background: var(--sfg); border-color: var(--sfg); color: var(--sfg-ink); font-weight: 650; }
   .dopt { display: flex; align-items: flex-start; gap: .5rem; padding: .5rem .6rem; border: 1px solid oklch(var(--bc) / .15);
           border-radius: .55rem; cursor: pointer; margin-bottom: .4rem; transition: border-color .15s, background .15s; }
   .dopt:hover { border-color: oklch(var(--bc) / .4); }
@@ -27,7 +31,7 @@
   <!-- ===== 我的歌单同步任务 ===== -->
   <section class="card bg-base-100 border border-base-300 shadow-sm">
     <div class="card-body gap-3">
-      <h3 class="card-title text-base">我的歌单同步任务</h3>
+      <h3 class="sec-green">我的歌单同步任务</h3>
       <div id="task-table" class="overflow-x-auto" hx-get="/api/tasks/table?scope=playlist" hx-trigger="load">
         <p class="c-sub text-xs py-6 text-center">加载中…</p>
       </div>
@@ -37,11 +41,9 @@
   <!-- ===== 创建 / 监听 ===== -->
   <section class="card bg-base-100 border border-base-300 shadow-sm">
     <div class="card-body gap-3">
-      <div class="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 class="card-title text-base">创建歌单同步任务</h3>
-        <span class="text-xs c-sub">选择歌单创建单个任务;或开启监听,新出现的歌单自动同步</span>
-      </div>
-      <div class="flex gap-1 border-b border-base-200">
+      <h3 class="sec-green">创建歌单同步任务</h3>
+      <p class="text-xs c-sub" style="margin:-.35rem 0 .6rem">选择歌单创建单个任务;或开启监听,新出现的歌单自动同步</p>
+      <div class="flex flex-wrap gap-1.5">
         <button type="button" class="st-tab active" id="ctab1" onclick="switchCT(1)"><svg aria-hidden="true"><use href="#i-plus"/></svg>选择歌单 · 创建同步任务</button>
         <button type="button" class="st-tab" id="ctab2" onclick="switchCT(2)"><svg aria-hidden="true"><use href="#i-pulse"/></svg>监听同步 · 自动新增</button>
       </div>

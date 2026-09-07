@@ -1,11 +1,13 @@
 <style>
   /* 双 tab(同步/洗版):下划线式 */
-  .hist-tab { padding: .4rem .9rem; font-size: .8125rem; border-bottom: 2px solid transparent; color: oklch(var(--bc) / 0.7);
-              cursor: pointer; background: none; border-radius: 0; transition: color .15s, border-color .15s; }
+  .hist-tab { display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .9rem; font-size: .8125rem;
+              cursor: pointer; background: oklch(var(--b1)); color: oklch(var(--bc) / .75);
+              border: 1px solid oklch(var(--bc) / .22); border-radius: 999px; transition: color .15s, border-color .15s, background .15s; }
   .hist-tab { display: inline-flex; align-items: center; }
   .hist-tab svg { width: 1em; height: 1em; margin-right: .35em; }
   .hist-tab:hover { color: var(--sfg-deep); }
-  .hist-tab.active { color: var(--sfg-deep); font-weight: 650; border-bottom-color: var(--sfg); }
+  .hist-tab:hover { border-color: var(--sfg); color: var(--sfg-deep); }
+  .hist-tab.active { background: var(--sfg); border-color: var(--sfg); color: var(--sfg-ink); font-weight: 650; }
 </style>
 <div class="space-y-4">
 
@@ -18,7 +20,7 @@
 
   <section class="card bg-base-100 border border-base-300 shadow-sm">
     <div class="card-body gap-2">
-      <div class="flex gap-1 border-b border-base-200">
+      <div class="flex flex-wrap gap-1.5">
         <button type="button" class="hist-tab active" id="tab-sync"
           hx-get="/api/history/partial" hx-target="#hist-content" hx-swap="innerHTML"
           onclick="switchHistTab('tab-sync')"><svg aria-hidden="true"><use href="#i-clock"/></svg>同步任务历史记录</button>
