@@ -223,7 +223,7 @@ function dSwitchPanel(n) {
   document.getElementById('dp2').style.display = n === 2 ? '' : 'none'
   document.getElementById('dtab1').classList.toggle('active', n === 1)
   document.getElementById('dtab2').classList.toggle('active', n === 2)
-  dShowExcl(); dSync('p1'); dSync('p2'); dSync('p2b')
+  dBanner(); dSync('p1'); dSync('p2'); dSync('p2b')
 }
 function dSwitchSub(n) {
   document.getElementById('dsp1').style.display = n === 1 ? '' : 'none'
@@ -232,36 +232,68 @@ function dSwitchSub(n) {
   document.getElementById('dsub2').classList.toggle('active', n === 2)
   dSync('p2'); dSync('p2b')
 }
-// 监听器互斥:两种模式不能并存,开一个自动关另一个(总开关 p_master 统一控制)
-function dMaster() {
-  var on = document.getElementById('p_master').checked
-  if (!on) { document.getElementById('p2_enable').checked = false; document.getElementById('p2b_enable').checked = false }
-  document.getElementById('d_excl').style.display = ''
-  if (!on) document.getElementById('d_excl').innerHTML = '⏸️ 监听总开关已关闭:不会自动为新歌单建任务,已建任务照常运行。'
-  else dShowExcl()
-  dSync('p2'); dSync('p2b')
-}
-function dShowExcl() {
+// ===== 监听器(单实例,模式互斥)+ A+C 任务策略 =====
+// 原型模拟数据:各模式自动创建的任务数与暂停数(正式版来自 origin 标记)
+var dT = { all: { made: 3, paused: 0 }, filtered: { made: 2, paused: 0 }, active: 'all' }
+function dBanner() {
   var a = document.getElementById('p2_enable').checked
   var b = document.getElementById('p2b_enable').checked
   var el = document.getElementById('d_excl')
-  if (a && b) { // 理论上被 dSubEnable 拦住,兜底
-    b = false; document.getElementById('p2b_enable').checked = false
+  if (a && b) { b = false; document.getElementById('p2b_enable').checked = false }
+  var mode = a ? 'all' : (b ? 'filtered' : null)
+  if (!document.getElementById('p_master').checked) {
+    el.innerHTML = '⏸️ 监听总开关已关闭:不会自动为新歌单建任务,已建任务照常运行。'
+    el.style.display = ''; return
   }
-  if (a) el.innerHTML = '✅ 当前模式:<b>完全同步</b>(对所有 LX 歌单生效)。与「条件增量」互斥——点另一个子标签并启用会自动关闭本模式。已建任务保持运行。'
-  else if (b) el.innerHTML = '✅ 当前模式:<b>条件增量同步</b>(仅规则命中的歌单)。与「完全同步」互斥——启用后「完全」自动关闭。已建任务保持运行。'
-  else el.innerHTML = '⚠️ 尚未启用任何模式——监听开启但不会自动建任务(可选择下面一种模式启用)。'
+  if (!mode) { el.innerHTML = '⚠️ 尚未启用任何模式——监听开启但不会自动建任务(选择下面一种模式启用)。'; el.style.display = ''; return }
+  dT.active = mode
+  var m = dT[mode]
+  var pausedInfo = m.paused > 0
+    ? ('<br>💤 本模式有 <b>' + m.paused + '</b> 个任务处于「切换时暂停」状态:<button type="button" class="btn btn-outline btn-xs px-2" onclick="dResume('' + mode + '')">恢复它们</button>')
+    : ''
+  el.innerHTML = '✅ 当前模式:<b>' + (mode === 'all' ? '完全同步(对所有 LX 歌单生效)' : '条件增量同步(仅规则命中歌单)') + '</b>。两模式互斥,切换只影响<b>之后新出现</b>的歌单;已有任务默认保持运行,不会被自动暂停或删除。' + pausedInfo
   el.style.display = ''
 }
 function dSubEnable(p) {
   var self = document.getElementById(p + '_enable')
-  if (self.checked) { document.getElementById('p_master').checked = true }
-  if (self.checked) { // 开自己 = 关对方
+  if (self.checked) {
+    document.getElementById('p_master').checked = true
     var other = p === 'p2' ? 'p2b' : 'p2'
     document.getElementById(other + '_enable').checked = false
-  }
-  dShowExcl(); dSync(p); dSync(p === 'p2' ? 'p2b' : 'p2')
+    if (dT.active && dT.active !== p) dAsk(p, dT.active)  // 模式切换 → A+C 确认
+    else dBanner()
+  } else { dBanner() }
+  dSync(p); dSync(p === 'p2' ? 'p2b' : 'p2')
 }
+function dAsk(newMode, oldMode) {
+  var m = dT[oldMode]
+  var el = document.getElementById('d_excl')
+  el.innerHTML = '🔄 从「' + (oldMode === 'all' ? '完全同步' : '条件增量') + '」切到「' + (newMode === 'all' ? '完全同步' : '条件增量') + '」:<br>' +
+    '旧模式已自动创建 <b>' + (m.made - m.paused) + '</b> 个任务。切换只影响之后新出现的歌单——这些任务如何处理?<br>' +
+    '<span class="flex gap-2 mt-1.5">' +
+    '<button type="button" class="btn btn-primary btn-xs" onclick="dPolicy('keep','' + oldMode + '','' + newMode + '')">保持运行(默认,推荐)</button>' +
+    '<button type="button" class="btn btn-outline btn-xs" onclick="dPolicy('pause','' + oldMode + '','' + newMode + '')">暂停旧模式任务</button>' +
+    '</span>'
+  el.style.display = ''
+}
+function dPolicy(choice, oldMode, newMode) {
+  if (choice === 'pause') dT[oldMode].paused = dT[oldMode].made
+  var el = document.getElementById('d_excl')
+  el.innerHTML = choice === 'pause'
+    ? '⏸️ 已暂停旧「' + (oldMode === 'all' ? '完全同步' : '条件增量') + '」自动创建的 ' + dT[oldMode].made + ' 个任务(可随时恢复,未删除任何任务)。当前模式:「' + (newMode === 'all' ? '完全同步' : '条件增量') + '」已生效。'
+    : '✅ 已保持旧模式任务运行。当前模式:「' + (newMode === 'all' ? '完全同步' : '条件增量') + '」已生效——只影响之后新出现的歌单。'
+}
+function dResume(mode) {
+  dT[mode].paused = 0
+  dBanner()
+}
+function dMaster() {
+  var on = document.getElementById('p_master').checked
+  if (!on) { document.getElementById('p2_enable').checked = false; document.getElementById('p2b_enable').checked = false }
+  dBanner()
+  dSync('p2'); dSync('p2b')
+}
+
 function dSum(p) {
   var sum = document.getElementById(p + '_sum')
   if (!sum) return
@@ -312,5 +344,5 @@ function dSync(p) {
   if (delBox) delBox.style.display = sel === 'mirror' ? '' : 'none'
   dSum(p)
 }
-dShowExcl(); dSync('p1'); dSync('p2'); dSync('p2b')
+dBanner(); dSync('p1'); dSync('p2'); dSync('p2b')
 </script>
