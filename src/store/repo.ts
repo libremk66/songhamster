@@ -1,4 +1,5 @@
 import { getDb, type BatchResult, type SongStatus, type SyncMode, type SyncTaskRow } from './db.js'
+import type { DelPolicy, TaskMode } from '../config.js'
 
 // ===== sync_task =====
 
@@ -33,6 +34,11 @@ export function createTask(input: {
   createSameNamePlaylist?: boolean
   cronExpr?: string | null
   syncMode?: SyncMode
+  /** 新语义同步方式;缺省 = null(由 syncMode 兼容映射) */
+  mode?: TaskMode
+  delPolicy?: DelPolicy
+  archivePlaylist?: string | null
+  origin?: string
   dedupCheck?: boolean
   dedupMinQuality?: string | null
   taskType?: 'playlist' | 'chart' | 'adhoc'
@@ -42,8 +48,8 @@ export function createTask(input: {
   maxCount?: number
 }): number {
   const stmt = getDb().prepare(
-    `INSERT INTO sync_task (lxPlaylistKey, lxPlaylistName, taskType, chartSource, chartId, chartName, maxCount, enabled, embyTargetPlaylistIds, createSameNamePlaylist, cronExpr, syncMode, dedupCheck, dedupMinQuality)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO sync_task (lxPlaylistKey, lxPlaylistName, taskType, chartSource, chartId, chartName, maxCount, enabled, embyTargetPlaylistIds, createSameNamePlaylist, cronExpr, syncMode, mode, delPolicy, archivePlaylist, origin, dedupCheck, dedupMinQuality)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
   const info = stmt.run(
     input.lxPlaylistKey,
@@ -57,6 +63,10 @@ export function createTask(input: {
     input.createSameNamePlaylist !== false ? 1 : 0,
     input.cronExpr ?? null,
     input.syncMode ?? 'incremental',
+    input.mode ?? null,
+    input.delPolicy ?? 'keep',
+    input.archivePlaylist ?? null,
+    input.origin ?? 'manual',
     input.dedupCheck ? 1 : 0,
     input.dedupMinQuality ?? null,
   )
@@ -69,7 +79,7 @@ export function updateTask(id: number, patch: Partial<SyncTaskRow>): void {
   const next = { ...cur, ...patch }
   getDb()
     .prepare(
-      `UPDATE sync_task SET lxPlaylistName=?, taskType=?, chartSource=?, chartId=?, chartName=?, maxCount=?, enabled=?, embyTargetPlaylistIds=?, createSameNamePlaylist=?, cronExpr=?, syncMode=?, lastRunAt=?, lastResult=?, dedupCheck=?, dedupMinQuality=? WHERE id=?`,
+      `UPDATE sync_task SET lxPlaylistName=?, taskType=?, chartSource=?, chartId=?, chartName=?, maxCount=?, enabled=?, embyTargetPlaylistIds=?, createSameNamePlaylist=?, cronExpr=?, syncMode=?, mode=?, delPolicy=?, archivePlaylist=?, origin=?, lastRunAt=?, lastResult=?, dedupCheck=?, dedupMinQuality=? WHERE id=?`,
     )
     .run(
       next.lxPlaylistName,
@@ -83,6 +93,10 @@ export function updateTask(id: number, patch: Partial<SyncTaskRow>): void {
       next.createSameNamePlaylist,
       next.cronExpr,
       next.syncMode,
+      next.mode,
+      next.delPolicy,
+      next.archivePlaylist,
+      next.origin,
       next.lastRunAt,
       next.lastResult,
       next.dedupCheck,

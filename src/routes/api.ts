@@ -1,6 +1,6 @@
 import { Router } from 'express'
-import type { AppConfig, Quality } from '../config.js'
-import { QUALITY_ORDER, QUALITY_LABELS, TARGET_LABEL } from '../config.js'
+import type { AppConfig, ListenParams, Quality } from '../config.js'
+import { QUALITY_ORDER, QUALITY_LABELS, TARGET_LABEL, DEFAULT_ARCHIVE_PLAYLIST } from '../config.js'
 import { saveConfig } from '../config.js'
 import { LxServerAdapter } from '../adapters/lxserver.js'
 import type { MediaServerAdapter } from '../adapters/media-server.js'
@@ -491,6 +491,9 @@ export function apiRouter(
       createSameNamePlaylist: bool(b.createSameNamePlaylist),
       cronExpr: String(b.cronExpr ?? '').trim() || null,
       syncMode: b.syncMode === 'full' ? 'full' : 'incremental',
+      mode: isChart ? undefined : (b.mode === 'mirror' || b.mode === 'incremental' ? b.mode : undefined),
+      delPolicy: isChart ? undefined : (['keep', 'delete', 'archive'].includes(b.delPolicy) ? b.delPolicy : undefined),
+      archivePlaylist: isChart ? undefined : (String(b.archivePlaylist ?? '').trim() || undefined),
       dedupCheck: bool(b.dedupCheck),
       dedupMinQuality: String(b.dedupMinQuality ?? '').trim() || null,
       taskType: isChart ? 'chart' : 'playlist',
@@ -762,6 +765,50 @@ export function apiRouter(
     cfg.download.protection.resolveIntervalSec = Math.min(30, Math.max(1, rs || 2))
     saveConfig(cfg)
     res.send(ok('保护设置已保存'))
+  })
+
+  // ===== 监听同步配置(单监听器+模式互斥;新模型,见 docs/sync-redesign-spec.md)=====
+  function parseStrArray(v: unknown): string[] {
+    if (Array.isArray(v)) return v.map(String)
+    if (typeof v === 'string') return v.split(/[,，\s]+/).filter(Boolean)
+    return []
+  }
+  function applyListenParams(dst: ListenParams, src: Record<string, unknown>): void {
+    if (src.createSameNamePlaylist !== undefined) dst.createSameNamePlaylist = bool(src.createSameNamePlaylist)
+    const ids = Array.isArray(src.embyTarget) ? src.embyTarget : src.embyTarget ? [src.embyTarget] : undefined
+    if (ids !== undefined) dst.embyTargetPlaylistIds = ids.map(String)
+    if (src.taskMode === 'mirror' || src.taskMode === 'incremental') dst.taskMode = src.taskMode
+    if (['keep', 'delete', 'archive'].includes(String(src.delPolicy))) dst.delPolicy = src.delPolicy as ListenParams['delPolicy']
+    if (src.archivePlaylist !== undefined) dst.archivePlaylist = String(src.archivePlaylist ?? '').trim() || DEFAULT_ARCHIVE_PLAYLIST
+    if (src.taskCron !== undefined) dst.taskCron = String(src.taskCron ?? '').trim()
+    if (src.dedupCheck !== undefined) dst.dedupCheck = bool(src.dedupCheck)
+    if (src.dedupMinQuality !== undefined) dst.dedupMinQuality = String(src.dedupMinQuality ?? '').trim() || null
+  }
+  r.post('/config/listen', (req, res) => {
+    const b = (req.body ?? {}) as Record<string, unknown>
+    const L = cfg.general.listen
+    if (b.enabled !== undefined) L.enabled = bool(b.enabled)
+    if (b.activeMode === 'all' || b.activeMode === 'filtered') L.activeMode = b.activeMode
+    if (b.checkCron !== undefined) L.checkCron = String(b.checkCron ?? '').trim()
+    if (b.all) applyListenParams(L.all, b.all as Record<string, unknown>)
+    const f = b.filtered as Record<string, unknown> | undefined
+    if (f) {
+      if (f.params) applyListenParams(L.filtered.params, f.params as Record<string, unknown>)
+      const ru = f.rules as Record<string, unknown> | undefined
+      if (ru) {
+        for (const g of ['exclude', 'match'] as const) {
+          const grp = ru[g] as Record<string, unknown> | undefined
+          if (!grp) continue
+          const dst = L.filtered.rules[g]
+          if (grp.enabled !== undefined) dst.enabled = bool(grp.enabled)
+          if (grp.playlists !== undefined) dst.playlists = parseStrArray(grp.playlists)
+          if (grp.keywords !== undefined) dst.keywords = parseStrArray(grp.keywords)
+        }
+      }
+    }
+    saveConfig(cfg)
+    scheduler.reload()
+    res.send(ok('监听设置已保存'))
   })
 
   // ===== 自动新增同步任务 =====

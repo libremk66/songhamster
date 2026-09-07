@@ -53,6 +53,129 @@ export interface AutoAddConfig {
   dedupMinQuality: string | null
 }
 
+// ===== 歌单同步重设计(见 docs/sync-redesign-spec.md)=====
+
+/** 镜像删除处理策略 */
+export type DelPolicy = 'keep' | 'delete' | 'archive'
+/** 同步方式:incremental=增量(只增) | mirror=镜像(增删同步;旧 full 等价 mirror+keep) */
+export type TaskMode = 'incremental' | 'mirror'
+
+/** 监听模式默认参数(新自动任务继承) */
+export interface ListenParams {
+  createSameNamePlaylist: boolean
+  embyTargetPlaylistIds: string[]
+  taskMode: TaskMode
+  delPolicy: DelPolicy
+  archivePlaylist: string
+  taskCron: string
+  dedupCheck: boolean
+  dedupMinQuality: string | null
+}
+export interface ListenRulesSet {
+  enabled: boolean
+  /** 命中的现有歌单(key 或名称,按任务名匹配) */
+  playlists: string[]
+  /** 歌单名关键词(逗号分隔存数组) */
+  keywords: string[]
+}
+export interface ListenRules {
+  exclude: ListenRulesSet
+  match: ListenRulesSet
+}
+export interface FilteredListen {
+  rules: ListenRules
+  params: ListenParams
+}
+/** 监听同步(单监听器 + 模式互斥:all=完全 | filtered=条件增量) */
+export interface ListenConfig {
+  enabled: boolean
+  activeMode: 'all' | 'filtered'
+  checkCron: string
+  baselineDate: string
+  baselineKeys: string[]
+  ignoredKeys: string[]
+  all: ListenParams
+  filtered: FilteredListen
+}
+
+export const DEFAULT_ARCHIVE_PLAYLIST = '歌单同步任务归档'
+
+function baseListenParams(): ListenParams {
+  return {
+    createSameNamePlaylist: true,
+    embyTargetPlaylistIds: [],
+    taskMode: 'incremental',
+    delPolicy: 'keep',
+    archivePlaylist: DEFAULT_ARCHIVE_PLAYLIST,
+    taskCron: '',
+    dedupCheck: false,
+    dedupMinQuality: null,
+  }
+}
+
+export function defaultListen(): ListenConfig {
+  return {
+    enabled: false,
+    activeMode: 'all',
+    checkCron: '0 7 * * *',
+    baselineDate: '',
+    baselineKeys: [],
+    ignoredKeys: [],
+    all: baseListenParams(),
+    filtered: {
+      rules: {
+        exclude: { enabled: false, playlists: [], keywords: [] },
+        match: { enabled: false, playlists: [], keywords: [] },
+      },
+      params: baseListenParams(),
+    },
+  }
+}
+
+/** 旧 autoadd → listen.all(旧 full = mirror+keep);listen 未显式配置时用此推导,保证升级无行为漂移 */
+export function deriveListenFromAutoadd(a: AutoAddConfig): ListenConfig {
+  const mk = (src: AutoAddConfig): ListenParams => ({
+    createSameNamePlaylist: src.createSameNamePlaylist,
+    embyTargetPlaylistIds: [...src.embyTargetPlaylistIds],
+    taskMode: src.syncMode === 'full' ? 'mirror' : 'incremental',
+    delPolicy: 'keep',
+    archivePlaylist: DEFAULT_ARCHIVE_PLAYLIST,
+    taskCron: src.taskCron,
+    dedupCheck: src.dedupCheck,
+    dedupMinQuality: src.dedupMinQuality,
+  })
+  const L = defaultListen()
+  L.enabled = a.enabled
+  L.checkCron = a.checkCron
+  L.baselineDate = a.baselineDate
+  L.baselineKeys = [...a.baselineKeys]
+  L.ignoredKeys = [...a.ignoredKeys]
+  L.all = mk(a)
+  return L
+}
+
+/** 深合并 listen 各层(defaults ← file) */
+export function mergeListen(file?: Partial<ListenConfig>): ListenConfig {
+  const L = defaultListen()
+  if (!file) return L
+  const p = (src?: Partial<ListenParams>): ListenParams => ({ ...baseListenParams(), ...src })
+  const rs = (src?: Partial<ListenRulesSet>): ListenRulesSet => ({ enabled: false, playlists: [], keywords: [], ...src })
+  return {
+    ...L,
+    ...file,
+    baselineKeys: file.baselineKeys ?? L.baselineKeys,
+    ignoredKeys: file.ignoredKeys ?? L.ignoredKeys,
+    all: p(file.all),
+    filtered: {
+      rules: {
+        exclude: rs(file.filtered?.rules?.exclude),
+        match: rs(file.filtered?.rules?.match),
+      },
+      params: p(file.filtered?.params),
+    },
+  }
+}
+
 /** 批量下载保护（仿 Songloft）：串行 + 间隔，防音源限流封禁 */
 export interface DownloadProtection {
   /** 开关（推荐开启） */
@@ -132,8 +255,10 @@ export interface AppConfig {
     /** 暂停所有同步 */
     pauseAll: boolean
     logRetentionDays: number
-    /** 自动新增同步任务 */
+    /** 自动新增同步任务(旧模型,Phase C 后由 listen 取代;兼容保留) */
     autoadd: AutoAddConfig
+    /** 监听同步(单监听器+模式互斥)——歌单同步重设计新模型 */
+    listen: ListenConfig
     /** 项目主页（侧栏"帮助"链接） */
     githubUrl: string
   }
@@ -215,6 +340,7 @@ export const DEFAULT_CONFIG: AppConfig = {
       dedupCheck: false,
       dedupMinQuality: null,
     },
+    listen: defaultListen(),
     githubUrl: '',
   },
   notify: { enabled: false, feishuWebhook: '' },
@@ -276,6 +402,10 @@ export function loadConfig(): AppConfig {
       ...DEFAULT_CONFIG.general,
       ...fileCfg?.general,
       autoadd: { ...DEFAULT_CONFIG.general.autoadd, ...fileCfg?.general?.autoadd },
+      // listen:文件显式配置则深合并;否则由旧 autoadd 推导(等价迁移,行为不漂移)
+      listen: fileCfg?.general?.listen
+        ? mergeListen(fileCfg.general.listen)
+        : deriveListenFromAutoadd({ ...DEFAULT_CONFIG.general.autoadd, ...fileCfg?.general?.autoadd }),
     },
     notify: { ...DEFAULT_CONFIG.notify, ...fileCfg?.notify },
     server: { ...DEFAULT_CONFIG.server, ...fileCfg?.server },

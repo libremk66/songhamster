@@ -2,10 +2,19 @@ import Database from 'better-sqlite3'
 import { mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { DB_PATH } from '../config.js'
+import type { DelPolicy, TaskMode } from '../config.js'
 
-export type SyncMode = 'incremental' | 'full'
+export type SyncMode = 'incremental' | 'full' // 旧列(兼容);新语义见 mode/taskSemantics
 export type SongStatus = 'success' | 'failed' | 'unsatisfied' | 'removed' | 'skipped_dup' | 'dedup'
 export type BatchResult = 'success' | 'partial' | 'failed'
+
+/** 旧 full 在新语义下的映射(mirror+keep)——读取任务时统一走这里 */
+export function taskSemantics(t: { mode?: TaskMode | null; syncMode?: SyncMode | null; delPolicy?: DelPolicy | null }) {
+  return {
+    taskMode: (t.mode ?? (t.syncMode === 'full' ? 'mirror' : 'incremental')) as TaskMode,
+    delPolicy: (t.delPolicy ?? 'keep') as DelPolicy,
+  }
+}
 
 export interface SyncTaskRow {
   id: number
@@ -21,6 +30,14 @@ export interface SyncTaskRow {
   createSameNamePlaylist: number
   cronExpr: string | null
   syncMode: SyncMode
+  /** 新语义同步方式:null=旧任务(按 syncMode 映射:full→mirror) */
+  mode: TaskMode | null
+  /** 镜像删除策略 */
+  delPolicy: DelPolicy
+  /** 归档歌单名(delPolicy=archive 时用) */
+  archivePlaylist: string | null
+  /** 任务来源:manual | auto-all | auto-filtered(监听自动创建分组/切换策略用) */
+  origin: string
   lastRunAt: string | null
   lastResult: string | null
   dedupCheck: number
@@ -55,6 +72,10 @@ function migrate(d: Database.Database): void {
       createSameNamePlaylist INTEGER NOT NULL DEFAULT 1,
       cronExpr TEXT,
       syncMode TEXT NOT NULL DEFAULT 'incremental',
+      mode TEXT,                                -- 新语义:incremental|mirror(null=旧任务按 syncMode 映射)
+      delPolicy TEXT NOT NULL DEFAULT 'keep',   -- 镜像删除策略 keep|delete|archive
+      archivePlaylist TEXT,                     -- 归档歌单名
+      origin TEXT NOT NULL DEFAULT 'manual',    -- manual|auto-all|auto-filtered
       lastRunAt TEXT,
       lastResult TEXT,
       dedupCheck INTEGER NOT NULL DEFAULT 0,
@@ -189,6 +210,10 @@ function migrate(d: Database.Database): void {
   }
   ensureCol('sync_task', 'dedupCheck', 'dedupCheck INTEGER NOT NULL DEFAULT 0')
   ensureCol('sync_task', 'dedupMinQuality', 'dedupMinQuality TEXT')
+  ensureCol('sync_task', 'mode', 'mode TEXT')
+  ensureCol('sync_task', 'delPolicy', "delPolicy TEXT NOT NULL DEFAULT 'keep'")
+  ensureCol('sync_task', 'archivePlaylist', 'archivePlaylist TEXT')
+  ensureCol('sync_task', 'origin', "origin TEXT NOT NULL DEFAULT 'manual'")
   ensureCol('sync_task', 'taskType', "taskType TEXT NOT NULL DEFAULT 'playlist'")
   ensureCol('sync_task', 'chartSource', 'chartSource TEXT')
   ensureCol('sync_task', 'chartId', 'chartId TEXT')
