@@ -77,17 +77,18 @@
               <input type="checkbox" id="mk_exist" class="checkbox checkbox-sm" onchange="mkRefresh()">
               <span class="text-sm">同步到<b>已有</b>播放列表/歌单</span>
             </label>
-            <div id="mk_existbox" style="display:none" class="ml-6 mt-1">
-              <div class="flex flex-wrap gap-x-4">
-                <% if (embyPlaylists.length) { %>
-                  <% for (const p of embyPlaylists) { %>
-                  <label class="flex items-center gap-2 cursor-pointer py-0.5"><input type="checkbox" name="embyTarget" value="<%= p.id %>" class="checkbox checkbox-xs"><span class="text-sm"><%= p.name %></span></label>
-                  <% } %>
-                <% } else { %>
-                  <span class="text-xs c-sub">连接 <%= targetName %> 后可选择</span>
-                <% } %>
-              </div>
-            </div>
+  <div id="mk_existbox" style="display:none" class="ml-6 mt-1">
+    <% if (embyPlaylists.length) { %>
+    <select name="embyTarget" multiple size="5" class="select select-bordered" style="width:26rem;max-width:100%">
+      <% for (const p of embyPlaylists) { %>
+      <option value="<%= p.id %>"><%= p.name %></option>
+      <% } %>
+    </select>
+    <p class="text-xs c-sub mt-1">按住 Ctrl/Cmd 多选;所选播放列表将同时作为同步目标(镜像删除只处理本任务产生的歌曲)</p>
+    <% } else { %>
+    <span class="text-xs c-sub">连接 <%= targetName %> 后可选择</span>
+    <% } %>
+  </div>
             <div id="mk_note" class="d-note mt-2" style="display:none">🔒 镜像 + 已有歌单:只移除/加入<b>本任务产生的歌曲</b>;你手动加的与接管前已存在的歌曲不动(所有权追踪)。</div>
           </div>
 
@@ -155,11 +156,16 @@
     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="pA_exist" class="checkbox checkbox-sm" onchange="existToggle('pA')"><span class="text-sm">同步到已有播放列表/歌单</span></label>
   </div>
   <div id="pA_existbox" style="display:none" class="ml-6 mt-1">
-    <div class="flex flex-wrap gap-x-4">
-      <% if (embyPlaylists.length) { %><% for (const p of embyPlaylists) { %>
-      <label class="flex items-center gap-2 cursor-pointer py-0.5"><input type="checkbox" name="all[embyTarget]" value="<%= p.id %>" class="checkbox checkbox-xs"><span class="text-sm"><%= p.name %></span></label>
-      <% } %><% } else { %><span class="text-xs c-sub">连接 <%= targetName %> 后可选择</span><% } %>
-    </div>
+    <% if (embyPlaylists.length) { %>
+    <select name="all[embyTarget]" multiple size="5" class="select select-bordered" style="width:24rem;max-width:100%">
+      <% for (const p of embyPlaylists) { %>
+      <option value="<%= p.id %>"><%= p.name %></option>
+      <% } %>
+    </select>
+    <p class="text-xs c-sub mt-1">按住 Ctrl/Cmd 多选;所选播放列表将同时作为同步目标(镜像删除只处理本任务产生的歌曲)</p>
+    <% } else { %>
+    <span class="text-xs c-sub">连接 <%= targetName %> 后可选择</span>
+    <% } %>
   </div>
   <div class="mt-1">
     <label class="dopt" onclick="LPick('pA','incremental')">
@@ -205,11 +211,16 @@
     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="pF_exist" class="checkbox checkbox-sm" onchange="existToggle('pF')"><span class="text-sm">同步到已有播放列表/歌单</span></label>
   </div>
   <div id="pF_existbox" style="display:none" class="ml-6 mt-1">
-    <div class="flex flex-wrap gap-x-4">
-      <% if (embyPlaylists.length) { %><% for (const p of embyPlaylists) { %>
-      <label class="flex items-center gap-2 cursor-pointer py-0.5"><input type="checkbox" name="filtered[params][embyTarget]" value="<%= p.id %>" class="checkbox checkbox-xs"><span class="text-sm"><%= p.name %></span></label>
-      <% } %><% } else { %><span class="text-xs c-sub">连接 <%= targetName %> 后可选择</span><% } %>
-    </div>
+    <% if (embyPlaylists.length) { %>
+    <select name="filtered[params][embyTarget]" multiple size="5" class="select select-bordered" style="width:24rem;max-width:100%">
+      <% for (const p of embyPlaylists) { %>
+      <option value="<%= p.id %>"><%= p.name %></option>
+      <% } %>
+    </select>
+    <p class="text-xs c-sub mt-1">按住 Ctrl/Cmd 多选;所选播放列表将同时作为同步目标(镜像删除只处理本任务产生的歌曲)</p>
+    <% } else { %>
+    <span class="text-xs c-sub">连接 <%= targetName %> 后可选择</span>
+    <% } %>
   </div>
   <div class="mt-1">
     <label class="dopt" onclick="LPick('pF','incremental')">
