@@ -139,6 +139,12 @@ export const LAYOUT = `<!doctype html>
     /* 按钮内图标:继承文字色(点击/悬停/禁用状态色随文字走) */
     .btn svg { width: 1.2em; height: 1.2em; margin-right: .3em; flex-shrink: 0; }
     .btn svg:only-child { margin-right: 0; }
+    /* 统一状态圆章:打勾=绿底白勾,打叉=红底白叉(表格状态列通用) */
+    .icv { display: inline-flex; align-items: center; justify-content: center; width: 1.15rem; height: 1.15rem;
+           border-radius: 999px; color: #fff; vertical-align: -2px; }
+    .icv svg { width: .72rem; height: .72rem; }
+    .icv-on { background: var(--sfg); }
+    .icv-off { background: #e03131; }
     /* 主操作(填充型):亮绿底 + 深绿字;字号 11px、窄内边距 */
     .btn-primary { padding-left: .4rem; padding-right: .4rem; font-size: .6875rem; font-weight: 600;
                    background-color: var(--sfg); border-color: var(--sfg); color: var(--sfg-ink); }

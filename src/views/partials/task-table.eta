@@ -1,3 +1,5 @@
+<% const ON = '<span class="icv icv-on" title="是"><svg aria-hidden="true"><use href="#i-check"/></svg></span>' %>
+<% const OFF = '<span class="icv icv-off" title="否"><svg aria-hidden="true"><use href="#i-x"/></svg></span>' %>
 <table class="table table-sm w-full text-sm">
   <thead>
     <tr class="c-sub">
@@ -14,13 +16,13 @@
       <td><% if (t.taskType === 'chart') { %>🏆 <% } %><%= t.lxPlaylistName %><% if (t.taskType === 'chart') { %> <small class="hint">（榜单订阅，管理见「榜单订阅」页）</small><% } %></td>
       <td>
         <% if (t.embyTargetPlaylistIdsParsed.length) { %>
-          <small><% for (const pid of t.embyTargetPlaylistIdsParsed) { %><%= (idToName && idToName[pid]) || pid %>、<% } %></small>
-        <% } else { %>—<% } %>
+          <span class="flex items-center gap-1.5"><%= ON %><small><% for (const pid of t.embyTargetPlaylistIdsParsed) { %><%= (idToName && idToName[pid]) || pid %>、<% } %></small></span>
+        <% } else { %><%= OFF %><% } %>
       </td>
-      <td><%= t.createSameNamePlaylist ? '✅' : '—' %></td>
+      <td><%= t.createSameNamePlaylist ? ON : OFF %></td>
       <td><%= t.syncMode === 'full' ? '完全' : '增量' %></td>
       <td><small><%= t.cronExpr || '仅手动' %></small></td>
-      <td><%= t.enabled ? '🟢' : '⚪' %></td>
+      <td><%= t.enabled ? ON : OFF %></td>
       <td><%= t.lastResult ?? '—' %></td>
       <td class="act">
         <button class="btn btn-primary btn-xs" hx-post="/api/task/<%= t.id %>/run" hx-target="closest td" hx-swap="outerHTML"><svg aria-hidden="true"><use href="#i-play"/></svg>同步</button>
