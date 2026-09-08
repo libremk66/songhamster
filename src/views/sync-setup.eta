@@ -32,6 +32,8 @@
   .sumcell:first-child { border-left: 0; }
   .sumlabel { font-size: .7rem; color: oklch(var(--bc) / 0.6); white-space: nowrap; }
   .sumcell > span:last-child { white-space: nowrap; }
+  /* 监听摘要框:主题绿柔光 */
+  .sum-glow { box-shadow: 0 0 0 1px color-mix(in oklab, var(--sfg) 25%, transparent), 0 0 14px color-mix(in oklab, var(--sfg) 22%, transparent); }
 </style>
 <div class="space-y-4">
 
@@ -46,7 +48,7 @@
   <section class="card tier1 border border-base-300 shadow-sm">
     <div class="card-body gap-3">
       <h3 class="sec-green">我的歌单同步任务</h3>
-      <div class="rounded-lg border border-base-300 overflow-x-auto mb-2">
+      <div class="rounded-lg border border-base-300 overflow-x-auto mb-2 sum-glow">
         <div class="flex min-w-max divide-x divide-base-200">
           <div class="sumcell flex flex-col justify-center gap-0.5">
             <span class="sumlabel">监听</span>
