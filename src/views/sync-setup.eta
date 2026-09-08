@@ -34,7 +34,6 @@
   <header>
     <div class="flex items-center gap-2 flex-wrap">
       <h2 class="text-lg font-extrabold tracking-tight">歌单同步</h2>
-      <span class="badge badge-outline badge-sm font-normal px-2 py-1 text-xs" id="mode-chip"><%= listen.enabled ? (listen.activeMode === 'all' ? '监听已启用 · 完全同步' : '监听已启用 · 条件增量') : '监听未启用' %></span>
     </div>
   </header>
 
@@ -44,6 +43,32 @@
       <h3 class="sec-green">我的歌单同步任务</h3>
       <div id="task-table" class="overflow-x-auto" hx-get="/api/tasks/table?scope=playlist" hx-trigger="load">
         <p class="c-sub text-xs py-6 text-center">加载中…</p>
+      </div>
+
+      <!-- ===== 监听同步摘要(单行,样式同任务表格) ===== -->
+      <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 pt-2 border-t border-base-200 text-xs c-sub">
+        <span class="flex items-center gap-1.5">
+          <span class="icv <%= listen.enabled ? 'icv-on' : 'icv-off' %>"><svg aria-hidden="true"><use href="#i-<%= listen.enabled ? 'check' : 'x' %>"/></svg></span>
+          <b class="c-mid">监听同步</b>
+        </span>
+        <span><%= listen.enabled ? '已启用' : '未启用' %></span>
+        <span>模式:<b><%= listen.activeMode === 'all' ? '完全同步' : '条件增量' %></b></span>
+        <span>检测:<code class="bg-base-200 px-1 rounded"><%= listen.checkCron %></code></span>
+        <% if (listen.activeMode === 'filtered') { %>
+        <span>规则:
+          排除 <%= listen.filtered.rules.exclude.enabled ? (listen.filtered.rules.exclude.keywords.join('、') || '有歌单') : '关' %>
+          ｜ 匹配 <%= listen.filtered.rules.match.enabled ? (listen.filtered.rules.match.keywords.join('、') || '有歌单') : '关' %>
+        </span>
+        <% } %>
+        <span>默认:
+          同名 <%= (listen.activeMode === 'all' ? listen.all : listen.filtered.params).createSameNamePlaylist ? '是' : '否' %>
+          ｜ 已有 <%= (listen.activeMode === 'all' ? listen.all : listen.filtered.params).embyTargetPlaylistIds.length %> 个
+          ｜ <%= (listen.activeMode === 'all' ? listen.all : listen.filtered.params).taskMode === 'mirror' ? '镜像' : '增量' %>
+          <% if ((listen.activeMode === 'all' ? listen.all : listen.filtered.params).taskMode === 'mirror') { %>
+          ｜ <%= (listen.activeMode === 'all' ? listen.all : listen.filtered.params).delPolicy === 'delete' ? '删除处理2(删文件)' : (listen.activeMode === 'all' ? listen.all : listen.filtered.params).delPolicy === 'archive' ? '处理3 归档:' + (listen.activeMode === 'all' ? listen.all : listen.filtered.params).archivePlaylist : '处理1(文件不删)' %>
+          <% } %>
+          ｜ 任务cron <%= (listen.activeMode === 'all' ? listen.all : listen.filtered.params).taskCron || '空(立即一次)' %>
+        </span>
       </div>
     </div>
   </section>
@@ -322,7 +347,6 @@ function pickMode(scope, val) {
     var all = val === 'all'
     document.getElementById('ls_all_box').classList.toggle('hidden', !all)
     document.getElementById('ls_filtered_box').classList.toggle('hidden', all)
-    document.getElementById('mode-chip').textContent = '监听:' + (all ? '完全同步' : '条件增量')
   }
 }
 // 监听默认参数区:与单任务同构的联动(按 pA=all / pF=filtered 前缀)
