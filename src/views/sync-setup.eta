@@ -17,6 +17,9 @@
   .dopt-title { font-weight: 600; font-size: .875rem; }
   .d-note { border-left: 3px solid var(--sfg); background: color-mix(in oklab, var(--sfg) 7%, transparent);
             padding: .5rem .7rem; border-radius: .3rem; font-size: .8125rem; }
+  /* 一级卡片:浅灰 50% 半透明底(其它内框保持原底色) */
+  .tier1 { background: oklch(0.94 0 0 / 0.5); }
+  @media (prefers-color-scheme: dark) { .tier1 { background: oklch(0.3 0 0 / 0.5); } }
 </style>
 <div class="space-y-4">
 
@@ -29,7 +32,7 @@
   </header>
 
   <!-- ===== 我的歌单同步任务 ===== -->
-  <section class="card bg-base-100 border border-base-300 shadow-sm">
+  <section class="card tier1 border border-base-300 shadow-sm">
     <div class="card-body gap-3">
       <h3 class="sec-green">我的歌单同步任务</h3>
       <div id="task-table" class="overflow-x-auto" hx-get="/api/tasks/table?scope=playlist" hx-trigger="load">
@@ -39,7 +42,7 @@
   </section>
 
   <!-- ===== 创建 / 监听 ===== -->
-  <section class="card bg-base-100 border border-base-300 shadow-sm">
+  <section class="card tier1 border border-base-300 shadow-sm">
     <div class="card-body gap-3">
       <h3 class="sec-green">创建歌单同步任务</h3>
       <p class="text-xs c-sub" style="margin:-.35rem 0 .6rem">选择歌单创建单个任务;或开启监听,新出现的歌单自动同步</p>
