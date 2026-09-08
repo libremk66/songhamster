@@ -26,6 +26,8 @@ import { fmtLocal } from '../views/fmt.js'
 const ok = (msg: string) => `<span class="ok">✅ ${msg}</span>`
 const err = (msg: string) => `<span class="bad">❌ ${msg}</span>`
 const bool = (v: unknown) => v === '1' || v === true || v === 1
+// 表单复选:隐藏 0 占位 + 勾选 1 → qs 解析为数组;任一 '1' 即 true(未勾选只发 [0] → false)
+const boolV = (v: unknown): boolean => (Array.isArray(v) ? v.some((x) => x === '1' || x === true || x === 1) : bool(v))
 
 
 export function apiRouter(
@@ -810,20 +812,20 @@ export function apiRouter(
     return []
   }
   function applyListenParams(dst: ListenParams, src: Record<string, unknown>): void {
-    if (src.createSameNamePlaylist !== undefined) dst.createSameNamePlaylist = bool(src.createSameNamePlaylist)
+    dst.createSameNamePlaylist = boolV(src.createSameNamePlaylist)
     const ids = Array.isArray(src.embyTarget) ? src.embyTarget : src.embyTarget ? [src.embyTarget] : undefined
     if (ids !== undefined) dst.embyTargetPlaylistIds = ids.map(String)
     if (src.taskMode === 'mirror' || src.taskMode === 'incremental') dst.taskMode = src.taskMode
     if (['keep', 'delete', 'archive'].includes(String(src.delPolicy))) dst.delPolicy = src.delPolicy as ListenParams['delPolicy']
     if (src.archivePlaylist !== undefined) dst.archivePlaylist = String(src.archivePlaylist ?? '').trim() || DEFAULT_ARCHIVE_PLAYLIST
     if (src.taskCron !== undefined) dst.taskCron = String(src.taskCron ?? '').trim()
-    if (src.dedupCheck !== undefined) dst.dedupCheck = bool(src.dedupCheck)
+    dst.dedupCheck = boolV(src.dedupCheck)
     if (src.dedupMinQuality !== undefined) dst.dedupMinQuality = String(src.dedupMinQuality ?? '').trim() || null
   }
   r.post('/config/listen', (req, res) => {
     const b = (req.body ?? {}) as Record<string, unknown>
     const L = cfg.general.listen
-    if (b.enabled !== undefined) L.enabled = bool(b.enabled)
+    L.enabled = boolV(b.enabled)
     if (b.activeMode === 'all' || b.activeMode === 'filtered') L.activeMode = b.activeMode
     if (b.checkCron !== undefined) L.checkCron = String(b.checkCron ?? '').trim()
     if (b.all) applyListenParams(L.all, b.all as Record<string, unknown>)
@@ -836,7 +838,7 @@ export function apiRouter(
           const grp = ru[g] as Record<string, unknown> | undefined
           if (!grp) continue
           const dst = L.filtered.rules[g]
-          if (grp.enabled !== undefined) dst.enabled = bool(grp.enabled)
+          dst.enabled = boolV(grp.enabled)
           if (grp.playlists !== undefined) dst.playlists = parseStrArray(grp.playlists)
           if (grp.keywords !== undefined) dst.keywords = parseStrArray(grp.keywords)
         }
