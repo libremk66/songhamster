@@ -57,9 +57,10 @@
       <div id="cpanel1">
         <form method="post" action="/api/tasks" hx-post="/api/tasks/bulk" hx-target="#manual-add-msg" hx-swap="innerHTML" class="space-y-3">
           <div class="rounded-lg border border-base-300 p-3">
-            <div class="flex items-center justify-between gap-2 mb-2">
+            <div class="flex items-center gap-2 mb-2">
               <h4 class="text-sm font-bold">选择 LX 歌单</h4>
               <button type="button" class="btn btn-outline btn-xs px-2" onclick="lxRefresh()"><svg aria-hidden="true"><use href="#i-refresh"/></svg>刷新</button>
+              <span class="text-xs c-sub" id="sel-count">已选 0 个</span>
             </div>
             <div class="rounded-lg border border-base-300 p-2 overflow-y-auto" style="max-height:15rem;width:26rem;max-width:100%">
               <div id="lx-list">
@@ -72,10 +73,7 @@
                 <% if (!lxPlaylists.length) { %><p class="text-xs c-sub py-3 text-center">未获取到 LX 歌单(连接 LX 后刷新)</p><% } %>
               </div>
             </div>
-            <div class="flex items-center justify-between gap-2 mt-1">
-              <p class="text-xs c-sub">逐项勾选可一次为多个歌单创建任务(默认设置相同)。</p>
-              <span class="text-xs c-sub" id="sel-count">已选 0 个</span>
-            </div>
+            <p class="text-xs c-sub mt-1">逐项勾选可一次为多个歌单创建任务(默认设置相同)。</p>
           </div>
 
           <div class="rounded-lg border border-base-300 p-3">
