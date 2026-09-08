@@ -20,6 +20,8 @@
   /* 一级卡片:浅灰 50% 半透明底(其它内框保持原底色) */
   .tier1 { background: oklch(0.94 0 0 / 0.5); }
   @media (prefers-color-scheme: dark) { .tier1 { background: oklch(0.3 0 0 / 0.5); } }
+  /* 内层小框:白底 + 轻阴影(在浅灰一级框上形成层次) */
+  .rounded-lg.border, .dopt { background: oklch(var(--b1)); box-shadow: 0 1px 3px oklch(var(--bc) / 0.12); }
 </style>
 <div class="space-y-4">
 
