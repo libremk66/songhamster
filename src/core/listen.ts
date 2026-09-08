@@ -79,12 +79,17 @@ export async function listenScan(
 ): Promise<{ created: number; names: string[]; skipped: number }> {
   const L = cfg.general.listen
   if (!L.enabled) return { created: 0, names: [], skipped: 0 }
-  await initBaselineIfNeeded(cfg, lx)
+  const isAll = L.activeMode === 'all'
+  if (isAll) await initBaselineIfNeeded(cfg, lx) // 基线仅服务于完全模式(防把现有歌单全部建任务)
 
   const playlists = await lx.listPlaylists()
   const taskKeys = new Set(repo.listTasks().map((t) => t.lxPlaylistKey))
-  const known = new Set([...L.baselineKeys, ...L.ignoredKeys])
-  const fresh = playlists.filter((p) => p.key.startsWith('user:') && !taskKeys.has(p.key) && !known.has(p.key))
+  const ignored = new Set(L.ignoredKeys)
+  const knownBase = isAll ? new Set(L.baselineKeys) : new Set<string>()
+  // 条件模式:无时间窗/基线 —— 规则命中且尚未建任务即纳入(含启用前已存在的歌单)
+  const fresh = playlists.filter(
+    (p) => p.key.startsWith('user:') && !taskKeys.has(p.key) && !ignored.has(p.key) && !knownBase.has(p.key),
+  )
 
   const names: string[] = []
   let skipped = 0

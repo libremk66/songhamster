@@ -142,7 +142,13 @@
             <span class="text-sm">检测计划 cron</span>
             <input name="checkCron" class="input input-bordered font-mono text-xs" style="width:10rem" value="<%= listen.checkCron %>">
             <button type="button" class="btn btn-outline btn-xs px-2" hx-post="/listen/scan" hx-target="#listen-msg">立即检测</button>
-            <span class="text-xs c-sub">基线 <%= listen.baselineKeys.length %> 个歌单<% if (listen.baselineDate) { %> · 自 <%= listen.baselineDate %><% } %>;之后新增歌单按模式自动建任务</span>
+            <span class="text-xs c-sub">
+  <% if (listen.activeMode === 'all') { %>
+    完全模式:启用前已存在的 <%= listen.baselineKeys.length %> 个歌单不自动建;此后<b>新出现</b>的歌单自动建任务
+  <% } else { %>
+    条件模式:<b>无时间窗</b> —— 规则命中且尚未建任务即自动纳入(含现有歌单;保存后点「立即检测」生效)
+  <% } %>
+</span>
           </div>
 
           <div class="rounded-lg border border-base-300 p-3">
