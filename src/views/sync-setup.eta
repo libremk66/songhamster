@@ -33,9 +33,8 @@
   .sumlabel { font-size: .7rem; color: oklch(var(--bc) / 0.6); white-space: nowrap; }
   .sumcell > span:last-child { white-space: nowrap; }
   /* 监听摘要框:主题绿柔光 */
-  /* 组合选择器压过 .rounded-lg.border 的通用浅阴影 */
-  .rounded-lg.border.sum-glow { box-shadow: 0 0 0 1px color-mix(in oklab, var(--sfg) 40%, transparent),
-                                           0 0 16px color-mix(in oklab, var(--sfg) 32%, transparent); }
+  /* 监听摘要框:橙色外框、无阴影 */
+  .rounded-lg.border.sum-glow { border-color: #f59e0b; box-shadow: none; }
 </style>
 <div class="space-y-4">
 
