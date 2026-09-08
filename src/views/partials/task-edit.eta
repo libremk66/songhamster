@@ -1,65 +1,70 @@
 <tr class="edit-row">
   <td colspan="8">
-    <form class="task-edit-form" hx-post="/api/task/<%= t.id %>/update" hx-target="#task-table" hx-swap="innerHTML">
+    <form id="edit-form-<%= t.id %>" class="space-y-2" hx-post="/api/task/<%= t.id %>/update" hx-target="#task-table" hx-swap="innerHTML">
       <% if (t.taskType === 'chart') { %>
-      <div class="line"><span>任务名（播放列表/落盘目录同名）</span>
-        <input name="lxPlaylistName" value="<%= t.lxPlaylistName %>" style="width:18rem">
+      <div class="rounded-lg border border-base-300 p-3 space-y-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-sm font-medium w-24 shrink-0">任务名</span>
+          <input name="lxPlaylistName" value="<%= t.lxPlaylistName %>" class="input input-bordered input-sm" style="width:18rem">
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-sm font-medium w-24 shrink-0">下载范围</span>
+          <input type="number" name="maxCount" value="<%= t.maxCount %>" min="0" class="input input-bordered input-sm" style="width:7rem">
+          <span class="text-xs c-sub">榜单前 N 首,0=全榜</span>
+        </div>
+        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="createSameNamePlaylist" value="1" <%= t.createSameNamePlaylist ? 'checked' : '' %> class="checkbox checkbox-sm"><span class="text-sm">同步到新建同名 <%= targetName %> 播放列表</span></label>
+        <p class="text-xs c-sub">榜单订阅恒为增量(归档只增不删);平台与榜单不可改——换榜请删除后重建。</p>
       </div>
-      <div class="line"><span>下载范围（榜单前 N 首，0=全榜）</span>
-        <input type="number" name="maxCount" value="<%= t.maxCount %>" min="0" style="width:7rem">
-      </div>
-      <div class="line">
-        <label class="opt"><input type="checkbox" name="createSameNamePlaylist" value="1" <%= t.createSameNamePlaylist ? 'checked' : '' %>> 同步到新建同名 <%= targetName %> 播放列表（歌单）</label>
-      </div>
-      <p class="hint">榜单订阅恒为增量（归档只增不删）；平台与榜单不可改——需要换榜请删除后重建。</p>
       <% } else { %>
-      <div class="add-flow">
-        <div class="lx-col">
-          <label>LX 歌单</label>
-          <input type="text" value="<%= t.lxPlaylistName %>" disabled>
+      <div class="rounded-lg border border-base-300 p-3 space-y-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-sm font-medium w-24 shrink-0">LX 歌单</span>
+          <span class="text-sm"><%= t.lxPlaylistName %></span>
         </div>
-        <div class="arrow-col">
-          <span class="arrow-label">同步到 <%= targetName %> 中的<br>播放列表（歌单）</span>
-          <span class="arrow-icon"><img src="/static/logo.svg" alt="→"></span>
-        </div>
-        <div class="target-col">
-          <label class="opt"><input type="checkbox" name="createSameNamePlaylist" value="1" <%= t.createSameNamePlaylist ? 'checked' : '' %>> 同步到新建 <%= targetName %> 播放列表（歌单）</label>
-          <label class="opt"><input type="checkbox" id="to-existing-<%= t.id %>" onchange="toggleExistingId(this, '-<%= t.id %>')" <%= t.embyTargetPlaylistIdsParsed.length ? 'checked' : '' %>> 同步到现有 <%= targetName %> 播放列表（歌单）</label>
+        <div>
+          <span class="text-sm font-medium block mb-1">同步到 <%= targetName %> 的目标</span>
+          <label class="flex items-center gap-2 cursor-pointer py-0.5"><input type="checkbox" name="createSameNamePlaylist" value="1" <%= t.createSameNamePlaylist ? 'checked' : '' %> class="checkbox checkbox-sm"><span class="text-sm">同名播放列表/歌单(自动生成)</span></label>
+          <label class="flex items-center gap-2 cursor-pointer py-0.5"><input type="checkbox" id="to-existing-<%= t.id %>" onchange="toggleExistingId(this, '-<%= t.id %>')" <%= t.embyTargetPlaylistIdsParsed.length ? 'checked' : '' %> class="checkbox checkbox-sm"><span class="text-sm">同步到已有播放列表/歌单</span></label>
           <div class="existing-box" id="existing-box-<%= t.id %>" style="display:<%= t.embyTargetPlaylistIdsParsed.length ? '' : 'none' %>">
-            <% if (embyPlaylists.length) { %>
-              <% for (const p of embyPlaylists) { %>
-              <label style="display:flex;align-items:center;gap:.3rem;margin:.15rem 0">
-                <input type="checkbox" name="embyTarget" value="<%= p.id %>" <%= t.embyTargetPlaylistIdsParsed.includes(p.id) ? 'checked' : '' %>> <%= p.name %>
-              </label>
+            <div class="rounded-lg border border-base-300 p-2 overflow-y-auto" style="max-height:9rem;width:24rem;max-width:100%">
+              <% if (embyPlaylists.length) { %>
+                <% for (const p of embyPlaylists) { %>
+                <label class="flex items-center gap-2 cursor-pointer py-0.5">
+                  <input type="checkbox" name="embyTarget" value="<%= p.id %>" <%= t.embyTargetPlaylistIdsParsed.includes(p.id) ? 'checked' : '' %> class="checkbox checkbox-xs">
+                  <span class="text-sm"><%= p.name %></span>
+                </label>
+                <% } %>
+              <% } else { %>
+                <span class="text-xs c-sub">连接 <%= targetName %> 后可选择</span>
               <% } %>
-            <% } else { %>
-              <span class="hint">连接 Emby 后可选择</span>
-            <% } %>
+            </div>
+          </div>
+        </div>
+        <div>
+          <span class="text-sm font-medium block mb-1">同步方式</span>
+          <label class="flex items-center gap-2 cursor-pointer py-0.5"><input type="radio" name="mode" value="incremental" <%= t.mode === 'incremental' || (!t.mode && t.syncMode !== 'full') ? 'checked' : '' %> class="radio radio-sm" onchange="teMode(<%= t.id %>)"><span class="text-sm"><b>增量</b><span class="text-xs c-sub"> 只增不减</span></span></label>
+          <label class="flex items-center gap-2 cursor-pointer py-0.5"><input type="radio" name="mode" value="mirror" <%= t.mode === 'mirror' || (!t.mode && t.syncMode === 'full') ? 'checked' : '' %> class="radio radio-sm" onchange="teMode(<%= t.id %>)"><span class="text-sm"><b>镜像</b><span class="text-xs c-sub"> 增删同步(旧「完全」)</span></span></label>
+          <div id="edit-del-<%= t.id %>" class="mt-1">
+            <span class="text-xs font-bold c-sub block mb-1">LX 端删除时处理方式:</span>
+            <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="delPolicy" value="keep" <%= t.delPolicy === 'keep' ? 'checked' : '' %> class="radio radio-sm"><span class="text-sm"><b>处理1</b> 歌单移除+文件不删(默认)</span></label>
+            <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="delPolicy" value="delete" <%= t.delPolicy === 'delete' ? 'checked' : '' %> class="radio radio-sm"><span class="text-sm"><b>处理2</b> 歌单移除+删媒体库文件</span></label>
+            <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="delPolicy" value="archive" <%= t.delPolicy === 'archive' ? 'checked' : '' %> class="radio radio-sm"><span class="text-sm"><b>处理3</b> 移入归档歌单: <input name="archivePlaylist" class="input input-bordered input-sm" style="width:12rem" value="<%= t.archivePlaylist || '歌单同步任务归档' %>"></span></label>
           </div>
         </div>
       </div>
-      <div class="line"><span>同步方式</span>
-        <select name="syncMode" id="sel-<%= t.id %>" onchange="showModeDescId(this, '-<%= t.id %>')">
-          <option value="incremental" <%= t.syncMode === 'incremental' ? 'selected' : '' %>>增量（只加新歌）</option>
-          <option value="full" <%= t.syncMode === 'full' ? 'selected' : '' %>>完全（<%= targetName %> 向 LX 看齐：增+删）</option>
-        </select>
-        <span class="mode-desc" id="mode-desc-<%= t.id %>"></span>
+      <% } %>
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-sm font-medium w-24 shrink-0">定时 cron</span>
+        <input name="cronExpr" value="<%= t.cronExpr || '' %>" placeholder="0 6 * * *" class="input input-bordered input-sm font-mono text-xs" style="width:12rem">
+        <span class="text-xs c-sub">空 = 仅手动</span>
       </div>
-<% } %>
-<div class="line"><span>定时 cron（空 = 仅手动）</span>
-        <input name="cronExpr" value="<%= t.cronExpr || '' %>" placeholder="0 6 * * *">
-        <small class="hint">分 时 日 月 周</small>
-      </div>
-      <div class="btn-row">
-        <button type="submit"><svg aria-hidden="true"><use href="#i-save"/></svg>保存</button>
-        <button type="button" class="btn btn-outline btn-xs" hx-get="/api/tasks/table" hx-target="#task-table" hx-swap="innerHTML"><svg aria-hidden="true"><use href="#i-x"/></svg>取消</button>
+      <div class="flex items-center gap-2">
+        <button type="submit" class="btn btn-primary btn-xs px-2"><svg aria-hidden="true"><use href="#i-save"/></svg>保存</button>
+        <button type="button" class="btn btn-outline btn-xs px-2" hx-get="/api/tasks/table?scope=playlist" hx-target="#task-table" hx-swap="innerHTML"><svg aria-hidden="true"><use href="#i-x"/></svg>取消</button>
       </div>
     </form>
     <script>
-      (function () {
-        var sel = document.getElementById('sel-<%= t.id %>')
-        if (sel && window.showModeDescId) showModeDescId(sel, '-<%= t.id %>')
-      })()
+      teMode(<%= t.id %>)
     </script>
   </td>
 </tr>

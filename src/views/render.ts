@@ -367,6 +367,15 @@ var MODE_DESC = {
   incremental: '增量：只下载源歌单里新增的歌，已成功的歌不重复处理。例：LX 歌单加了 2 首新歌 → 只下载这 2 首并加入目标歌单；其它已下载的歌不动。',
   full: '完全：<%= it.targetName %> 播放列表向 LX 歌单看齐（以 LX 为准，单向同步）——LX 新增的歌会下载并加入；你在 LX 歌单里删除的歌，也会从 <%= it.targetName %> 播放列表中移除（本地文件默认保留）。例：删了 LX 歌单 3 首 → 同步后 <%= it.targetName %> 播放列表同步移除这 3 首。'
 }
+function teMode(id) {
+  var f = document.getElementById('edit-form-' + id)
+  if (!f) return
+  var m = f.querySelector('input[name="mode"]:checked')
+  var mirror = m && m.value === 'mirror'
+  var del = document.getElementById('edit-del-' + id)
+  if (del) del.style.display = mirror ? '' : 'none'
+  f.querySelectorAll('input[name="delPolicy"], input[name="archivePlaylist"]').forEach(function (x) { x.disabled = !mirror })
+}
 function toggleExistingId(el, suffix) {
   var box = document.getElementById('existing-box' + suffix)
   if (box) box.style.display = el.checked ? '' : 'none'

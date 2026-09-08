@@ -598,12 +598,16 @@ export function apiRouter(
       return res.send(await taskTableHtml())
     }
     const embyTargets = Array.isArray(b.embyTarget) ? b.embyTarget : b.embyTarget ? [b.embyTarget] : []
+    const newMode = b.mode === 'mirror' || b.mode === 'incremental' ? (b.mode as 'incremental' | 'mirror') : undefined
     repo.updateTask(id, {
       embyTargetPlaylistIds: JSON.stringify(embyTargets.map(String)),
-      createSameNamePlaylist: bool(b.createSameNamePlaylist) ? 1 : 0,
-      syncMode: b.syncMode === 'full' ? 'full' : 'incremental',
+      createSameNamePlaylist: boolV(b.createSameNamePlaylist) ? 1 : 0,
+      syncMode: b.mode === 'mirror' || b.syncMode === 'full' ? 'full' : 'incremental',
+      mode: newMode ?? null,
+      delPolicy: ['keep', 'delete', 'archive'].includes(String(b.delPolicy)) ? (b.delPolicy as 'keep' | 'delete' | 'archive') : 'keep',
+      archivePlaylist: String(b.archivePlaylist ?? '').trim() || null,
       cronExpr: String(b.cronExpr ?? '').trim() || null,
-      dedupCheck: bool(b.dedupCheck) ? 1 : 0,
+      dedupCheck: boolV(b.dedupCheck) ? 1 : 0,
       dedupMinQuality: String(b.dedupMinQuality ?? '').trim() || null,
     })
     res.send(await taskTableHtml('playlist'))
