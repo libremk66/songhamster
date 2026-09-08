@@ -126,10 +126,10 @@
             </div>
           </div>
 
-          <div class="rounded-lg border border-base-300 p-3 flex flex-wrap items-center gap-2">
-            <h4 class="text-sm font-bold">定时 cron</h4>
-            <input name="cronExpr" class="input input-bordered font-mono text-xs" style="width:12rem" placeholder="0 6 * * *">
-            <span class="text-xs c-sub">空 = 仅手动(创建后立即同步一次)</span>
+          <div class="rounded-lg border border-base-300 p-3 lxhead flex-wrap">
+            <h4 class="text-sm font-bold" style="line-height:1">定时 cron</h4>
+            <input name="cronExpr" class="input input-bordered font-mono text-xs" style="width:12rem;margin:0" placeholder="0 6 * * *">
+            <span class="text-xs c-sub" style="line-height:1">空 = 仅手动(创建后立即同步一次)</span>
           </div>
 
           <div id="manual-add-msg" class="text-sm"></div>
