@@ -18,8 +18,8 @@
   .d-note { border-left: 3px solid var(--sfg); background: color-mix(in oklab, var(--sfg) 7%, transparent);
             padding: .5rem .7rem; border-radius: .3rem; font-size: .8125rem; }
   /* 一级卡片:浅灰 50% 半透明底(其它内框保持原底色) */
-  .tier1 { background: oklch(0.94 0 0 / 0.35); }
-  @media (prefers-color-scheme: dark) { .tier1 { background: oklch(0.3 0 0 / 0.35); } }
+  .tier1 { background: oklch(0.94 0 0 / 0.65); }
+  @media (prefers-color-scheme: dark) { .tier1 { background: oklch(0.3 0 0 / 0.65); } }
   /* 内层小框:白底 + 轻阴影(在浅灰一级框上形成层次) */
   .rounded-lg.border, .dopt { background: oklch(var(--b1)); box-shadow: 0 1px 3px oklch(var(--bc) / 0.12); }
   /* 紧凑标题行:子元素统一去 margin、垂直居中(修正 pico 按钮外距与 h4 默认边距的错位) */
