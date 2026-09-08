@@ -27,6 +27,11 @@
   .lxhead > * { margin-top: 0; margin-bottom: 0; }
   .lxhead h4, .lxhead span { display: inline-flex; align-items: center; }
   .lxhead .btn { margin: 0; }
+  /* 监听摘要表格行 */
+  .sumcell { border-left: 1px solid oklch(var(--bc) / 0.12); padding: .45rem .85rem; }
+  .sumcell:first-child { border-left: 0; }
+  .sumlabel { font-size: .7rem; color: oklch(var(--bc) / 0.6); white-space: nowrap; }
+  .sumcell > span:last-child { white-space: nowrap; }
 </style>
 <div class="space-y-4">
 
@@ -41,35 +46,55 @@
   <section class="card tier1 border border-base-300 shadow-sm">
     <div class="card-body gap-3">
       <h3 class="sec-green">我的歌单同步任务</h3>
+      <div class="rounded-lg border border-base-300 overflow-x-auto mb-2">
+        <div class="flex min-w-max divide-x divide-base-200">
+          <div class="sumcell flex flex-col justify-center gap-0.5">
+            <span class="sumlabel">监听</span>
+            <span class="flex items-center gap-1"><span class="icv <%= listen.enabled ? 'icv-on' : 'icv-off' %>"><svg aria-hidden="true"><use href="#i-<%= listen.enabled ? 'check' : 'x' %>"/></svg></span><b><%= listen.enabled ? '启用' : '停用' %></b></span>
+          </div>
+          <div class="sumcell flex flex-col justify-center gap-0.5">
+            <span class="sumlabel">模式</span><span><b><%= listen.activeMode === 'all' ? '完全同步' : '条件增量' %></b></span>
+          </div>
+          <div class="sumcell flex flex-col justify-center gap-0.5">
+            <span class="sumlabel">检测 cron</span><span class="font-mono text-xs"><%= listen.checkCron %></span>
+          </div>
+          <% if (listen.activeMode === 'filtered') { %>
+          <div class="sumcell flex flex-col justify-center gap-0.5">
+            <span class="sumlabel">排除</span><span><%= listen.filtered.rules.exclude.enabled ? (listen.filtered.rules.exclude.keywords.join('、') || '歌单规则') : '—' %></span>
+          </div>
+          <div class="sumcell flex flex-col justify-center gap-0.5">
+            <span class="sumlabel">匹配</span><span><%= listen.filtered.rules.match.enabled ? (listen.filtered.rules.match.keywords.join('、') || '歌单规则') : '—' %></span>
+          </div>
+          <% } else { %>
+          <div class="sumcell flex flex-col justify-center gap-0.5">
+            <span class="sumlabel">规则</span><span>—</span>
+          </div>
+          <% } %>
+          <div class="sumcell flex flex-col justify-center gap-0.5">
+            <span class="sumlabel">同名新建</span><span><%= (listen.activeMode === 'all' ? listen.all : listen.filtered.params).createSameNamePlaylist ? '是' : '否' %></span>
+          </div>
+          <div class="sumcell flex flex-col justify-center gap-0.5">
+            <span class="sumlabel">已有歌单</span><span><%= (listen.activeMode === 'all' ? listen.all : listen.filtered.params).embyTargetPlaylistIds.length %> 个</span>
+          </div>
+          <div class="sumcell flex flex-col justify-center gap-0.5">
+            <span class="sumlabel">方式</span><span><%= (listen.activeMode === 'all' ? listen.all : listen.filtered.params).taskMode === 'mirror' ? '镜像' : '增量' %></span>
+          </div>
+          <div class="sumcell flex flex-col justify-center gap-0.5">
+            <span class="sumlabel">删除处理</span><span><% if ((listen.activeMode === 'all' ? listen.all : listen.filtered.params).taskMode !== 'mirror') { %>—<% } else { %><%= (listen.activeMode === 'all' ? listen.all : listen.filtered.params).delPolicy === 'delete' ? '处理2 删文件' : (listen.activeMode === 'all' ? listen.all : listen.filtered.params).delPolicy === 'archive' ? '处理3 归档' : '处理1 不删' %><% } %></span>
+          </div>
+          <div class="sumcell flex flex-col justify-center gap-0.5">
+            <span class="sumlabel">归档歌单</span><span><%= (listen.activeMode === 'all' ? listen.all : listen.filtered.params).archivePlaylist %></span>
+          </div>
+          <div class="sumcell flex flex-col justify-center gap-0.5">
+            <span class="sumlabel">任务 cron</span><span><%= (listen.activeMode === 'all' ? listen.all : listen.filtered.params).taskCron || '空' %></span>
+          </div>
+        </div>
+      </div>
+
       <div id="task-table" class="overflow-x-auto" hx-get="/api/tasks/table?scope=playlist" hx-trigger="load">
         <p class="c-sub text-xs py-6 text-center">加载中…</p>
       </div>
 
-      <!-- ===== 监听同步摘要(单行,样式同任务表格) ===== -->
-      <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 pt-2 border-t border-base-200 text-xs c-sub">
-        <span class="flex items-center gap-1.5">
-          <span class="icv <%= listen.enabled ? 'icv-on' : 'icv-off' %>"><svg aria-hidden="true"><use href="#i-<%= listen.enabled ? 'check' : 'x' %>"/></svg></span>
-          <b class="c-mid">监听同步</b>
-        </span>
-        <span><%= listen.enabled ? '已启用' : '未启用' %></span>
-        <span>模式:<b><%= listen.activeMode === 'all' ? '完全同步' : '条件增量' %></b></span>
-        <span>检测:<code class="bg-base-200 px-1 rounded"><%= listen.checkCron %></code></span>
-        <% if (listen.activeMode === 'filtered') { %>
-        <span>规则:
-          排除 <%= listen.filtered.rules.exclude.enabled ? (listen.filtered.rules.exclude.keywords.join('、') || '有歌单') : '关' %>
-          ｜ 匹配 <%= listen.filtered.rules.match.enabled ? (listen.filtered.rules.match.keywords.join('、') || '有歌单') : '关' %>
-        </span>
-        <% } %>
-        <span>默认:
-          同名 <%= (listen.activeMode === 'all' ? listen.all : listen.filtered.params).createSameNamePlaylist ? '是' : '否' %>
-          ｜ 已有 <%= (listen.activeMode === 'all' ? listen.all : listen.filtered.params).embyTargetPlaylistIds.length %> 个
-          ｜ <%= (listen.activeMode === 'all' ? listen.all : listen.filtered.params).taskMode === 'mirror' ? '镜像' : '增量' %>
-          <% if ((listen.activeMode === 'all' ? listen.all : listen.filtered.params).taskMode === 'mirror') { %>
-          ｜ <%= (listen.activeMode === 'all' ? listen.all : listen.filtered.params).delPolicy === 'delete' ? '删除处理2(删文件)' : (listen.activeMode === 'all' ? listen.all : listen.filtered.params).delPolicy === 'archive' ? '处理3 归档:' + (listen.activeMode === 'all' ? listen.all : listen.filtered.params).archivePlaylist : '处理1(文件不删)' %>
-          <% } %>
-          ｜ 任务cron <%= (listen.activeMode === 'all' ? listen.all : listen.filtered.params).taskCron || '空(立即一次)' %>
-        </span>
-      </div>
     </div>
   </section>
 
