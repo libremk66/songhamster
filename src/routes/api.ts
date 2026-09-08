@@ -432,7 +432,7 @@ export function apiRouter(
     return map
   }
 
-  async function taskTableHtml(): Promise<string> {
+  async function taskTableHtml(scope: 'all' | 'playlist' = 'all'): Promise<string> {
     let idToName: Record<string, string> = {}
     const keyToName = await lxKeyToName()
     try {
@@ -442,6 +442,7 @@ export function apiRouter(
     const tasks = repo
       .listTasks()
       .filter((t) => t.taskType !== 'adhoc') // 隐藏内部任务（手动下载容器）
+      .filter((t) => scope !== 'playlist' || t.taskType === 'playlist')
       .map((t) => {
       const looksKey = !t.lxPlaylistName || t.lxPlaylistName === t.lxPlaylistKey || t.lxPlaylistName.startsWith('user:') || t.lxPlaylistName === 'loveList'
       return { ...t, lxPlaylistName: looksKey ? keyToName[t.lxPlaylistKey] ?? t.lxPlaylistKey : t.lxPlaylistName }
@@ -549,7 +550,7 @@ export function apiRouter(
     const t = repo.getTask(Number(req.params.id))
     if (!t) return res.status(404).send(err('任务不存在'))
     repo.updateTask(t.id, { enabled: t.enabled ? 0 : 1 })
-    res.send(await taskTableHtml())
+    res.send(await taskTableHtml('playlist'))
   })
 
   r.post('/task/:id/delete', async (req, res) => {
@@ -564,7 +565,7 @@ export function apiRouter(
       }
     }
     scheduler.reload()
-    res.send(await taskTableHtml())
+    res.send(await taskTableHtml('playlist'))
   })
 
   // 行内编辑：渲染编辑表单（替换该行）
@@ -603,7 +604,7 @@ export function apiRouter(
       dedupCheck: bool(b.dedupCheck) ? 1 : 0,
       dedupMinQuality: String(b.dedupMinQuality ?? '').trim() || null,
     })
-    res.send(await taskTableHtml())
+    res.send(await taskTableHtml('playlist'))
   })
 
   r.post('/task/:id/run', async (req, res) => {
