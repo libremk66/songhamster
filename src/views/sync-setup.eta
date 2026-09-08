@@ -22,6 +22,11 @@
   @media (prefers-color-scheme: dark) { .tier1 { background: oklch(0.3 0 0 / 0.5); } }
   /* 内层小框:白底 + 轻阴影(在浅灰一级框上形成层次) */
   .rounded-lg.border, .dopt { background: oklch(var(--b1)); box-shadow: 0 1px 3px oklch(var(--bc) / 0.12); }
+  /* 紧凑标题行:子元素统一去 margin、垂直居中(修正 pico 按钮外距与 h4 默认边距的错位) */
+  .lxhead { display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; }
+  .lxhead > * { margin-top: 0; margin-bottom: 0; }
+  .lxhead h4, .lxhead span { display: inline-flex; align-items: center; }
+  .lxhead .btn { margin: 0; }
 </style>
 <div class="space-y-4">
 
@@ -57,8 +62,8 @@
       <div id="cpanel1">
         <form method="post" action="/api/tasks" hx-post="/api/tasks/bulk" hx-target="#manual-add-msg" hx-swap="innerHTML" class="space-y-3">
           <div class="rounded-lg border border-base-300 p-3">
-            <div class="flex items-center gap-2 mb-2">
-              <h4 class="text-sm font-bold" style="margin:0;line-height:1">选择 LX 歌单</h4>
+            <div class="lxhead">
+              <h4 class="text-sm font-bold" style="line-height:1">选择 LX 歌单</h4>
               <button type="button" class="btn btn-outline btn-xs px-2" onclick="lxRefresh()"><svg aria-hidden="true"><use href="#i-refresh"/></svg>刷新</button>
               <span class="text-xs c-sub" id="sel-count">已选 0 个</span>
             </div>
