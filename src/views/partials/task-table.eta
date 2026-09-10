@@ -26,7 +26,7 @@
         <button class="btn btn-primary btn-xs" hx-post="/api/task/<%= t.id %>/run" hx-target="closest td" hx-swap="outerHTML"><svg aria-hidden="true"><use href="#i-play"/></svg>同步</button>
         <button class="btn btn-ghost btn-xs" hx-get="/api/task/<%= t.id %>/edit" hx-target="closest tr" hx-swap="outerHTML"><svg aria-hidden="true"><use href="#i-pencil"/></svg>编辑</button>
         <button class="btn btn-ghost btn-xs" hx-post="/api/task/<%= t.id %>/toggle" hx-target="#task-table" hx-swap="innerHTML"><% if (t.enabled) { %><svg aria-hidden="true"><use href="#i-pause"/></svg>停用<% } else { %><svg aria-hidden="true"><use href="#i-play"/></svg>启用<% } %></button>
-        <button class="btn btn-ghost btn-xs text-error" hx-post="/api/task/<%= t.id %>/delete" hx-confirm="确认删除该同步任务？" hx-target="#task-table" hx-swap="innerHTML"><svg aria-hidden="true"><use href="#i-trash"/></svg>删除</button>
+        <button type="button" class="btn btn-ghost btn-xs text-error" data-del-task="<%= t.id %>" data-del-name="<%= t.lxPlaylistName %>" data-del-ignore="<%= watchOn && String(t.lxPlaylistKey || '').startsWith('user:') ? 1 : 0 %>" onclick="sfOpenDel(this)"><svg aria-hidden="true"><use href="#i-trash"/></svg>删除</button>
       </td>
     </tr>
     <% } %>

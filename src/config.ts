@@ -91,6 +91,8 @@ export interface FilteredListen {
 export interface ListenConfig {
   enabled: boolean
   activeMode: 'all' | 'filtered'
+  /** 完全模式:是否纳入"启用前已存在"的歌单(勾=忽略基线,现有+今后全部纳入) */
+  includeExisting: boolean
   checkCron: string
   baselineDate: string
   baselineKeys: string[]
@@ -100,6 +102,44 @@ export interface ListenConfig {
 }
 
 export const DEFAULT_ARCHIVE_PLAYLIST = '歌单同步任务归档'
+/** 榜单订阅的归档默认名（榜单不是"歌单"，别混进歌单归档） */
+export const DEFAULT_CHART_ARCHIVE_PLAYLIST = '榜单订阅归档'
+
+/** 归档歌单名里的"来源名"占位符："按来源归档" = 存 `[歌单名]归档` / 榜单任务存 `[榜单名]归档` */
+export const ARCHIVE_NAME_PLACEHOLDER = '[歌单名]'
+export const ARCHIVE_NAME_PLACEHOLDER_CHART = '[榜单名]'
+const ARCHIVE_PLACEHOLDERS = [ARCHIVE_NAME_PLACEHOLDER, ARCHIVE_NAME_PLACEHOLDER_CHART]
+
+/** 是否"按来源"模板（模板名要等任务建好才知道 → 配置期不为它建歌单） */
+export function isArchiveTemplate(name: string): boolean {
+  return ARCHIVE_PLACEHOLDERS.some((p) => name.includes(p))
+}
+
+/**
+ * 归档歌单名解析：含 [歌单名]/[榜单名] 占位符则替换为来源歌单（榜单）名。
+ * 归档目标是"一个名字字段"而不是三种模式——统一/按来源/自选已有歌单都只是它的取值。
+ */
+export function resolveArchiveName(
+  archivePlaylist: string | null | undefined,
+  playlistName: string,
+  fallback: string = DEFAULT_ARCHIVE_PLAYLIST,
+): string {
+  const raw = String(archivePlaylist ?? '').trim() || fallback
+  return ARCHIVE_PLACEHOLDERS.reduce((s, ph) => (s.includes(ph) ? s.split(ph).join(playlistName) : s), raw)
+}
+
+/** 任务的归档歌单名（榜单用它自己的默认名） */
+export function archiveNameOf(t: {
+  taskType?: string | null
+  archivePlaylist?: string | null
+  lxPlaylistName: string
+}): string {
+  return resolveArchiveName(
+    t.archivePlaylist,
+    t.lxPlaylistName,
+    t.taskType === 'chart' ? DEFAULT_CHART_ARCHIVE_PLAYLIST : DEFAULT_ARCHIVE_PLAYLIST,
+  )
+}
 
 /** 支持"镜像删除处理2(物理删文件)"的目标服务器;其余(道理鱼/Subsonic)置灰 */
 export function supportsFileDelete(target: AppConfig['target']): boolean {
@@ -123,6 +163,7 @@ export function defaultListen(): ListenConfig {
   return {
     enabled: false,
     activeMode: 'all',
+    includeExisting: false,
     checkCron: '0 7 * * *',
     baselineDate: '',
     baselineKeys: [],
@@ -169,6 +210,7 @@ export function mergeListen(file?: Partial<ListenConfig>): ListenConfig {
   return {
     ...L,
     ...file,
+    includeExisting: file.includeExisting ?? L.includeExisting,
     baselineKeys: file.baselineKeys ?? L.baselineKeys,
     ignoredKeys: file.ignoredKeys ?? L.ignoredKeys,
     all: p(file.all),

@@ -1,24 +1,18 @@
-<% var TL = { emby: 'Emby', navidrome: 'Navidrome', daoliyu: '道理鱼', subsonic: 'Subsonic（飞牛/音云等）', jellyfin: 'Jellyfin' } %>
-<% var TC = { emby: '#0ea5e9', navidrome: '#a78bfa', daoliyu: '#f59e0b', subsonic: '#34d399', jellyfin: '#f472b6' } /* 服务识别色 */ %>
 <style>
-  /* 媒体服务器目标瓦片:纯底色区分,选中加深 */
-  .svc-tile { border-radius: .5rem; border-width: 2px; transition: background .15s, border-color .15s;
-              background: color-mix(in oklab, var(--svc) 12%, transparent);
-              border-color: color-mix(in oklab, var(--svc) 35%, transparent); }
-  .svc-tile:hover { background: color-mix(in oklab, var(--svc) 20%, transparent); }
-  .peer:checked ~ .svc-tile { background: color-mix(in oklab, var(--svc) 26%, transparent);
-                              border-color: var(--svc); box-shadow: 0 0 0 1px color-mix(in oklab, var(--svc) 55%, transparent); }
-  /* 左侧服务器列表:横线分隔、整行居中(自带 CSS,不依赖未编译的 divide-y/block 工具类) */
-  .svc-list { border: 1px solid oklch(var(--bc) / .18); border-radius: .5rem; overflow: hidden; }
-  /* width:100% 必须显式给:pico 桥 label:has(radio){width:fit-content} 会把行锁成内容宽 */
-  .svc-list > label { display: block; width: 100%; }
-  .svc-list > label + label { border-top: 1px solid oklch(var(--bc) / .14); }
-  .svc-row { display: block; width: 100%; text-align: center; padding: .5rem .25rem; font-size: .8125rem; transition: background .15s; }
-  .svc-row:hover { background: color-mix(in oklab, var(--sfg) 12%, transparent); }
-  .peer:checked ~ .svc-row { background: color-mix(in oklab, var(--sfg) 22%, transparent); color: var(--sfg-deep); font-weight: 650; }
-  /* 表单字段栅格:自带 CSS 双列(项目内 tailwind md: 变体类未生效,用 .fg 保证) */
   .fg { display: grid; grid-template-columns: 1fr; gap: .75rem 1.25rem; }
   @media (min-width: 768px) { .fg { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  /* 媒体服务器选项卡：绿条旁的小胶囊；选中=白底 */
+  .conn-tab { display: inline-flex; align-items: center; gap: .3rem; padding: .28rem .7rem; font-size: .8125rem;
+              cursor: pointer; border-radius: 999px; border: 1px solid oklch(var(--bc) / .22);
+              background: oklch(var(--b1)); color: oklch(var(--bc) / .78); transition: background .15s, border-color .15s, color .15s; }
+  .conn-tab:hover { border-color: var(--sfg); color: var(--sfg-deep); }
+  .conn-tab.on { background: oklch(var(--b1)); border-color: var(--sfg); color: var(--sfg-deep); font-weight: 650; }
+  /* 选项卡上的"当前同步目标"小圆点 */
+  .conn-dot { width: .4rem; height: .4rem; border-radius: 999px; background: var(--sfg); display: inline-block; }
+  /* 绿条上的按钮（确定）：主题绿底 + 白字，与选项卡同高同字号 */
+  .btn-invert { height: 1.875rem; min-height: 1.875rem; font-size: .8125rem; padding-left: .8rem; padding-right: .8rem;
+                background: var(--sfg); border-color: var(--sfg); color: #fff; font-weight: 700; }
+  .btn-invert:hover, .btn-invert:focus-visible { background: oklch(0.62 0.12 153); border-color: oklch(0.62 0.12 153); color: #fff; }
   /* 整体双栏布局:左 250 列表 + 右表单(≥1024),小屏堆叠 */
   .lxg { display: grid; gap: 1rem; align-items: start; }
   @media (min-width: 1024px) { .lxg { grid-template-columns: 250px minmax(0, 1fr); } }
@@ -36,17 +30,11 @@
 
   <!-- ===== 1. LX 下载源 ===== -->
   <form method="post" action="/api/config/lx" hx-post="/api/config/lx" hx-target="#lx-save-msg"
-        class="card bg-base-100 border border-base-300 shadow-sm">
+        class="card tier1 border border-base-300 shadow-sm">
     <div class="card-body gap-3.5">
-      <div class="flex items-center gap-3">
-        <span class="w-8 h-8 rounded-lg bg-primary/15 text-primary font-bold text-base flex items-center justify-center shrink-0">L</span>
-        <div>
-          <h3 class="card-title text-base">连接 LXSyncServer
-            <span class="badge badge-ghost badge-sm font-normal">下载源</span>
-          </h3>
-          <p class="text-xs c-sub">LX Music 歌单同步服务 —— 歌曲下载、标签/封面/歌词写入都由它完成</p>
-        </div>
-      </div>
+      <h3 class="sec-green">连接 LXSyncServer</h3>
+      <p class="text-xs c-sub">LX Music 歌单同步服务 —— 歌曲下载、标签/封面/歌词写入都由它完成</p>
+      <div class="rounded-lg border border-base-300 p-3">
       <div class="fg">
         <label class="form-control w-full">
           <span class="label-text mb-1">服务地址</span>
@@ -69,6 +57,7 @@
           <span class="text-xs c-sub mt-1">本项目视角路径（本项目要读写它）</span>
         </label>
       </div>
+      </div>
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-4">
         <button type="submit" class="btn btn-primary"><svg aria-hidden="true"><use href="#i-save"/></svg>保存配置</button>
         <button type="button" class="btn btn-outline" hx-post="/api/test/lx" hx-target="#lx-test-result"><svg aria-hidden="true"><use href="#i-plug"/></svg>测试连接</button>
@@ -78,268 +67,31 @@
     </div>
   </form>
 
-  <!-- ===== 2. 目标选择(左栏) + 连接表单(右栏) ===== -->
-  <% var targets = ['emby','navidrome','daoliyu','subsonic','jellyfin'] %>
-  <div class="lxg">
-  <section id="target-box" class="card bg-base-100 border border-base-300 shadow-sm lg:sticky lg:top-2" data-current="<%= cfg.target %>">
-    <div class="card-body gap-3">
-      <div class="flex items-center justify-between gap-2">
-        <h3 class="card-title text-base">媒体服务器目标</h3>
-        <div class="badge badge-outline px-2.5 py-1 gap-1 text-xs shrink-0">当前
-          <span class="font-bold badge badge-success badge-xs"><%= TL[cfg.target] %></span>
-        </div>
-      </div>
-      <p class="text-[11px] c-sub leading-relaxed">同步入库与播放列表指向所选服务器。切换前建议先暂停任务。</p>
-      <div class="svc-list">
-        <% for (const val of targets) { %>
-        <label class="cursor-pointer">
-          <input type="radio" name="target" value="<%= val %>" class="peer sr-only"
-                 <%= cfg.target === val ? 'checked' : '' %> onchange="markTargetChange()">
-          <div class="svc-row w-full" style="--svc:var(--sfg)"><%= TL[val] %></div>
-        </label>
-        <% } %>
-      </div>
-      <div class="flex items-center gap-2 pt-1">
-        <button type="button" id="target-apply-btn" class="btn btn-primary" disabled onclick="applyTarget()"><svg aria-hidden="true"><use href="#i-swap"/></svg>确定切换</button>
-        <span id="target-msg" class="text-xs"></span>
-      </div>
-      <div id="target-pending-hint" class="alert alert-warning text-xs py-1.5 hidden rounded-lg"></div>
-    </div>
-  </section>
-
-  <div class="flex flex-col gap-4 min-w-0">
-  <!-- ===== 3. 目标连接表单(右栏,随目标显隐) ===== -->
-
-  <!-- Emby -->
-  <div id="emby-box" style="display:<%= cfg.target === 'emby' ? '' : 'none' %>">
-  <form method="post" action="/api/config/emby" hx-post="/api/config/emby" hx-target="#emby-save-msg"
-        class="card bg-base-100 border border-base-300 shadow-sm">
-    <div class="card-body gap-3.5">
-      <div class="flex items-center gap-3">
-        <span class="w-8 h-8 rounded-lg bg-primary/15 text-primary font-bold text-base flex items-center justify-center shrink-0">E</span>
-        <h3 class="card-title text-base">连接 Emby</h3>
-      </div>
-      <div class="fg">
-        <label class="form-control w-full">
-          <span class="label-text mb-1">服务地址</span>
-          <input name="baseUrl" value="<%= cfg.emby.baseUrl %>" placeholder="http://127.0.0.1:8096" class="input input-bordered w-full">
-        </label>
-        <label class="form-control w-full">
-          <span class="label-text mb-1">API key</span>
-          <div class="join w-full">
-            <input type="password" name="apiKey" id="emby-key" value="<%= cfg.emby.apiKey %>" autocomplete="off" class="input input-bordered join-item w-full">
-            <button type="button" class="btn btn-outline join-item px-3" onclick="toggleKey('emby-key', this)" title="显示/隐藏"><svg aria-hidden="true"><use href="#i-eye"/></svg></button>
-          </div>
-        </label>
-        <label class="form-control w-full md:col-span-2">
-          <span class="label-text mb-1">媒体库根路径<span class="text-error">*</span></span>
-          <input name="libraryRoot" value="<%= cfg.emby.libraryRoot %>" placeholder="容器部署: /media/music；本机直跑: Emby 里显示的库路径" class="input input-bordered w-full">
-          <span class="text-xs c-sub mt-1">Emby 容器视角的媒体库文件夹路径（Emby 后台该库指向的目录）</span>
-        </label>
-      </div>
-      <% if (cfg.emby.mediaLibraryId) { %>
-        <p class="text-xs c-sub flex items-center gap-2">当前媒体库 Id：
-          <code class="bg-base-200 px-1.5 py-0.5 rounded text-xs"><%= cfg.emby.mediaLibraryId %></code>
-        </p>
-      <% } %>
-      <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-4">
-        <button type="submit" class="btn btn-primary"><svg aria-hidden="true"><use href="#i-save"/></svg>保存配置</button>
-        <button type="button" class="btn btn-outline" hx-post="/api/test/emby" hx-target="#emby-test-result"><svg aria-hidden="true"><use href="#i-plug"/></svg>测试连接</button>
-        <button type="button" class="btn btn-ghost border border-base-300" hx-post="/api/emby/probe" hx-target="#emby-probe-result"><svg aria-hidden="true"><use href="#i-radar"/></svg>探测媒体库</button>
-        <span id="emby-test-result" class="text-sm"></span>
-        <span id="emby-probe-result" class="text-sm"></span>
-        <span id="emby-save-msg" class="text-sm w-full md:w-auto"></span>
-      </div>
-    </div>
-  </form>
+  <!-- ===== 连接媒体服务器（选项卡切类型 + 确定一键「存→测→探测→设为目标」） ===== -->
+  <div id="conn-section" hx-get="/api/connect/section" hx-trigger="load" hx-swap="outerHTML">
+    <p class="c-sub text-xs py-8 text-center">加载中…</p>
   </div>
-
-  <!-- Navidrome -->
-  <div id="nd-box" style="display:<%= cfg.target === 'navidrome' ? '' : 'none' %>">
-  <form method="post" action="/api/config/navidrome" hx-post="/api/config/navidrome" hx-target="#nd-save-msg"
-        class="card bg-base-100 border border-base-300 shadow-sm">
-    <div class="card-body gap-3.5">
-      <div class="flex items-center gap-3">
-        <span class="w-8 h-8 rounded-lg bg-primary/15 text-primary font-bold text-base flex items-center justify-center shrink-0">N</span>
-        <h3 class="card-title text-base">连接 Navidrome</h3>
-      </div>
-      <div class="fg">
-        <label class="form-control w-full">
-          <span class="label-text mb-1">服务地址</span>
-          <input name="baseUrl" value="<%= cfg.navidrome.baseUrl %>" placeholder="http://127.0.0.1:4533" class="input input-bordered w-full">
-        </label>
-        <label class="form-control w-full">
-          <span class="label-text mb-1">账号密码（登录换 token）</span>
-          <div class="join w-full">
-            <input name="username" value="<%= cfg.navidrome.username %>" placeholder="用户名" class="input input-bordered join-item flex-1">
-            <input type="password" name="password" id="nd-key" value="<%= cfg.navidrome.password %>" autocomplete="off" class="input input-bordered join-item flex-1">
-            <button type="button" class="btn btn-outline join-item px-3" onclick="toggleKey('nd-key', this)" title="显示/隐藏"><svg aria-hidden="true"><use href="#i-eye"/></svg></button>
-          </div>
-        </label>
-        <label class="form-control w-full md:col-span-2">
-          <span class="label-text mb-1">媒体库根路径<span class="text-error">*</span></span>
-          <input name="libraryRoot" value="<%= cfg.navidrome.libraryRoot %>" placeholder="如 /D8/MOVIEPILOT/MUSIC/MusicTagWeb/LINK/LXSERVER/king" class="input input-bordered w-full">
-          <span class="text-xs c-sub mt-1">Navidrome 容器视角路径；应等于 LX 下载目录在其容器内的路径。无 API key，用普通账号登录（建议专用低权限账号），入库由 Navidrome 自动监听完成</span>
-        </label>
-      </div>
-      <% if (cfg.navidrome.libraryId) { %>
-        <p class="text-xs c-sub flex items-center gap-2">当前媒体库 Id：
-          <code class="bg-base-200 px-1.5 py-0.5 rounded text-xs"><%= cfg.navidrome.libraryId %></code>
-        </p>
-      <% } %>
-      <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-4">
-        <button type="submit" class="btn btn-primary"><svg aria-hidden="true"><use href="#i-save"/></svg>保存配置</button>
-        <button type="button" class="btn btn-outline" hx-post="/api/test/navidrome" hx-target="#nd-test-result"><svg aria-hidden="true"><use href="#i-plug"/></svg>测试连接</button>
-        <button type="button" class="btn btn-ghost border border-base-300" hx-post="/api/navidrome/probe" hx-target="#nd-probe-result"><svg aria-hidden="true"><use href="#i-radar"/></svg>探测媒体库</button>
-        <span id="nd-test-result" class="text-sm"></span>
-        <span id="nd-probe-result" class="text-sm"></span>
-        <span id="nd-save-msg" class="text-sm w-full md:w-auto"></span>
-      </div>
-    </div>
-  </form>
-  </div>
-
-  <!-- 道理鱼 -->
-  <div id="dly-box" style="display:<%= cfg.target === 'daoliyu' ? '' : 'none' %>">
-  <form method="post" action="/api/config/daoliyu" hx-post="/api/config/daoliyu" hx-target="#dly-save-msg"
-        class="card bg-base-100 border border-base-300 shadow-sm">
-    <div class="card-body gap-3.5">
-      <div class="flex items-center gap-3">
-        <span class="w-8 h-8 rounded-lg bg-primary/15 text-primary font-bold text-base flex items-center justify-center shrink-0">鱼</span>
-        <h3 class="card-title text-base">连接 道理鱼</h3>
-      </div>
-      <div class="fg">
-        <label class="form-control w-full">
-          <span class="label-text mb-1">服务地址</span>
-          <input name="baseUrl" value="<%= cfg.daoliyu.baseUrl %>" placeholder="http://127.0.0.1:4000" class="input input-bordered w-full">
-        </label>
-        <label class="form-control w-full">
-          <span class="label-text mb-1">管理员账号（邮箱）与密码</span>
-          <div class="join w-full">
-            <input name="username" value="<%= cfg.daoliyu.username %>" placeholder="管理员邮箱" class="input input-bordered join-item flex-[1.4]">
-            <input type="password" name="password" id="dly-key" value="<%= cfg.daoliyu.password %>" autocomplete="off" class="input input-bordered join-item flex-1">
-            <button type="button" class="btn btn-outline join-item px-3" onclick="toggleKey('dly-key', this)" title="显示/隐藏"><svg aria-hidden="true"><use href="#i-eye"/></svg></button>
-          </div>
-        </label>
-        <label class="form-control w-full md:col-span-2">
-          <span class="label-text mb-1">媒体库根路径<span class="text-error">*</span></span>
-          <input name="libraryRoot" value="<%= cfg.daoliyu.libraryRoot %>" placeholder="如 /D8/MOVIEPILOT/MUSIC/MusicTagWeb/LINK/LXSERVER/king" class="input input-bordered w-full">
-          <span class="text-xs c-sub mt-1">目录驱动：道理鱼 Web「多媒体库 → 歌单目录」选中 <code class="bg-base-200 px-1 rounded">歌单同步</code> 后，下载落盘即自动入库，无需 API 维护播放列表</span>
-        </label>
-      </div>
-      <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-4">
-        <button type="submit" class="btn btn-primary"><svg aria-hidden="true"><use href="#i-save"/></svg>保存配置</button>
-        <button type="button" class="btn btn-outline" hx-post="/api/test/daoliyu" hx-target="#dly-test-result"><svg aria-hidden="true"><use href="#i-plug"/></svg>测试连接</button>
-        <button type="button" class="btn btn-ghost border border-base-300" hx-post="/api/daoliyu/probe" hx-target="#dly-probe-result"><svg aria-hidden="true"><use href="#i-radar"/></svg>探测媒体库根</button>
-        <span id="dly-test-result" class="text-sm"></span>
-        <span id="dly-probe-result" class="text-sm"></span>
-        <span id="dly-save-msg" class="text-sm w-full md:w-auto"></span>
-      </div>
-    </div>
-  </form>
-  </div>
-
-  <!-- Subsonic -->
-  <div id="sub-box" style="display:<%= cfg.target === 'subsonic' ? '' : 'none' %>">
-  <form method="post" action="/api/config/subsonic" hx-post="/api/config/subsonic" hx-target="#sub-save-msg"
-        class="card bg-base-100 border border-base-300 shadow-sm">
-    <div class="card-body gap-3.5">
-      <div class="flex items-center gap-3">
-        <span class="w-8 h-8 rounded-lg bg-primary/15 text-primary font-bold text-base flex items-center justify-center shrink-0">S</span>
-        <h3 class="card-title text-base">连接 Subsonic 服务器</h3>
-      </div>
-      <div class="fg">
-        <label class="form-control w-full">
-          <span class="label-text mb-1">服务地址<span class="text-xs c-sub font-normal">（根地址，无需 /rest）</span></span>
-          <input name="baseUrl" value="<%= cfg.subsonic.baseUrl %>" placeholder="http://127.0.0.1:4533" class="input input-bordered w-full">
-        </label>
-        <label class="form-control w-full">
-          <span class="label-text mb-1">账号密码</span>
-          <div class="join w-full">
-            <input name="username" value="<%= cfg.subsonic.username %>" placeholder="用户名" class="input input-bordered join-item flex-1">
-            <input type="password" name="password" id="sub-key" value="<%= cfg.subsonic.password %>" autocomplete="off" class="input input-bordered join-item flex-1">
-            <button type="button" class="btn btn-outline join-item px-3" onclick="toggleKey('sub-key', this)" title="显示/隐藏"><svg aria-hidden="true"><use href="#i-eye"/></svg></button>
-          </div>
-        </label>
-      </div>
-      <p class="text-xs c-sub flex items-start gap-2 leading-relaxed">
-        <span>⚠️</span>
-        <span>通用 Subsonic/OpenSubsonic 协议（Navidrome、音云等皆可）。协议限制：无文件路径（查重可看、回收站定位不可用）、无位深/采样率（24bit 按 FLAC 判定）。</span>
-      </p>
-      <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-4">
-        <button type="submit" class="btn btn-primary"><svg aria-hidden="true"><use href="#i-save"/></svg>保存配置</button>
-        <button type="button" class="btn btn-outline" hx-post="/api/test/subsonic" hx-target="#sub-test-result"><svg aria-hidden="true"><use href="#i-plug"/></svg>测试连接</button>
-        <span id="sub-test-result" class="text-sm"></span>
-        <span id="sub-save-msg" class="text-sm w-full md:w-auto"></span>
-      </div>
-    </div>
-  </form>
-  </div>
-
-  <!-- Jellyfin -->
-  <div id="jf-box" style="display:<%= cfg.target === 'jellyfin' ? '' : 'none' %>">
-  <form method="post" action="/api/config/jellyfin" hx-post="/api/config/jellyfin" hx-target="#jf-save-msg"
-        class="card bg-base-100 border border-base-300 shadow-sm">
-    <div class="card-body gap-3.5">
-      <div class="flex items-center gap-3">
-        <span class="w-8 h-8 rounded-lg bg-primary/15 text-primary font-bold text-base flex items-center justify-center shrink-0">J</span>
-        <h3 class="card-title text-base">连接 Jellyfin</h3>
-      </div>
-      <div class="fg">
-        <label class="form-control w-full">
-          <span class="label-text mb-1">服务地址</span>
-          <input name="baseUrl" value="<%= cfg.jellyfin.baseUrl %>" placeholder="http://127.0.0.1:8096" class="input input-bordered w-full">
-        </label>
-        <label class="form-control w-full">
-          <span class="label-text mb-1">API key</span>
-          <div class="join w-full">
-            <input type="password" name="apiKey" id="jf-key" value="<%= cfg.jellyfin.apiKey %>" autocomplete="off" class="input input-bordered join-item w-full">
-            <button type="button" class="btn btn-outline join-item px-3" onclick="toggleKey('jf-key', this)" title="显示/隐藏"><svg aria-hidden="true"><use href="#i-eye"/></svg></button>
-          </div>
-        </label>
-        <label class="form-control w-full md:col-span-2">
-          <span class="label-text mb-1">媒体库根路径<span class="text-error">*</span></span>
-          <input name="libraryRoot" value="<%= cfg.jellyfin.libraryRoot %>" placeholder="如 /D8/MOVIEPILOT/MUSIC/MusicTagWeb/LINK/LXSERVER/king/歌单同步" class="input input-bordered w-full">
-          <span class="text-xs c-sub mt-1">Jellyfin 容器视角的媒体库文件夹路径（与 Emby 同源约定）</span>
-        </label>
-      </div>
-      <% if (cfg.jellyfin.mediaLibraryId) { %>
-        <p class="text-xs c-sub flex items-center gap-2">当前媒体库 Id：
-          <code class="bg-base-200 px-1.5 py-0.5 rounded text-xs"><%= cfg.jellyfin.mediaLibraryId %></code>
-        </p>
-      <% } %>
-      <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-4">
-        <button type="submit" class="btn btn-primary"><svg aria-hidden="true"><use href="#i-save"/></svg>保存配置</button>
-        <button type="button" class="btn btn-outline" hx-post="/api/test/jellyfin" hx-target="#jf-test-result"><svg aria-hidden="true"><use href="#i-plug"/></svg>测试连接</button>
-        <button type="button" class="btn btn-ghost border border-base-300" hx-post="/api/jellyfin/probe" hx-target="#jf-probe-result"><svg aria-hidden="true"><use href="#i-radar"/></svg>探测媒体库</button>
-        <span id="jf-test-result" class="text-sm"></span>
-        <span id="jf-probe-result" class="text-sm"></span>
-        <span id="jf-save-msg" class="text-sm w-full md:w-auto"></span>
-      </div>
-    </div>
-  </form>
-  </div>
-  </div><!-- /右栏 -->
-  </div><!-- /左右 grid -->
+  <div id="conn-msg" class="text-sm"></div>
 
   <!-- ===== 路径自检 ===== -->
-  <section class="card bg-base-100 border border-base-300 shadow-sm">
+  <section class="card tier1 border border-base-300 shadow-sm">
     <div class="card-body gap-4">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 class="card-title text-base">路径自检</h3>
-          <p class="text-xs c-sub mt-0.5">检查下载目录可写、媒体库匹配情况，并给出路径关系提示</p>
-        </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <h3 class="sec-green flex-1" style="margin-bottom:0">路径自检</h3>
         <button type="button" class="btn btn-outline" hx-post="/api/paths/check" hx-target="#paths-result" hx-swap="innerHTML"><svg aria-hidden="true"><use href="#i-pulse"/></svg>运行自检</button>
       </div>
-      <div id="paths-result" class="text-sm rounded-xl bg-base-200/60 p-3 min-h-10"></div>
+      <div class="rounded-lg border border-base-300 p-3">
+        <p class="text-xs c-sub">检查下载目录可写、媒体库匹配情况，并给出路径关系提示</p>
+        <div id="paths-result" class="text-sm mt-2 min-h-10"></div>
+      </div>
     </div>
   </section>
 
   <!-- ===== 路径关系说明 ===== -->
-  <details class="collapse collapse-arrow bg-base-100 border border-base-300 shadow-sm">
+  <details class="collapse collapse-arrow tier1 border border-base-300 shadow-sm">
     <summary class="collapse-title text-base font-semibold">路径关系说明（部署必读）</summary>
-    <div class="collapse-content space-y-3">
+    <div class="collapse-content">
+      <div class="rounded-lg border border-base-300 p-3 space-y-3">
       <p class="text-sm leading-relaxed">SongFerry 与 LXSyncServer、Emby 等媒体服务器共享<b>同一个音乐数据目录</b>，只是各容器内看到的路径不同：</p>
       <pre class="bg-base-200 rounded-lg p-3 text-xs leading-relaxed overflow-x-auto"><code>宿主机 music-data（唯一真相源）
   ├── 挂给 lxserver → /server/music     LX 下载写这里
@@ -351,66 +103,15 @@
         <li><b>媒体库根</b>：你在媒体服务器后台给该音乐媒体库选的<b>文件夹路径</b>（其容器内视角，如 <code class="bg-base-200 px-1 rounded">/media/music/歌单同步</code>）——需先挂载共享目录并在后台建库指向它，SongFerry 仅用于探测匹配</li>
         <li>下载目录与媒体库文件夹是同一目录的两个名字；漏挂任一方卷或媒体库指向别处，文件就不会出现在对应端</li>
       </ul>
-      <p class="text-xs c-sub">本机直接运行（npm run dev）无容器视角差异，两处填宿主机实际路径即可。完整示例见 <code class="bg-base-200 px-1 rounded">docker-compose.example.yml</code>。</p>
+        <p class="text-xs c-sub">本机直接运行（npm run dev）无容器视角差异，两处填宿主机实际路径即可。完整示例见 <code class="bg-base-200 px-1 rounded">docker-compose.example.yml</code>。</p>
+      </div>
     </div>
   </details>
 
 </div>
 
 <script>
-// 目标切换：先选择 → 点「确定」才生效（避免误切）。确定前锁定下方连接表单。
-var currentTarget = document.getElementById('target-box').dataset.current || 'emby'
-var TARGET_LABELS = { emby: 'Emby', navidrome: 'Navidrome', daoliyu: '道理鱼', subsonic: 'Subsonic', jellyfin: 'Jellyfin' }
-function targetSelected() {
-  var r = document.querySelector('input[name="target"]:checked')
-  return r ? r.value : currentTarget
-}
-function targetPending() {
-  return targetSelected() !== currentTarget
-}
-function setFormLocked(locked) {
-  var boxes = ['emby-box', 'nd-box', 'dly-box', 'sub-box', 'jf-box']
-  for (var i = 0; i < boxes.length; i++) {
-    var box = document.getElementById(boxes[i])
-    if (!box) continue
-    var els = box.querySelectorAll('input, select, button')
-    for (var j = 0; j < els.length; j++) els[j].disabled = locked
-  }
-  var btn = document.getElementById('target-apply-btn')
-  if (btn) btn.disabled = !locked
-  var hint = document.getElementById('target-pending-hint')
-  var m = document.getElementById('target-msg')
-  if (locked) {
-    if (hint) hint.innerHTML = '⚠️ 目标已选为 <b>' + (TARGET_LABELS[targetSelected()] || targetSelected()) + '</b> 但尚未生效 —— 点「确定切换」后生效并解锁下方连接表单'
-    if (hint) hint.classList.remove('hidden')
-    if (m) m.innerHTML = ''
-  } else {
-    if (hint) hint.classList.add('hidden')
-    if (m) m.innerHTML = ''
-  }
-}
-function markTargetChange() {
-  setFormLocked(targetPending())
-}
-function applyTarget() {
-  var t = targetSelected()
-  if (!targetPending()) { setFormLocked(false); return }
-  var btn = document.getElementById('target-apply-btn')
-  var m = document.getElementById('target-msg')
-  if (btn) btn.disabled = true
-  if (m) m.innerHTML = '<span class="c-mid">切换中…</span>'
-  fetch('/api/config/target', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: 'target=' + t,
-  })
-    .then(function (r) { return r.text() })
-    .then(function () { location.reload() }) // 服务端渲染统一状态（连接框随目标切换、可填写）
-    .catch(function (e) {
-      if (m) m.innerHTML = '<span class="text-error">切换失败：' + e + '</span>'
-      setFormLocked(targetPending())
-    })
-}
+// 连接媒体服务器：切换选项卡 = 切换要配置的服务器；点「确定」才保存并切换同步目标
 function toggleKey(id, btn) {
   var el = document.getElementById(id)
   var u = btn.querySelector('use')

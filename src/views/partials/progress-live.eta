@@ -1,0 +1,73 @@
+<% if (!live || live.finishedAt !== null) { %>
+<!-- 空闲：本面板只显示"正在跑的任务"，跑完的结果落到下方历史标签里 -->
+<div class="rounded-lg border border-base-300 bg-base-100 px-3 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+  <span class="text-sm c-sub">当前没有任务在跑。</span>
+  <% if (live) { %>
+  <span class="text-xs c-sub">上次：<b><%= live.taskName %></b> · <%= live.result %><% if (live.error) { %> · <span class="st-bad"><%= live.error %></span><% } %> · 用时 <%= elapsedSec %>s</span>
+  <% } %>
+  <span class="flex-1"></span>
+  <span class="text-xs c-sub">已完成的同步见下方历史 ↓</span>
+</div>
+<% } else { %>
+<div class="rounded-lg border border-base-300 bg-base-100 shadow-sm overflow-hidden">
+
+  <!-- 头：任务名 + 阶段 + 用时 -->
+  <header class="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-base-200 bg-base-200/50">
+    <span class="inline-block" style="width:8px;height:8px;border-radius:50%;background:var(--sfg);animation:sfpulse 1.2s ease-in-out infinite"></span>
+    <strong class="text-sm">正在同步：<%= live.taskName %></strong>
+    <span class="text-xs c-sub">阶段：<b><%= live.phase %></b></span>
+    <span class="flex-1"></span>
+    <span class="text-xs c-sub">用时 <%= elapsedSec %>s</span>
+  </header>
+
+  <div class="px-3 py-2.5 space-y-2">
+    <!-- 进度条：已完成 / 总数 -->
+    <% if (live.total > 0) { %>
+    <div class="flex items-center gap-2">
+      <div class="flex-1 h-2 rounded-full bg-base-200 overflow-hidden">
+        <div class="h-full rounded-full transition-all" style="width: <%= pct %>%; background: var(--sfg)"></div>
+      </div>
+      <span class="text-xs c-sub tabular-nums shrink-0"><b><%= live.done %></b>/<%= live.total %> 首 · <%= pct %>%</span>
+    </div>
+    <% } else { %>
+    <div class="text-xs c-sub">本次没有需要下载的新歌<% if (live.removed > 0) { %>（已移除 <%= live.removed %> 首）<% } %></div>
+    <% } %>
+
+    <!-- 当前正在处理的歌 -->
+    <% if (live.current) { %>
+    <div class="text-sm">正在处理：<b><%= live.current.name %></b><span class="c-sub"> — <%= live.current.singer %></span><% if (live.current.quality) { %><span class="text-xs c-sub"> [<%= live.current.quality %>]</span><% } %></div>
+    <% } %>
+
+    <!-- 计数 -->
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+      <span class="st-ok">✅ 成功 <%= live.ok %></span>
+      <span class="st-warn">⚠️ 未满足 <%= live.unsat %></span>
+      <span class="st-bad">❌ 失败 <%= live.fail %></span>
+      <span class="st-skip">🔍 查重 <%= live.dedup %></span>
+      <% if (live.removed > 0) { %><span class="c-sub">🗑 移除 <%= live.removed %></span><% } %>
+    </div>
+
+    <!-- 本次批次已处理完的曲目 -->
+    <% if (live.recent.length) { %>
+    <div class="border-t border-base-200 pt-1.5 space-y-0.5">
+      <div class="text-xs c-sub">本次已处理（<%= live.done %> 条，最近在前）：</div>
+      <% for (const r of live.recent) { %>
+      <div class="text-xs flex flex-wrap items-center gap-x-2">
+        <% if (r.status === 'success') { %><span class="st-ok">✅</span>
+        <% } else if (r.status === 'dup') { %><span class="st-skip">⏭ 已有</span>
+        <% } else if (r.status === 'dedup') { %><span class="st-skip">🔍 查重</span>
+        <% } else if (r.status === 'unsatisfied') { %><span class="st-warn">⚠️ 未满足</span>
+        <% } else { %><span class="st-bad">❌ 失败</span><% } %>
+        <span><%= r.name %><span class="c-sub"> — <%= r.singer %></span></span>
+        <% if (r.quality) { %><span class="c-sub">[<%= r.quality %>]</span><% } %>
+        <% if (r.reason) { %><span class="st-warn"><%= r.reason %></span><% } %>
+      </div>
+      <% } %>
+    </div>
+    <% } %>
+  </div>
+</div>
+<style>
+  @keyframes sfpulse { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
+</style>
+<% } %>

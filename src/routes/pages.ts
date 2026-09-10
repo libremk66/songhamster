@@ -12,9 +12,10 @@ export const NAV = [
   { id: 'sync-setup', label: '歌单同步' },
   { id: 'charts', label: '榜单订阅' },
   { id: 'options', label: '下载选项' },
-  { id: 'progress', label: '任务进度' },
-  { id: 'history', label: '历史记录' },
-  { id: 'library', label: '曲库管理' },
+  // 任务进度已并入「进度历史」（实时进度在页顶，历史按歌单/榜单分标签）
+  { id: 'history', label: '进度历史' },
+  // 曲库管理：暂时隐藏（路由/页面保留，需要时取消注释即可恢复）
+  // { id: 'library', label: '曲库管理' },
   { id: 'logs', label: '日志' },
   { id: 'settings', label: '设置' },
 ] as const
@@ -41,18 +42,27 @@ export function pagesRouter(getCfg: () => AppConfig, lx: LxServerAdapter, emby: 
 
   // 下载选项（全局）
   // 榜单订阅（浏览 + 我的订阅；订阅列表由 /api/charts/subs 片段加载）
-  r.get('/charts', (_req, res) => {
-    res.type('html').send(renderPage('charts', base('charts', _req)))
+  r.get('/charts', async (_req, res) => {
+    let embyPlaylists: { id: string; name: string }[] = []
+    if (getCfg().emby.apiKey) {
+      try {
+        embyPlaylists = await emby.listPlaylists()
+      } catch { /* 未连接 */ }
+    }
+    res.type('html').send(
+      renderPage('charts', {
+        ...base('charts', _req),
+        embyPlaylists,
+        fileDeleteOK: supportsFileDelete(getCfg().target),
+      }),
+    )
   })
 
   r.get('/options', (_req, res) => {
     res.type('html').send(renderPage('options', { ...base('options', _req), qOrder: QUALITY_ORDER, qLabels: QUALITY_LABELS }))
   })
 
-  // 同步任务设计器(原型 Phase A:仅交互验证,引擎未接入)
-  r.get('/sync-designer', (_req, res) => {
-    res.type('html').send(renderPage('sync-designer', base('sync-designer', _req)))
-  })
+  // 同步任务设计器原型页 /sync-designer 已移除（设计已并入正式页，见 docs/sync-redesign-spec.md）
 
   r.get('/sync-setup', async (_req, res) => {
     let lxPlaylists: { key: string; name: string; songCount: number }[] = []
@@ -70,13 +80,14 @@ export function pagesRouter(getCfg: () => AppConfig, lx: LxServerAdapter, emby: 
         embyPlaylists = await emby.listPlaylists()
       } catch { /* 忽略 */ }
     }
-    res.type('html').send(renderPage('sync-setup', { ...base('sync-setup', _req), lxPlaylists, embyPlaylists, lxError, qOrder: QUALITY_ORDER, qLabels: QUALITY_LABELS, listen: getCfg().general.listen, fileDeleteOK: supportsFileDelete(getCfg().target) }))
+    // 「包含现有歌单（N 个）」的 N：还没建任务、也没被忽略的现有歌单
+    const lis = getCfg().general.listen
+    const skip = new Set([...repo.listTasks().map((t) => t.lxPlaylistKey), ...lis.ignoredKeys])
+    const existingCount = lxPlaylists.filter((p) => p.key.startsWith('user:') && !skip.has(p.key)).length
+    res.type('html').send(renderPage('sync-setup', { ...base('sync-setup', _req), lxPlaylists, embyPlaylists, lxError, qOrder: QUALITY_ORDER, qLabels: QUALITY_LABELS, listen: lis, existingCount, fileDeleteOK: supportsFileDelete(getCfg().target) }))
   })
 
-  r.get('/progress', (_req, res) => {
-    res.type('html').send(renderPage('progress', base('progress', _req)))
-  })
-
+  // 进度历史：实时进度（页顶，原「任务进度」）+ 按类型分标签的历史
   r.get('/history', (_req, res) => {
     res.type('html').send(renderPage('history', base('history', _req)))
   })

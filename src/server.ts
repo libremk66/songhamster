@@ -110,6 +110,11 @@ app.use('/api', apiRouter(config, lx, server, engine, scheduler))
 app.use('/', pagesRouter(() => config, lx, server))
 
 logger.info(`[auth] 账号认证: ${config.auth.enabled ? `已启用（${config.auth.username}）` : '未启用（设置页可开启）'}`)
+{
+  // 日志落盘目录就绪后清理过期文件（保留天数见 设置 → 通用）
+  const removed = logger.cleanup(config.general.logRetentionDays)
+  if (removed) logger.info(`[logger] 已清理 ${removed} 个超过 ${config.general.logRetentionDays} 天的日志文件`)
+}
 
 app.listen(config.server.port, () => {
   console.log(`[songferry] listening on http://127.0.0.1:${config.server.port}`)

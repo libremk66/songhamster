@@ -156,6 +156,19 @@ export class LxServerAdapter {
   }
 
   /**
+   * 歌单是否仍存在于 LX。
+   * ⚠️ getSongs() 对"歌单被删"返回空数组而非报错 —— 镜像模式若直接采信，会把
+   *    "源歌单不存在"误判成"歌全被移除"从而清空目标歌单。用它区分这两种情况。
+   */
+  async hasPlaylist(playlistKey: string): Promise<boolean> {
+    if (playlistKey === 'loveList') return true
+    if (!playlistKey.startsWith('user:')) return false
+    const data = await this.request('GET', '/api/user/list')
+    const id = playlistKey.slice(5)
+    return (data?.userList ?? []).some((x: any) => String(x.id) === id)
+  }
+
+  /**
    * 跨源搜索（供跨平台找 songmid）
    * ⚠️ 参数名是 name（不是 query，query 报 400 Missing name）
    * ⚠️ 返回 songmid 是数字，normalizeSong 已转字符串

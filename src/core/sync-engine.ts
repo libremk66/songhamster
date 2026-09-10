@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events'
 import path from 'node:path'
 import { rmSync, renameSync } from 'node:fs'
 import type { AppConfig, DelPolicy, Quality } from '../config.js'
-import { HIGH_RES_FLAC, QUALITY_ORDER, DEFAULT_ARCHIVE_PLAYLIST, supportsFileDelete } from '../config.js'
+import { HIGH_RES_FLAC, QUALITY_ORDER, supportsFileDelete, archiveNameOf } from '../config.js'
 import type { LxSong } from '../adapters/lxserver.js'
 import { LxServerAdapter } from '../adapters/lxserver.js'
 import type { MediaServerAdapter } from '../adapters/media-server.js'
@@ -19,6 +19,47 @@ export interface EngineEvents {
   'batch-finish': (taskId: number, batchId: number, result: string) => void
 }
 
+/** 本次运行里已处理完的一首歌（实时面板的"最近"列表用） */
+export interface LiveSong {
+  songKey: string
+  name: string
+  singer: string
+  status: string
+  quality?: string
+  reason?: string
+}
+
+/**
+ * 实时进度（内存态）。单飞引擎所以只要一个槽：任务进度页据此显示
+ * "正在下载第几首/共几首、当前阶段、当前歌曲、成功失败计数"。
+ */
+export interface LiveProgress {
+  taskId: number
+  taskName: string
+  taskType: string
+  batchId: number
+  trigger: string
+  startedAt: number
+  finishedAt: number | null
+  /** 准备中 | 处理移除 | 解析直链 | 下载中 | 校验入库 | 写入媒体库 | 完成 | 失败 */
+  phase: string
+  /** 第几首（1-based） */
+  index: number
+  /** 本次待处理总数 */
+  total: number
+  /** 已处理完的歌曲数 */
+  done: number
+  ok: number
+  fail: number
+  unsat: number
+  dedup: number
+  removed: number
+  current: { name: string; singer: string; quality?: string } | null
+  recent: LiveSong[]
+  result?: string
+  error?: string
+}
+
 export class SyncEngine {
   readonly events = new EventEmitter()
   private runningTaskId: number | null = null
@@ -31,6 +72,68 @@ export class SyncEngine {
 
   get isRunning(): boolean {
     return this.runningTaskId !== null
+  }
+
+  /** 实时进度（内存态）；任务进度页读它显示"正在下载" */
+  live: LiveProgress | null = null
+
+  /** 开始一次运行：重置实时进度槽 */
+  private liveBegin(opts: { taskId: number; taskName: string; taskType: string; batchId: number; trigger: string; total: number }): void {
+    this.live = {
+      ...opts,
+      startedAt: Date.now(),
+      finishedAt: null,
+      phase: '准备中',
+      index: 0,
+      done: 0,
+      ok: 0,
+      fail: 0,
+      unsat: 0,
+      dedup: 0,
+      removed: 0,
+      current: null,
+      recent: [],
+    }
+  }
+  private liveSet(patch: Partial<LiveProgress>): void {
+    if (this.live && this.live.finishedAt === null) Object.assign(this.live, patch)
+  }
+  private liveCount(status: string): void {
+    if (!this.live) return
+    if (status === 'success' || status === 'dup') this.live.ok++
+    else if (status === 'unsatisfied') this.live.unsat++
+    else if (status === 'dedup') this.live.dedup++
+    else this.live.fail++
+    this.live.done++
+  }
+  private livePush(row: LiveSong): void {
+    if (!this.live) return
+    this.live.recent.unshift(row)
+    if (this.live.recent.length > 12) this.live.recent.length = 12
+  }
+  private liveEnd(result: string, error?: string): void {
+    if (!this.live) return
+    this.live.finishedAt = Date.now()
+    this.live.phase = error ? '失败' : '完成'
+    this.live.result = result
+    this.live.error = error
+    this.live.current = null
+  }
+
+  /**
+   * 配置期：确保归档歌单存在（不存在则创建）——用户刚设定了这个目标 = 授权创建。
+   * 运行期（removeSongs 里）只找不建：用户删掉的目标绝不静默重建，而是降级为"保留文件"。
+   */
+  async ensureArchiveTarget(name: string): Promise<{ ok: boolean; created: boolean; error?: string }> {
+    try {
+      if (await this.findPlaylistByName(name)) return { ok: true, created: false }
+      await this.emby.createPlaylist(name)
+      logger.info(`[engine] 已创建归档歌单「${name}」`)
+      return { ok: true, created: true }
+    } catch (e) {
+      logger.warn(`[engine] 归档歌单「${name}」创建失败: ${(e as Error).message}`)
+      return { ok: false, created: false, error: (e as Error).message }
+    }
   }
 
   emit<K extends keyof EngineEvents>(name: K, ...args: Parameters<EngineEvents[K]>): void {
@@ -70,6 +173,7 @@ export class SyncEngine {
     this.runningTaskId = taskId
     const batchId = repo.createBatch({ taskId, trigger })
     this.emit('batch-start', taskId, batchId)
+    this.liveBegin({ taskId, taskName: task.lxPlaylistName, taskType: task.taskType ?? 'playlist', batchId, trigger, total: 0 })
 
     let okCount = 0
     let failCount = 0
@@ -80,7 +184,7 @@ export class SyncEngine {
 
     try {
       logger.info(`[engine] task#${taskId}(${task.lxPlaylistName}) ${trigger} 开始`)
-      // 榜单订阅：歌曲源 = 榜单 API（订阅范围前 N 首，0=全榜）；恒增量（归档模式只增不删）
+      // 榜单订阅：歌曲源 = 榜单 API（订阅范围前 N 首，0=全榜）；默认增量，可切镜像（跌出即处理）
       const isChart = task.taskType === 'chart'
       let songs: LxSong[]
       if (isChart) {
@@ -94,9 +198,22 @@ export class SyncEngine {
       // diff:新语义 mode(null=旧任务按 syncMode 映射:full→mirror+keep)
       const sem = taskSemantics(task)
       const mirror = sem.taskMode === 'mirror'
+      // "源消失"保护：镜像绝不能把"拉不到源"当成"全被移除"而清空目标播放列表
+      // （空数组本身就是"待移除全部"的信号，所以只在 0 首时才判定）
+      if (mirror && songs.length === 0) {
+        if (isChart) {
+          // 榜单永远不可能是"合法的空榜"：拉到 0 首 = 榜单 id 失效/接口异常
+          repo.updateTask(taskId, { enabled: 0, lastRunAt: new Date().toISOString(), lastResult: '榜单拉取为空(已停用)' })
+          throw new Error(`榜单「${task.lxPlaylistName}」本次拉取到 0 首（榜单 id 失效或接口异常）——已停用本任务，未做任何移除`)
+        }
+        if (!(await this.lx.hasPlaylist(task.lxPlaylistKey))) {
+          repo.updateTask(taskId, { enabled: 0, lastRunAt: new Date().toISOString(), lastResult: '源歌单已不存在(已停用)' })
+          throw new Error(`源歌单「${task.lxPlaylistName}」在 LX 中已不存在(可能被删除)——已停用本任务,未做任何移除`)
+        }
+      }
       let toDownload: LxSong[]
       let toRemove: string[] = []
-      if (isChart || !mirror) {
+      if (!mirror) {
         toDownload = this.diffIncremental(taskId, songs)
       } else {
         const d = this.diffFull(taskId, songs)
@@ -106,15 +223,20 @@ export class SyncEngine {
       logger.info(`[engine] ${isChart ? `榜单 ${task.lxPlaylistName}（范围 ${songs.length} 首）` : `源歌单 ${songs.length} 首`} | 模式=${sem.taskMode}/${sem.delPolicy} | 待下载 ${toDownload.length} | 待移除 ${toRemove.length}`)
 
       // 镜像:按删除策略处理已删除的歌
+      let archiveDegraded: string | null = null
       if (toRemove.length > 0) {
-        const removed = await this.removeSongs(taskId, task, toRemove, sem)
-        removedCount = removed
+        this.liveSet({ phase: '处理移除（镜像删除）', current: null })
+        const r = await this.removeSongs(taskId, task, toRemove, sem)
+        removedCount = r.removed
+        archiveDegraded = r.archiveDegraded
+        this.liveSet({ removed: r.removed })
       }
 
       // 逐歌下载（批量下载保护：每首结束后等待间隔，防音源限流）
       const prot = this.cfg().download.protection
       for (let idx = 0; idx < toDownload.length; idx++) {
         const song = toDownload[idx]
+        this.liveSet({ index: idx + 1, total: toDownload.length, phase: '解析直链', current: { name: song.name, singer: song.singer } })
         // 查重 pre-check：Emby 已存在达标歌曲 → 跳过 LX 下载，仅入歌单
         let dedupHit: { id: string; quality: string | null } | null = null
         const ddOn = task.dedupCheck || this.cfg().advanced.dedupCheck
@@ -149,9 +271,13 @@ export class SyncEngine {
             songKey: song.songKey, songName: song.name, status: okAdd ? 'dedup' : 'failed',
             quality: dedupHit.quality ?? undefined, errorReason: okAdd ? undefined : '查重命中但加入歌单失败',
           })
+          this.liveCount(okAdd ? 'dedup' : 'failed')
+          this.livePush({ songKey: song.songKey, name: song.name, singer: song.singer, status: okAdd ? 'dedup' : 'failed', quality: dedupHit.quality ?? undefined, reason: okAdd ? undefined : '查重命中但加入歌单失败' })
           continue
         }
         const outcome = await this.downloadOne(taskId, task, song)
+        this.liveCount(outcome.status)
+        this.livePush({ songKey: song.songKey, name: song.name, singer: song.singer, status: outcome.status, quality: outcome.quality, reason: outcome.reason })
         if (outcome.status === 'success') okCount++
         else if (outcome.status === 'dup') dupCount++
         else if (outcome.status === 'unsatisfied') unsatisfiedCount++
@@ -179,6 +305,8 @@ export class SyncEngine {
       }
 
       const result = failCount > 0 || unsatisfiedCount > 0 ? (okCount > 0 ? 'partial' : 'failed') : 'success'
+      // 归档目标不存在 → 已降级为"保留文件"：结果照常，但在结果串/批次详情里留痕
+      const resultTxt = archiveDegraded ? `${result}·归档降级` : result
       repo.finishBatch(batchId, {
         finishedAt: new Date().toISOString(),
         result,
@@ -188,10 +316,11 @@ export class SyncEngine {
         removedCount,
         dupCount,
         dedupCount,
+        ...(archiveDegraded ? { detail: `归档歌单「${archiveDegraded}」不存在 → 已降级为保留文件(未重建)` } : {}),
       })
       repo.updateTask(taskId, {
         lastRunAt: new Date().toISOString(),
-        lastResult: result,
+        lastResult: resultTxt,
       })
       // 快照：完全同步语义的删除检测依据 = 本次源歌单全集
       repo.setSnapshot(taskId, songs.map((s) => s.songKey))
@@ -203,26 +332,29 @@ export class SyncEngine {
         const prevKeys = prev?.songKeys ?? []
         const prevSet = new Set(prevKeys)
         const newCount = curKeys.filter((k) => !prevSet.has(k)).length
-        const removedCount = prev ? prevKeys.filter((k) => !curSet.has(k)).length : 0
+        const dropped = prev ? prevKeys.filter((k) => !curSet.has(k)).length : 0
         repo.saveChartSnapshot({
           taskId,
           syncedAt: new Date().toISOString(),
           totalCount: curKeys.length,
           newCount,
-          removedCount,
+          removedCount: dropped,
           songKeys: curKeys,
         })
         if (prev) {
-          logger.info(`[engine] 榜单变化: 本期 ${curKeys.length} 首 | 新上榜 ${newCount} | 跌出 ${removedCount}`)
+          logger.info(`[engine] 榜单变化: 本期 ${curKeys.length} 首 | 新上榜 ${newCount} | 跌出 ${dropped}${mirror ? ` | 已按策略处理 ${removedCount} 首` : ''}`)
         }
       }
       logger.info(`[engine] task#${taskId} 完成: result=${result} ok=${okCount} fail=${failCount} unsatisfied=${unsatisfiedCount} dup=${dupCount} dedup=${dedupCount} removed=${removedCount}`)
+      this.liveSet({ phase: '完成' })
+      this.liveEnd(resultTxt)
       this.emit('batch-finish', taskId, batchId, result)
       return result
     } catch (e) {
       const err = (e as Error).message
       logger.error(`[engine] task#${taskId} 异常: ${err}`)
       repo.finishBatch(batchId, { finishedAt: new Date().toISOString(), result: 'failed', detail: err })
+      this.liveEnd('failed', err)
       this.emit('batch-finish', taskId, batchId, 'failed')
       return 'error'
     } finally {
@@ -260,7 +392,9 @@ export class SyncEngine {
       logger.info(`[engine] 下载 ${song.name} [${quality}]`)
 
       try {
+        this.liveSet({ phase: '解析直链', current: { name: song.name, singer: song.singer, quality } })
         const { url } = await this.lx.resolveUrl(song, quality)
+        this.liveSet({ phase: '下载中', current: { name: song.name, singer: song.singer, quality } })
         await this.lx.requestDownload(song, url, quality, {
           embedLyric: cfg.download.embedLyric,
           cacheLyric: cfg.download.cacheLyric,
@@ -270,6 +404,7 @@ export class SyncEngine {
           logger.warn(`[engine] ${song.name} [${quality}] 文件未出现(超时)`)
           continue // 尝试下一档
         }
+        this.liveSet({ phase: '校验入库', current: { name: song.name, singer: song.singer, quality } })
         // 移到歌单目录
         const moved = moveToPlaylistDir({
           downloadRoot: cfg.lxserver.downloadRoot,
@@ -337,6 +472,7 @@ export class SyncEngine {
           size: file.size,
         })
         repo.refTaskFile(taskId, song.songKey, fileId)
+        this.liveSet({ phase: '写入媒体库', current: { name: song.name, singer: song.singer, quality: effectiveQuality } })
         // Emby 入库 + 入歌单（手动下载 skipIngest：仅落盘，媒体库扫描自然入库）
         const embyOk = opts?.skipIngest ? true : await this.ensureInEmby(taskId, task, song)
         repo.upsertSongStatus({
@@ -433,6 +569,7 @@ export class SyncEngine {
     this.runningTaskId = taskId
     const batchId = repo.createBatch({ taskId, trigger: 'manual' })
     this.emit('batch-start', taskId, batchId)
+    this.liveBegin({ taskId, taskName: task.lxPlaylistName, taskType: 'adhoc', batchId, trigger: 'manual', total: songs.length })
     let ok = 0
     let fail = 0
     let dup = 0
@@ -442,10 +579,13 @@ export class SyncEngine {
       logger.info(`[engine] 手动下载 ${songs.length} 首（落盘 downloadRoot/手动下载，不入歌单）`)
       for (let idx = 0; idx < songs.length; idx++) {
         const song = songs[idx]
+        this.liveSet({ index: idx + 1, phase: '解析直链', current: { name: song.name, singer: song.singer } })
         const outcome = await this.downloadOne(taskId, task, song, {
           absoluteDir: path.join(this.cfg().lxserver.downloadRoot?.replace(/\/+$/, '') ?? '', '手动下载'),
           skipIngest: true,
         })
+        this.liveCount(outcome.status)
+        this.livePush({ songKey: song.songKey, name: song.name, singer: song.singer, status: outcome.status, quality: outcome.quality, reason: outcome.reason })
         if (outcome.status === 'success') ok++
         else if (outcome.status === 'dup') dup++
         else if (outcome.status === 'unsatisfied') unsatisfied++
@@ -471,6 +611,7 @@ export class SyncEngine {
       })
       repo.updateTask(taskId, { lastRunAt: new Date().toISOString(), lastResult: result })
       repo.setSnapshot(taskId, songs.map((s) => s.songKey))
+      this.liveEnd(result)
       logger.info(`[engine] 手动下载完成: ok=${ok} fail=${fail} dup=${dup} unsatisfied=${unsatisfied}`)
       // 触发一次媒体库扫描帮助入库（Navidrome no-op；Emby 索引新文件）
       try {
@@ -481,6 +622,7 @@ export class SyncEngine {
     } catch (e) {
       const msg = (e as Error).message
       logger.warn(`[engine] 手动下载异常: ${msg}`)
+      this.liveEnd('failed', msg)
       repo.finishBatch(batchId, {
         finishedAt: new Date().toISOString(), result: 'failed',
         okCount: ok, failCount: fail, unsatisfiedCount: unsatisfied, dupCount: dup, dedupCount: 0, removedCount: 0,
@@ -552,7 +694,7 @@ export class SyncEngine {
     task: ReturnType<typeof repo.getTask> & {},
     songKeys: string[],
     sem: { taskMode: 'incremental' | 'mirror'; delPolicy: DelPolicy },
-  ): Promise<number> {
+  ): Promise<{ removed: number; archiveDegraded: string | null }> {
     let removed = 0
     let movedFiles = 0
     const cfg = this.cfg()
@@ -571,16 +713,20 @@ export class SyncEngine {
       if (same) entries.push({ pid: same.id, managed: true })
     }
 
+    const archiveName = archiveNameOf(task)
     let archiveId: string | null = null
+    let archiveDegraded: string | null = null
+    // 只找不建：目标被删 → 降级为「保留文件」，绝不重建用户删掉的东西（配置期才创建）
     const ensureArchive = async (): Promise<string | null> => {
       if (archiveId) return archiveId
       try {
-        const name = task.archivePlaylist?.trim() || DEFAULT_ARCHIVE_PLAYLIST
-        const ex = await this.findPlaylistByName(name)
+        const ex = await this.findPlaylistByName(archiveName)
         if (ex) { archiveId = ex.id; return archiveId }
-        const np = await this.emby.createPlaylist(name)
-        archiveId = np.id
-        return archiveId
+        if (!archiveDegraded) {
+          archiveDegraded = archiveName
+          logger.warn(`[engine] task#${taskId} 归档歌单「${archiveName}」不存在 → 降级为「保留文件」(不重建、不删除)`)
+        }
+        return null
       } catch (e) {
         logger.warn(`[engine] 归档歌单不可用: ${(e as Error).message}`)
         return null
@@ -646,7 +792,7 @@ export class SyncEngine {
       } catch { /* 扫描失败不阻断 */ }
     }
     if (movedFiles > 0) logger.info(`[engine] 删除策略=delete:${movedFiles} 个文件移入回收站(可恢复)`)
-    return removed
+    return { removed, archiveDegraded }
   }
 }
 

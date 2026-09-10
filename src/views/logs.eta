@@ -1,19 +1,86 @@
+<style>
+  /* 日志行：等宽时间戳 + 级别 + 内容；级别用颜色区分 */
+  #log-area { max-height: 70vh; overflow: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .75rem; }
+  .log-line { display: flex; gap: .5rem; padding: .18rem .5rem; border-bottom: 1px solid oklch(var(--bc) / .06); line-height: 1.5; }
+  .log-line:hover { background: oklch(var(--bc) / .04); }
+  .log-line .lg-ts { flex-shrink: 0; color: oklch(var(--bc) / .5); }
+  .log-line .lg-lv { flex-shrink: 0; width: 3.2rem; font-weight: 700; letter-spacing: .02em; }
+  .log-line .lg-msg { flex: 1; min-width: 0; word-break: break-word; white-space: pre-wrap; }
+  .lv-info .lg-lv { color: var(--sfg-deep); }
+  .lv-warn .lg-lv, .lv-warn .lg-msg { color: #b3490a; }
+  .lv-error .lg-lv, .lv-error .lg-msg { color: #c92a2a; }
+  /* 级别筛选胶囊 */
+  .logf { display: inline-flex; align-items: center; padding: .2rem .65rem; font-size: .75rem; cursor: pointer;
+          border-radius: 999px; border: 1px solid oklch(var(--bc) / .22); background: oklch(var(--b1)); color: oklch(var(--bc) / .75); }
+  .logf:hover { border-color: var(--sfg); color: var(--sfg-deep); }
+  .logf.on { background: var(--sfg); border-color: var(--sfg); color: #fff; font-weight: 650; }
+</style>
 <div class="space-y-4">
 
   <!-- ===== 页头 ===== -->
   <header>
     <div class="flex items-center gap-2 flex-wrap">
       <h2 class="text-lg font-extrabold tracking-tight">日志</h2>
-      <span class="badge badge-outline badge-sm font-normal px-2 py-1 text-xs">每 3 秒自动刷新</span>
+      <span class="badge badge-outline badge-sm font-normal px-2 py-1 text-xs">落盘保留 · 重启不丢</span>
     </div>
   </header>
 
-  <section class="card bg-base-100 border border-base-300 shadow-sm">
-    <div class="card-body p-2">
-      <div id="log-area" hx-get="/api/logs/partial" hx-trigger="load, every 3s" hx-swap="innerHTML">
-        <pre class="font-mono text-xs leading-relaxed p-3 overflow-auto" style="max-height:72vh"><%= logs %></pre>
+  <section class="card tier1 border border-base-300 shadow-sm">
+    <div class="card-body gap-2">
+      <!-- 工具栏 -->
+      <div class="flex flex-wrap items-center gap-1.5">
+        <button type="button" class="logf on" data-lv="" onclick="logSetLevel(this)">全部</button>
+        <button type="button" class="logf" data-lv="info" onclick="logSetLevel(this)">INFO</button>
+        <button type="button" class="logf" data-lv="warn" onclick="logSetLevel(this)">WARN</button>
+        <button type="button" class="logf" data-lv="error" onclick="logSetLevel(this)">ERROR</button>
+        <input id="log-q" placeholder="搜索关键字（回车）" class="input input-bordered input-sm" style="width:14rem"
+               onkeydown="if(event.key==='Enter'){logQ=this.value.trim();logLoad(true)}">
+        <button type="button" class="btn btn-outline btn-sm" onclick="logLoad(true)"><svg aria-hidden="true"><use href="#i-refresh"/></svg>刷新</button>
+        <label class="flex items-center gap-1.5 cursor-pointer text-xs c-sub">
+          <input type="checkbox" id="log-auto" checked class="checkbox checkbox-xs">自动刷新
+        </label>
+        <span class="flex-1"></span>
+        <span id="log-count" class="text-xs c-sub"></span>
       </div>
+
+      <div id="log-area" class="rounded-lg border border-base-300 bg-base-100 p-1">
+        <p class="text-xs c-sub py-8 text-center">加载中…</p>
+      </div>
+      <p class="text-xs c-sub">日志写在 <code class="bg-base-200 px-1 rounded">data/logs/songferry-日期.log</code>（重启不丢），保留天数见「设置 → 通用」。你正在读历史或输入搜索词时会自动暂停刷新。</p>
     </div>
   </section>
 
 </div>
+
+<script>
+var logLevel = '', logQ = '', logBusy = false
+function logSetLevel(btn) {
+  document.querySelectorAll('.logf').forEach(function (b) { b.classList.remove('on') })
+  btn.classList.add('on')
+  logLevel = btn.getAttribute('data-lv') || ''
+  logLoad(true)
+}
+function logLoad(force) {
+  if (logBusy) return
+  var box = document.getElementById('log-area')
+  if (!box) return
+  // 用户正滚离顶部读历史、或正在输入搜索词 → 不打扰
+  if (!force && (box.scrollTop > 40 || document.activeElement === document.getElementById('log-q'))) return
+  logBusy = true
+  fetch('/api/logs/partial?level=' + encodeURIComponent(logLevel) + '&q=' + encodeURIComponent(logQ))
+    .then(function (r) { return r.text() })
+    .then(function (html) {
+      box.innerHTML = html
+      if (force) box.scrollTop = 0
+      var n = box.querySelectorAll('.log-line').length
+      document.getElementById('log-count').textContent = n ? n + ' 条' : ''
+    })
+    .catch(function () { /* 下次再试 */ })
+    .then(function () { logBusy = false })
+}
+logLoad(true)
+setInterval(function () {
+  var a = document.getElementById('log-auto')
+  if (a && a.checked) logLoad(false)
+}, 3000)
+</script>

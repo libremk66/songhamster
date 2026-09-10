@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import type { AppConfig, ListenParams, Quality } from '../config.js'
-import { QUALITY_ORDER, QUALITY_LABELS, TARGET_LABEL, DEFAULT_ARCHIVE_PLAYLIST } from '../config.js'
+import { QUALITY_ORDER, QUALITY_LABELS, TARGET_LABEL, DEFAULT_ARCHIVE_PLAYLIST, DEFAULT_CHART_ARCHIVE_PLAYLIST, isArchiveTemplate, resolveArchiveName, archiveNameOf, supportsFileDelete } from '../config.js'
 import { saveConfig } from '../config.js'
 import { LxServerAdapter } from '../adapters/lxserver.js'
 import type { MediaServerAdapter } from '../adapters/media-server.js'
@@ -18,6 +18,7 @@ import { scanLowQuality, findBestCandidate, upgradeOne, recordUpgrade } from '..
 import { scanDuplicates, planCleanup, type DupeGroup, type DupeItem } from '../core/dupe.js'
 import { localizeEmbyPath, moveToTrash, listTrash, restoreFromTrash, purgePath } from '../core/trash.js'
 import { probeAudio } from '../core/probe.js'
+import { SERVER_SPECS, specOf } from '../core/server-spec.js'
 import { logger } from '../core/logger.js'
 import { getDb } from '../store/db.js'
 import { renderBody } from '../views/render.js'
@@ -89,6 +90,7 @@ export function apiRouter(
     cfg.download.concurrency = Math.min(10, Math.max(1, Number(b.concurrency) || 3))
     cfg.download.retries = Math.min(5, Math.max(0, Number(b.retries) || 2))
     saveConfig(cfg)
+    logger.info(`[config] 下载选项：音质=${valid.join('>')} 模板=${cfg.download.filenameTemplate} 并发=${cfg.download.concurrency} 重试=${cfg.download.retries} 标签=${cfg.download.writeId3 ? '开' : '关'} 封面=${cfg.download.writeCover ? '开' : '关'} 歌词=${cfg.download.embedLyric ? '内嵌' : ''}${cfg.download.cacheLyric ? '+外置' : ''}`)
     res.send(ok('下载选项已保存'))
   })
 
@@ -247,6 +249,98 @@ export function apiRouter(
     res.send(t.ok ? ok('Subsonic 连接正常') : err(`Subsonic ${t.error}`))
   })
 
+  // ===== 连接媒体服务器（统一分区：选项卡切类型 + 确定一键"存→测→探测→设为目标"）=====
+  const serverVals = (type: string): Record<string, string> => {
+    const c = (cfg as unknown as Record<string, Record<string, string>>)[type] ?? {}
+    return { baseUrl: c.baseUrl ?? '', apiKey: c.apiKey ?? '', username: c.username ?? '', password: c.password ?? '', libraryRoot: c.libraryRoot ?? '' }
+  }
+  const renderConnSection = (type: string, oob = false): string => {
+    const spec = specOf(type) ?? SERVER_SPECS[0]
+    return renderBody('partials/connect-server', { specs: SERVER_SPECS, spec, type: spec.key, target: cfg.target, vals: serverVals(spec.key), oob })
+  }
+  r.get('/connect/section', (req, res) => {
+    res.send(renderConnSection(String(req.query.type ?? cfg.target)))
+  })
+
+  /** 按类型把表单字段写进对应配置段（与各 /config/* 保持同一套字段名） */
+  const applyServerCfg = (type: string, b: Record<string, unknown>): void => {
+    const g = (k: string) => String(b[k] ?? '').trim()
+    if (type === 'emby') {
+      cfg.emby.baseUrl = g('baseUrl'); cfg.emby.apiKey = g('apiKey'); cfg.emby.libraryRoot = g('libraryRoot')
+    } else if (type === 'jellyfin') {
+      cfg.jellyfin.baseUrl = g('baseUrl'); cfg.jellyfin.apiKey = g('apiKey'); cfg.jellyfin.libraryRoot = g('libraryRoot')
+    } else if (type === 'navidrome') {
+      cfg.navidrome.baseUrl = g('baseUrl'); cfg.navidrome.username = g('username'); cfg.navidrome.password = g('password'); cfg.navidrome.libraryRoot = g('libraryRoot')
+    } else if (type === 'daoliyu') {
+      cfg.daoliyu.baseUrl = g('baseUrl'); cfg.daoliyu.username = g('username'); cfg.daoliyu.password = g('password'); cfg.daoliyu.libraryRoot = g('libraryRoot')
+    } else if (type === 'subsonic') {
+      cfg.subsonic.baseUrl = g('baseUrl'); cfg.subsonic.username = g('username'); cfg.subsonic.password = g('password')
+    }
+  }
+  const adapterOf = (type: string): MediaServerAdapter =>
+    type === 'emby' ? emby
+      : type === 'jellyfin' ? new EmbyAdapter(() => cfg, 'jellyfin')
+        : type === 'navidrome' ? new NavidromeAdapter(() => cfg)
+          : type === 'daoliyu' ? new DaoliyuAdapter(() => cfg)
+            : new SubsonicAdapter(() => cfg)
+
+  /** 把底层报错翻成人话（让用户知道该去改哪个字段） */
+  const friendlyErr = (e: string): string =>
+    /fetch failed|ECONNREFUSED|ENOTFOUND|ETIMEDOUT|socket hang up|network/i.test(e)
+      ? '无法连接：地址不通或服务未启动'
+      : /\b401\b|\b403\b|unauthor/i.test(e)
+        ? '鉴权失败：API key / 账号密码不正确'
+        : /\b404\b/.test(e)
+          ? '接口返回 404：地址可能多写了路径（一般填到端口即可）'
+          : e
+
+  /**
+   * 确定 = 保存该服务器配置 → 测试连接 → 探测媒体库 → 全部通过才设为同步目标。
+   * 任一步不通过都不切换目标（避免把同步指向一台连不上/库没匹配的服务器）。
+   */
+  r.post('/connect/apply', async (req, res) => {
+    const b = (req.body ?? {}) as Record<string, unknown>
+    const spec = specOf(String(b.type ?? ''))
+    if (!spec) return res.send(err('未知的媒体服务器类型'))
+    applyServerCfg(spec.key, b)
+    saveConfig(cfg)
+    const back = (html: string) => res.send(html + renderConnSection(spec.key, true)) // 顺带刷新选项卡上的"当前目标"点
+    const ad = adapterOf(spec.key)
+    let connErr = ''
+    try {
+      const t = await ad.test()
+      if (!t.ok) connErr = t.error ?? '未知错误'
+    } catch (e) {
+      connErr = (e as Error).message
+    }
+    if (connErr) return back(err(`${spec.label} 连接失败，请检查媒体服务器信息（${escapeHtml(friendlyErr(connErr))}）`))
+    // 媒体库探测（Subsonic 无媒体库概念，跳过）
+    if (spec.probePath) {
+      try {
+        const libs = await ad.listLibraries()
+        const id = await ad.resolveLibraryId()
+        if (!id) {
+          const list = libs.map((l) => l.name).join('、')
+          return back(`<span class="st-warn">⚠️ ${spec.label} 已连接，但媒体库根路径未匹配到库${list ? `（现有：${escapeHtml(list)}）` : '（该服务器上还没有音乐库）'}，请核对后重按「确定」；<b>同步目标未切换</b></span>`)
+        }
+      } catch (e) {
+        return back(`<span class="st-warn">⚠️ ${spec.label} 已连接，但探测媒体库出错（${escapeHtml((e as Error).message)}）；<b>同步目标未切换</b></span>`)
+      }
+    }
+    cfg.target = spec.key
+    if (spec.key === 'emby' || spec.key === 'jellyfin') {
+      const id = await ad.resolveLibraryId().catch(() => null)
+      if (id) (spec.key === 'emby' ? cfg.emby : cfg.jellyfin).mediaLibraryId = id
+    }
+    if (spec.key === 'navidrome') {
+      const id = await ad.resolveLibraryId().catch(() => null)
+      if (id) cfg.navidrome.libraryId = id
+    }
+    saveConfig(cfg)
+    logger.info(`[connect] ${spec.label} 已连接并设为同步目标（${cfg[spec.key === 'jellyfin' ? 'jellyfin' : spec.key].baseUrl}）`)
+    back(ok(`${spec.label} 已连接，已设为同步目标`))
+  })
+
   // ===== 榜单订阅 API =====
   const PLAT_LABEL: Record<string, string> = { tx: 'QQ', kw: '酷我', wy: '网易云', kg: '酷狗', mg: '咪咕', bd: '百度' }
 
@@ -357,36 +451,22 @@ export function apiRouter(
     }
   })
 
-  /** 订阅编辑表单（卡片内联替换） */
-  r.get('/charts/subs/:id/edit', (req, res) => {
+  /** 订阅编辑（卡片内联替换，DaisyUI 版 partial） */
+  r.get('/charts/subs/:id/edit', async (req, res) => {
     const t = repo.getTask(Number(req.params.id))
     if (!t || t.taskType !== 'chart') return res.send('<p class="bad">订阅不存在</p>')
-    const tn = TARGET_LABEL[cfg.target] ?? 'Emby'
-    res.send(`<article style="padding:.6rem .9rem;margin-bottom:.6rem">
-      <form hx-post="/api/task/${t.id}/update" hx-swap="none" hx-on::after-request="htmx.ajax('GET','/api/charts/subs',{target:'#ch-subs-rows'})">
-        <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
-          <strong>🏆 编辑订阅</strong>
-          <small class="hint">${escapeHtml(t.chartSource ?? '')} · ${escapeHtml(t.chartName ?? '')}（平台与榜单不可改）</small>
-        </div>
-        <div class="line"><span>任务名（播放列表/落盘目录同名）</span>
-          <input name="lxPlaylistName" value="${escapeHtml(t.lxPlaylistName)}" style="width:16rem">
-        </div>
-        <div class="line"><span>下载范围（榜单前 N 首，0=全榜）</span>
-          <input type="number" name="maxCount" value="${t.maxCount}" min="0" style="width:7rem">
-        </div>
-        <div class="line">
-          <label class="opt"><input type="checkbox" name="createSameNamePlaylist" value="1" ${t.createSameNamePlaylist ? 'checked' : ''}> 同步到新建同名 ${tn} 播放列表（歌单）</label>
-        </div>
-        <div class="line"><span>定时 cron（空 = 仅手动）</span>
-          <input name="cronExpr" value="${escapeHtml(t.cronExpr || '')}" placeholder="0 8 * * *" style="width:12rem">
-          <small class="hint">各榜单刷新周期不同，建议按榜单自定</small>
-        </div>
-        <div class="btn-row">
-          <button type="submit">保存</button>
-          <button type="button" class="secondary" hx-get="/api/charts/subs" hx-target="#ch-subs-rows" hx-swap="innerHTML">取消</button>
-        </div>
-      </form>
-    </article>`)
+    let embyPlaylists: { id: string; name: string }[] = []
+    try {
+      embyPlaylists = await emby.listPlaylists()
+    } catch { /* 未连接 */ }
+    res.send(
+      renderBody('partials/chart-edit', {
+        t,
+        targetName: TARGET_LABEL[cfg.target] ?? 'Emby',
+        fileDeleteOK: supportsFileDelete(cfg.target),
+        embyPlaylists,
+      }),
+    )
   })
 
   /** 我的订阅列表片段 */
@@ -449,7 +529,12 @@ export function apiRouter(
       const looksKey = !t.lxPlaylistName || t.lxPlaylistName === t.lxPlaylistKey || t.lxPlaylistName.startsWith('user:') || t.lxPlaylistName === 'loveList'
       return { ...t, lxPlaylistName: looksKey ? keyToName[t.lxPlaylistKey] ?? t.lxPlaylistKey : t.lxPlaylistName }
     })
-    return renderBody('partials/task-table', { tasks, idToName, targetName: TARGET_LABEL[cfg.target] ?? 'Emby', })
+    return renderBody('partials/task-table', { tasks, idToName, targetName: TARGET_LABEL[cfg.target] ?? 'Emby', watchOn: autoWatchOn() })
+  }
+
+  /** 是否存在"自动纳入"机制（决定删除任务时是否提示「永久忽略」） */
+  function autoWatchOn(): boolean {
+    return cfg.general.listen.enabled || cfg.general.autoadd.enabled
   }
 
   r.get('/tasks/table', async (req, res) => {
@@ -459,7 +544,7 @@ export function apiRouter(
     const base = await taskTableHtml()
     if (scope === 'playlist') {
       const tasks = repo.listTasks().filter((t) => t.taskType === 'playlist')
-      return res.send(renderBody('partials/task-table', { tasks, idToName: {}, targetName: TARGET_LABEL[cfg.target] ?? 'Emby' }))
+      return res.send(renderBody('partials/task-table', { tasks, idToName: {}, targetName: TARGET_LABEL[cfg.target] ?? 'Emby', watchOn: autoWatchOn() }))
     }
     return res.send(base)
   })
@@ -474,6 +559,7 @@ export function apiRouter(
     const existing = new Set(repo.listTasks().map((t) => t.lxPlaylistKey))
     const created: string[] = []
     const skipped: string[] = []
+    let archiveNote = ''
     for (const key of keys) {
       if (existing.has(key)) { skipped.push(keyToName[key] ?? key); continue }
       const name = keyToName[key] ?? key
@@ -490,10 +576,17 @@ export function apiRouter(
         taskType: 'playlist',
       })
       created.push(name)
+      // 归档目标：配置期创建（含 [歌单名] 占位符时按来源逐个建）
+      if (b.delPolicy === 'archive') {
+        const an = resolveArchiveName(String(b.archivePlaylist ?? ''), name)
+        const ar = await engine.ensureArchiveTarget(an)
+        if (ar.created) archiveNote = `；已创建归档歌单「${an}」`
+        else if (!ar.ok) archiveNote = `；归档歌单「${an}」创建失败：${ar.error}`
+      }
     }
     scheduler.reload()
     const msg = []
-    if (created.length) msg.push(ok('已创建 ' + created.length + ' 个任务:' + created.join('、') + '——请在「任务管理」页查看与操作'))
+    if (created.length) msg.push(ok('已创建 ' + created.length + ' 个任务:' + created.join('、') + '——请在「任务管理」页查看与操作' + archiveNote))
     if (skipped.length) msg.push('<span class="c-sub">已跳过(已存在):' + skipped.join('、') + '</span>')
     res.send(msg.join('<br>') || err('所选歌单均已有任务'))
   })
@@ -522,16 +615,16 @@ export function apiRouter(
       name = keyToName[key] ?? String(b.lxPlaylistName ?? '') ?? key
     }
     const embyTargets = Array.isArray(b.embyTarget) ? b.embyTarget : b.embyTarget ? [b.embyTarget] : []
-    repo.createTask({
+    const newTaskId = repo.createTask({
       lxPlaylistKey: key,
       lxPlaylistName: name || key,
       embyTargetPlaylistIds: embyTargets.map(String),
       createSameNamePlaylist: bool(b.createSameNamePlaylist),
       cronExpr: String(b.cronExpr ?? '').trim() || null,
-      syncMode: b.syncMode === 'full' ? 'full' : 'incremental',
-      mode: isChart ? undefined : (b.mode === 'mirror' || b.mode === 'incremental' ? b.mode : undefined),
-      delPolicy: isChart ? undefined : (['keep', 'delete', 'archive'].includes(b.delPolicy) ? b.delPolicy : undefined),
-      archivePlaylist: isChart ? undefined : (String(b.archivePlaylist ?? '').trim() || undefined),
+      syncMode: b.syncMode === 'full' || b.mode === 'mirror' ? 'full' : 'incremental',
+      mode: b.mode === 'mirror' || b.mode === 'incremental' ? b.mode : undefined,
+      delPolicy: ['keep', 'delete', 'archive'].includes(b.delPolicy) ? b.delPolicy : undefined,
+      archivePlaylist: String(b.archivePlaylist ?? '').trim() || undefined,
       dedupCheck: bool(b.dedupCheck),
       dedupMinQuality: String(b.dedupMinQuality ?? '').trim() || null,
       taskType: isChart ? 'chart' : 'playlist',
@@ -539,11 +632,24 @@ export function apiRouter(
       chartId: isChart ? chartId : undefined,
       chartName: isChart ? chartName : undefined,
       maxCount: isChart ? maxCount : undefined,
-    })
+    } as never)
+    logger.info(`[task] 新建任务 #${newTaskId}「${name}」${isChart ? '（榜单订阅）' : ''}${b.delPolicy === 'archive' ? ' 归档目标=' + String(b.archivePlaylist ?? '') : ''}${b.mode === 'mirror' ? ' 镜像' : ' 增量'}`)
+    // 配置期创建归档目标（运行期只找不建：用户删了不重建，降级为"保留文件"）
+    let archiveNote = ''
+    if (b.delPolicy === 'archive' && b.mode === 'mirror') {
+      const an = resolveArchiveName(
+        String(b.archivePlaylist ?? ''),
+        name || key,
+        isChart ? DEFAULT_CHART_ARCHIVE_PLAYLIST : DEFAULT_ARCHIVE_PLAYLIST,
+      )
+      const ar = await engine.ensureArchiveTarget(an)
+      if (ar.created) archiveNote = `；已创建归档歌单「${an}」`
+      else if (!ar.ok) archiveNote = `；归档歌单「${an}」创建失败：${ar.error}`
+    }
     // 任务列表已移至任务管理页——创建后提示，去任务管理页查看
     const msg = isChart
       ? ok(`订阅已创建（${name}）——请在「榜单订阅 · 我的订阅」查看与同步`)
-      : ok(`任务已创建（${name}）——请在「任务管理」页查看与操作`)
+      : ok(`任务已创建（${name}）——请在「任务管理」页查看与操作${archiveNote}`)
     res.send(msg)
   })
 
@@ -552,6 +658,7 @@ export function apiRouter(
     const t = repo.getTask(Number(req.params.id))
     if (!t) return res.status(404).send(err('任务不存在'))
     repo.updateTask(t.id, { enabled: t.enabled ? 0 : 1 })
+    logger.info(`[task] ${t.enabled ? '停用' : '启用'}任务 #${t.id}「${t.lxPlaylistName}」`)
     res.send(await taskTableHtml('playlist'))
   })
 
@@ -559,10 +666,15 @@ export function apiRouter(
     const id = Number(req.params.id)
     const t = repo.getTask(id)
     repo.deleteTask(id)
-    // 自动新增开启时：删除任务视为"不要该歌单"，加入忽略列表防循环重建
-    if (t && cfg.general.autoadd.enabled && t.lxPlaylistKey.startsWith('user:')) {
-      if (!cfg.general.autoadd.ignoredKeys.includes(t.lxPlaylistKey)) {
-        cfg.general.autoadd.ignoredKeys.push(t.lxPlaylistKey)
+    // 删除任务 = "不要这个歌单"：确认框勾选「永久忽略」时写入忽略列表，防止下次扫描重建。
+    // ⚠️ listenScan 读的是 listen.ignoredKeys（旧代码只写 autoadd → 监听模式下删了又被重建）
+    if (t) logger.info(`[task] 删除任务 #${id}「${t.lxPlaylistName}」${bool((req.body ?? {}).ignore) ? '（永久忽略该歌单）' : ''}`)
+    if (t && t.lxPlaylistKey.startsWith('user:') && bool((req.body ?? {}).ignore)) {
+      const key = t.lxPlaylistKey
+      const lists = [cfg.general.listen.ignoredKeys]
+      if (cfg.general.autoadd.enabled) lists.push(cfg.general.autoadd.ignoredKeys)
+      if (lists.some((arr) => !arr.includes(key))) {
+        for (const arr of lists) if (!arr.includes(key)) arr.push(key)
         saveConfig(cfg)
       }
     }
@@ -574,6 +686,7 @@ export function apiRouter(
   r.get('/task/:id/edit', async (req, res) => {
     const t = repo.getTask(Number(req.params.id))
     if (!t) return res.status(404).send(err('任务不存在'))
+    if (t.taskType === 'chart') return res.send(err('榜单订阅请在「榜单订阅」页编辑'))
     let embyPlaylists: { id: string; name: string }[] = []
     try {
       embyPlaylists = await emby.listPlaylists()
@@ -589,13 +702,32 @@ export function apiRouter(
     if (!t) return res.status(404).send(err('任务不存在'))
     const b = req.body ?? {}
     if (t.taskType === 'chart') {
+      const chMode = b.mode === 'mirror' || b.mode === 'incremental' ? (b.mode as 'mirror' | 'incremental') : null
+      const chDel = ['keep', 'delete', 'archive'].includes(String(b.delPolicy)) ? (b.delPolicy as 'keep' | 'delete' | 'archive') : 'keep'
       repo.updateTask(id, {
         lxPlaylistName: String(b.lxPlaylistName ?? '').trim() || t.lxPlaylistName,
         maxCount: Math.max(0, Number(b.maxCount) || 30),
         createSameNamePlaylist: bool(b.createSameNamePlaylist) ? 1 : 0,
         cronExpr: String(b.cronExpr ?? '').trim() || null,
+        syncMode: chMode === 'mirror' ? 'full' : 'incremental',
+        mode: chMode,
+        delPolicy: chDel,
+        archivePlaylist: String(b.archivePlaylist ?? '').trim() || null,
       })
-      return res.send(await taskTableHtml())
+      // 配置期创建归档目标（运行期只找不建）
+      let chNote = ''
+      if (chMode === 'mirror' && chDel === 'archive') {
+        const t2 = repo.getTask(id)!
+        const an = archiveNameOf(t2)
+        const ar = await engine.ensureArchiveTarget(an)
+        if (ar.created) chNote = `；已创建归档歌单「${an}」`
+        else if (!ar.ok) chNote = `；归档歌单「${an}」创建失败：${ar.error}`
+      }
+      // hx-swap="none"：正文用不到，提示走 oob 写到列表标题旁（编辑卡保存后会消失）
+      const oobMsg = chNote
+        ? `<div id="ch-list-msg" hx-swap-oob="innerHTML"><span class="ok">✅ 订阅已保存${escapeHtml(chNote)}</span></div>`
+        : ''
+      return res.send(ok('订阅已保存' + chNote) + oobMsg)
     }
     const embyTargets = Array.isArray(b.embyTarget) ? b.embyTarget : b.embyTarget ? [b.embyTarget] : []
     const newMode = b.mode === 'mirror' || b.mode === 'incremental' ? (b.mode as 'incremental' | 'mirror') : undefined
@@ -610,7 +742,16 @@ export function apiRouter(
       dedupCheck: boolV(b.dedupCheck) ? 1 : 0,
       dedupMinQuality: String(b.dedupMinQuality ?? '').trim() || null,
     })
-    res.send(await taskTableHtml('playlist'))
+    // 配置期创建归档目标（运行期只找不建）——用 oob 提示，表格照常刷新
+    const t2 = repo.getTask(id)
+    let oob = ''
+    if (t2 && t2.delPolicy === 'archive') {
+      const an = resolveArchiveName(t2.archivePlaylist, t2.lxPlaylistName)
+      const ar = await engine.ensureArchiveTarget(an)
+      if (ar.created) oob = `<div id="task-msg" hx-swap-oob="innerHTML">${ok(`已创建归档歌单「${escapeHtml(an)}」`)}</div>`
+      else if (!ar.ok) oob = `<div id="task-msg" hx-swap-oob="innerHTML">${err(`归档歌单「${escapeHtml(an)}」创建失败：${escapeHtml(ar.error ?? '')}`)}</div>`
+    }
+    res.send((await taskTableHtml('playlist')) + oob)
   })
 
   r.post('/task/:id/run', async (req, res) => {
@@ -623,6 +764,19 @@ export function apiRouter(
   })
 
   // ===== 任务进度 =====
+  // 实时进度（内存态，1 秒轮询）：正在下载第几首/共几首、阶段、当前歌曲、计数
+  r.get('/progress/live', (_req, res) => {
+    const l = engine.live
+    const now = Date.now()
+    res.send(
+      renderBody('partials/progress-live', {
+        live: l,
+        elapsedSec: l ? Math.max(0, Math.round(((l.finishedAt ?? now) - l.startedAt) / 1000)) : 0,
+        pct: l && l.total > 0 ? Math.min(100, Math.round((l.done / l.total) * 100)) : 0,
+      }),
+    )
+  })
+
   r.get('/progress/table', (_req, res) => {
     const tasks = repo.listTasks()
     const statusByTask: Record<number, unknown[]> = {}
@@ -631,10 +785,17 @@ export function apiRouter(
   })
 
   // ===== 历史 =====
-  r.get('/history/partial', (_req, res) => {
+  // type=playlist 歌单同步任务 | type=chart 榜单订阅任务（含手动下载） | 缺省 all
+  r.get('/history/partial', (req, res) => {
+    const type = String(req.query.type ?? 'all')
     const batches = repo
-      .listBatches(undefined, 20)
-      .map((b) => ({ ...b, taskName: repo.getTask(b.taskId)?.lxPlaylistName ?? `#${b.taskId}` }))
+      .listBatches(undefined, 80)
+      .map((b) => {
+        const t = repo.getTask(b.taskId)
+        return { ...b, taskName: t?.lxPlaylistName ?? `#${b.taskId}`, taskType: t?.taskType ?? 'playlist' }
+      })
+      .filter((b) => type === 'all' || (type === 'chart' ? b.taskType === 'chart' || b.taskType === 'adhoc' : b.taskType === type))
+      .slice(0, 20)
     res.send(renderBody('partials/history', { batches }))
   })
 
@@ -768,23 +929,32 @@ export function apiRouter(
   })
 
   // ===== 日志 =====
-  r.get('/logs/partial', (_req, res) => {
-    const logs = logger
-      .list(300)
-      .map((l) => `${l.ts} [${l.level.toUpperCase().padEnd(5)}] ${l.msg}`)
-      .join('\n')
-    res.type('html').send(`<pre style="max-height:70vh;overflow:auto">${escapeHtml(logs)}</pre>`)
+  // 日志片段：按级别/关键字过滤（数据源 = 落盘文件，重启不丢）
+  r.get('/logs/partial', (req, res) => {
+    const level = String(req.query.level ?? '')
+    const q = String(req.query.q ?? '')
+    const limit = Math.min(2000, Math.max(50, Number(req.query.limit) || 400))
+    const rows = logger.list({ limit, level, q })
+    if (!rows.length) return res.type('html').send('<p class="text-xs c-sub py-8 text-center">没有匹配的日志</p>')
+    res.type('html').send(
+      rows
+        .map(
+          (l) =>
+            `<div class="log-line lv-${l.level}"><span class="lg-ts">${escapeHtml(l.ts)}</span><span class="lg-lv">${l.level.toUpperCase()}</span><span class="lg-msg">${escapeHtml(l.msg)}</span></div>`,
+        )
+        .join(''),
+    )
   })
 
   // ===== 通用设置 =====
   r.post('/config/general', (req, res) => {
     const b = req.body ?? {}
-    cfg.general.autoIncludeNewPlaylists = bool(b.autoIncludeNewPlaylists)
-    cfg.general.cleanupOrphanFiles = bool(b.cleanupOrphanFiles)
-    cfg.general.pauseAll = bool(b.pauseAll)
+    // 这三个开关已从界面移除（前两个废弃/未接通；暂停所有同步不再提供入口）。
+    // 值从表单缺席时保持原值，避免保存设置把它们悄悄重置。
+    if (b.pauseAll !== undefined) cfg.general.pauseAll = bool(b.pauseAll)
     cfg.general.logRetentionDays = Math.min(365, Math.max(1, Number(b.logRetentionDays) || 30))
-    cfg.general.githubUrl = String(b.githubUrl ?? '').trim()
     saveConfig(cfg)
+    logger.info(`[config] 通用设置：暂停全部=${cfg.general.pauseAll ? '开' : '关'} 日志保留=${cfg.general.logRetentionDays}天`)
     res.send(ok('设置已保存'))
   })
 
@@ -826,12 +996,27 @@ export function apiRouter(
     dst.dedupCheck = boolV(src.dedupCheck)
     if (src.dedupMinQuality !== undefined) dst.dedupMinQuality = String(src.dedupMinQuality ?? '').trim() || null
   }
-  r.post('/config/listen', (req, res) => {
+  r.post('/config/listen', async (req, res) => {
     const b = (req.body ?? {}) as Record<string, unknown>
     const L = cfg.general.listen
     L.enabled = boolV(b.enabled)
     if (b.activeMode === 'all' || b.activeMode === 'filtered') L.activeMode = b.activeMode
     if (b.checkCron !== undefined) L.checkCron = String(b.checkCron ?? '').trim()
+    // 「包含现有歌单」开关：勾选=忽略基线(现有+今后全部纳入)，取消=把当前歌单重新快照成基线
+    const wasInclude = L.includeExisting
+    L.includeExisting = boolV(b.includeExisting)
+    let note = ''
+    if (!wasInclude && L.includeExisting) {
+      L.baselineKeys = []
+      note = '；已纳入现有歌单'
+    } else if (wasInclude && !L.includeExisting) {
+      try {
+        L.baselineKeys = (await lx.listPlaylists()).map((p) => p.key)
+        note = `；已重新记录基线（现有 ${L.baselineKeys.length} 个歌单不再自动纳入）`
+      } catch {
+        note = '；LX 未连接，基线未能重记（下次启用监听时会补记）'
+      }
+    }
     if (b.all) applyListenParams(L.all, b.all as Record<string, unknown>)
     const f = b.filtered as Record<string, unknown> | undefined
     if (f) {
@@ -848,9 +1033,21 @@ export function apiRouter(
         }
       }
     }
+    // 归档目标：配置期创建（统一目标；含 [歌单名] 占位符的按来源目标在任务创建时逐个建）
+    for (const tn of new Set([L.all, L.filtered.params].filter((p) => p.delPolicy === 'archive').map((p) => p.archivePlaylist))) {
+      if (isArchiveTemplate(tn)) continue
+      const ar = await engine.ensureArchiveTarget(tn)
+      if (ar.created) note += `；已创建归档歌单「${tn}」`
+      else if (!ar.ok) note += `；归档歌单「${tn}」创建失败：${ar.error}`
+    }
     saveConfig(cfg)
     scheduler.reload()
-    res.send(ok('监听设置已保存'))
+    // 刚勾上「包含现有歌单」且监听已启用 → 后台立即为这批歌单建任务并同步（不阻塞保存响应）
+    if (!wasInclude && L.includeExisting && L.enabled) {
+      note += '；正在后台为现有歌单创建任务并同步，进度见「任务进度」'
+      void listenScan(cfg, lx, engine).catch((e) => logger.warn(`[listen] 纳入现有歌单失败: ${(e as Error).message}`))
+    }
+    res.send(ok('监听设置已保存' + note))
   })
 
   // ===== 监听同步(新模型)=====
@@ -897,6 +1094,47 @@ export function apiRouter(
     scheduler.reload()
     res.send(ok(`已恢复 ${n} 个任务(origin=${originOfMode(mode)})`))
   })
+
+  // 忽略列表（被删除过/手动忽略的歌单 → 不自动重建）
+  r.get('/listen/ignored/panel', async (_req, res) => { res.send(await ignoredPanelHtml()) })
+
+  r.post('/listen/unignore', async (req, res) => {
+    const key = String((req.body ?? {}).key ?? '').trim()
+    const L = cfg.general.listen
+    if (key && L.ignoredKeys.includes(key)) {
+      L.ignoredKeys = L.ignoredKeys.filter((k) => k !== key)
+      cfg.general.autoadd.ignoredKeys = cfg.general.autoadd.ignoredKeys.filter((k) => k !== key)
+      saveConfig(cfg)
+    }
+    res.send(await ignoredPanelHtml())
+  })
+
+  /** 忽略列表面板片段（空列表返回空 → 前端不显示） */
+  async function ignoredPanelHtml(): Promise<string> {
+    const keys = cfg.general.listen.ignoredKeys
+    if (!keys.length) return ''
+    const esc = (s: string) => escapeHtml(s).replace(/"/g, '&quot;')
+    let nameOf: Record<string, string> = {}
+    try {
+      for (const p of await lx.listPlaylists()) nameOf[p.key] = p.name
+    } catch { /* LX 未连接时只显示 key */ }
+    let html =
+      `<details class="rounded-lg border border-base-300 p-2">` +
+      `<summary class="text-sm cursor-pointer">已忽略歌单（${keys.length}）<span class="text-xs c-sub"> — 删除后不再自动重建</span></summary>` +
+      `<ul class="mt-2 space-y-1">`
+    for (const k of keys) {
+      html +=
+        `<li class="flex flex-wrap items-center gap-2">` +
+        `<span class="text-sm">${esc(nameOf[k] ?? k)}</span>` +
+        `<code class="text-xs c-sub">${esc(k)}</code>` +
+        `<form hx-post="/api/listen/unignore" hx-target="#listen-ignored" hx-swap="innerHTML">` +
+        `<input type="hidden" name="key" value="${esc(k)}">` +
+        `<button type="submit" class="btn btn-outline btn-xs px-2">取消忽略</button></form>` +
+        `</li>`
+    }
+    html += `</ul><p class="text-xs c-sub mt-2">取消忽略后，下次监听扫描会重新为该歌单创建任务。</p></details>`
+    return html
+  }
 
   // ===== 自动新增同步任务 =====
   r.post('/config/autoadd', async (req, res) => {
@@ -1086,7 +1324,7 @@ export function apiRouter(
 
   /** 生成行内"移入回收站"按钮 HTML */
   function trashBtnHtml(it: { id: string; path: string }): string {
-    return `<button class="btn-sm secondary" hx-post="/api/dupe/delete" hx-vals='{"ids":"${escapeHtml(it.id)}"}' hx-target="closest td" hx-swap="innerHTML" hx-on::after-request="htmx.ajax('GET','/api/trash/partial',{target:'#trash-panel'})" hx-confirm="将移入回收站（可恢复）。确认？\n${escapeHtml(it.path)}">移入回收站</button>`
+    return `<button class="btn-sm secondary" hx-post="/api/dupe/delete" hx-vals='{"ids":"${escapeHtml(it.id)}"}' hx-target="closest td" hx-swap="innerHTML" hx-on::after-request="htmx.ajax('GET','/api/trash/partial',{target:'.trash-host'})" hx-confirm="将移入回收站（可恢复）。确认？\n${escapeHtml(it.path)}">移入回收站</button>`
   }
   /** 生成行内"已移入回收站 + 恢复"按钮 HTML */
   function inTrashHtml(it: { id: string; path: string; trashRel: string }): string {
@@ -1315,8 +1553,8 @@ export function apiRouter(
       for (const f of bfiles) {
         html += `<div style="display:flex;gap:.5rem;align-items:center;margin:.15rem 0;font-size:.85em">` +
           `<span style="word-break:break-all;flex:1">${escapeHtml(f.rel)}（${fmtSize(f.size)}）</span>` +
-          `<button class="btn-sm" hx-post="/api/trash/restore" hx-vals='{"rel":"${escapeHtml(f.rel)}"}' hx-target="closest div" hx-swap="outerHTML" hx-on::after-request="htmx.ajax('GET','/api/trash/partial',{target:'#trash-panel'})">恢复</button>` +
-          `<button class="btn-sm secondary" hx-post="/api/trash/purge" hx-vals='{"full":"${escapeHtml(f.full)}"}' hx-confirm="彻底删除该文件（不可恢复）？\n${escapeHtml(f.rel)}" hx-target="closest div" hx-swap="outerHTML" hx-on::after-request="htmx.ajax('GET','/api/trash/partial',{target:'#trash-panel'})">彻底删除</button>` +
+          `<button class="btn-sm" hx-post="/api/trash/restore" hx-vals='{"rel":"${escapeHtml(f.rel)}"}' hx-target="closest div" hx-swap="outerHTML" hx-on::after-request="htmx.ajax('GET','/api/trash/partial',{target:'.trash-host'})">恢复</button>` +
+          `<button class="btn-sm secondary" hx-post="/api/trash/purge" hx-vals='{"full":"${escapeHtml(f.full)}"}' hx-confirm="彻底删除该文件（不可恢复）？\n${escapeHtml(f.rel)}" hx-target="closest div" hx-swap="outerHTML" hx-on::after-request="htmx.ajax('GET','/api/trash/partial',{target:'.trash-host'})">彻底删除</button>` +
           `</div>`
       }
       html += `</details>`

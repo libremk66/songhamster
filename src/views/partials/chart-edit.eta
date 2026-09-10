@@ -1,0 +1,58 @@
+<tr class="edit-row">
+  <td colspan="8">
+    <form hx-post="/api/task/<%= t.id %>/update" hx-swap="none" hx-on::after-request="chEditDone(event)" data-fdel-ok="<%= fileDeleteOK ? 1 : 0 %>">
+    <div class="flex flex-wrap items-center gap-2 mb-2">
+      <strong class="text-sm">🏆 编辑订阅</strong>
+      <span class="text-xs c-sub"><%= t.chartSource %> · <%= t.chartName || '' %>（平台与榜单不可改）</span>
+    </div>
+    <div class="fg">
+      <label class="form-control w-full">
+        <span class="label-text mb-1">任务名（播放列表/落盘目录同名）</span>
+        <input name="lxPlaylistName" value="<%= t.lxPlaylistName %>" class="input input-bordered w-full">
+      </label>
+      <label class="form-control w-full">
+        <span class="label-text mb-1">下载范围（榜单前 N 首，0=全榜）</span>
+        <input type="number" name="maxCount" value="<%= t.maxCount %>" min="0" class="input input-bordered w-full">
+      </label>
+      <label class="form-control w-full" style="grid-column:1/-1">
+        <span class="label-text mb-1">定时 cron（空 = 仅手动）</span>
+        <input name="cronExpr" value="<%= t.cronExpr || '' %>" placeholder="0 8 * * *" class="input input-bordered w-full font-mono text-xs">
+        <span class="text-xs c-sub mt-1">各榜单刷新周期不同，建议按榜单自定</span>
+      </label>
+    </div>
+    <label class="flex items-center gap-2 cursor-pointer mt-2">
+      <input type="checkbox" name="createSameNamePlaylist" value="1" <%= t.createSameNamePlaylist ? 'checked' : '' %> class="checkbox checkbox-sm">
+      <span class="text-sm">同步到新建同名 <%= targetName %> 播放列表</span>
+    </label>
+
+    <div class="mt-3 border-t border-base-200 pt-2">
+      <span class="text-sm font-medium block mb-1">同步方式</span>
+      <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="mode" value="incremental" <%= t.mode === 'mirror' ? '' : 'checked' %> class="radio radio-sm" onchange="chMode('e<%= t.id %>')"><span class="text-sm"><b>增量</b><span class="text-xs c-sub"> 只增不减——跌出榜单的歌留在播放列表里（默认）</span></span></label>
+      <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="mode" value="mirror" <%= t.mode === 'mirror' ? 'checked' : '' %> class="radio radio-sm" onchange="chMode('e<%= t.id %>')"><span class="text-sm"><b>镜像</b><span class="text-xs c-sub"> 跟随榜单——跌出即按下面策略处理</span></span></label>
+      <div id="ch-del-e<%= t.id %>" style="<%= t.mode === 'mirror' ? '' : 'display:none' %>" class="mt-1">
+        <span class="text-xs font-bold c-sub block mb-1">跌出榜单时处理方式:</span>
+        <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="delPolicy" value="keep" <%= t.delPolicy === 'delete' || t.delPolicy === 'archive' ? '' : 'checked' %> class="radio radio-sm" <%= t.mode === 'mirror' ? '' : 'disabled' %>><span class="text-sm"><b>处理1</b> 播放列表移除 + 文件不删(默认)</span></label>
+        <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="delPolicy" value="delete" <%= t.delPolicy === 'delete' ? 'checked' : '' %> class="radio radio-sm" <%= fileDeleteOK && t.mode === 'mirror' ? '' : 'disabled' %>><span class="text-sm"><b>处理2</b> 播放列表移除 + 删除文件<% if (!fileDeleteOK) { %><span class="text-error">(当前 <%= targetName %> 不支持)</span><% } %></span></label>
+        <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="delPolicy" value="archive" <%= t.delPolicy === 'archive' ? 'checked' : '' %> class="radio radio-sm" <%= t.mode === 'mirror' ? '' : 'disabled' %>><span class="text-sm"><b>处理3</b> 移入归档歌单: <input name="archivePlaylist" class="input input-bordered input-sm" style="width:12rem" placeholder="默认 榜单订阅归档" value="<%= t.archivePlaylist || '榜单订阅归档' %>" <%= t.mode === 'mirror' ? '' : 'disabled' %>></span></label>
+        <div class="ml-6 mt-1 flex flex-wrap items-center gap-1.5">
+          <select class="select select-bordered select-sm" style="width:15rem" data-arch-picker="archivePlaylist" onchange="archPickFrom(this)" <%= t.mode === 'mirror' ? '' : 'disabled' %>>
+            <option value="">选择归档目标…</option>
+            <option value="榜单订阅归档">统一：榜单订阅归档</option>
+            <option value="[榜单名]归档">按来源：[榜单名]归档</option>
+            <optgroup label="<%= targetName %> 已有播放列表">
+              <% for (const p of embyPlaylists) { %><option value="<%= p.name %>"><%= p.name %></option><% } %>
+            </optgroup>
+          </select>
+          <span class="text-xs c-sub">输入框写目标歌单名（新的也行）；下拉挑预设或已有歌单。保存时不存在会自动创建，运行中被删则降级为「保留文件」</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-actions flex items-center gap-2 border-t border-base-200 pt-3 mt-3">
+      <button type="submit" class="btn btn-primary btn-sm"><svg aria-hidden="true"><use href="#i-save"/></svg>保存</button>
+      <button type="button" class="btn btn-ghost btn-sm" hx-get="/api/charts/subs" hx-target="#ch-subs-rows" hx-swap="innerHTML"><svg aria-hidden="true"><use href="#i-x"/></svg>取消</button>
+      <span id="ch-edit-msg" class="text-sm"></span>
+    </div>
+    </form>
+  </td>
+</tr>

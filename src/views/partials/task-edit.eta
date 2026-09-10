@@ -1,21 +1,6 @@
 <tr class="edit-row">
   <td colspan="8">
     <form id="edit-form-<%= t.id %>" class="space-y-2" hx-post="/api/task/<%= t.id %>/update" hx-target="#task-table" hx-swap="innerHTML">
-      <% if (t.taskType === 'chart') { %>
-      <div class="rounded-lg border border-base-300 p-3 space-y-2">
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="text-sm font-medium w-24 shrink-0">任务名</span>
-          <input name="lxPlaylistName" value="<%= t.lxPlaylistName %>" class="input input-bordered input-sm" style="width:18rem">
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="text-sm font-medium w-24 shrink-0">下载范围</span>
-          <input type="number" name="maxCount" value="<%= t.maxCount %>" min="0" class="input input-bordered input-sm" style="width:7rem">
-          <span class="text-xs c-sub">榜单前 N 首,0=全榜</span>
-        </div>
-        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="createSameNamePlaylist" value="1" <%= t.createSameNamePlaylist ? 'checked' : '' %> class="checkbox checkbox-sm"><span class="text-sm">同步到新建同名 <%= targetName %> 播放列表</span></label>
-        <p class="text-xs c-sub">榜单订阅恒为增量(归档只增不删);平台与榜单不可改——换榜请删除后重建。</p>
-      </div>
-      <% } else { %>
       <div class="rounded-lg border border-base-300 p-3 space-y-2">
         <div class="flex flex-wrap items-center gap-2">
           <span class="text-sm font-medium w-24 shrink-0">LX 歌单</span>
@@ -48,11 +33,21 @@
             <span class="text-xs font-bold c-sub block mb-1">LX 端删除时处理方式:</span>
             <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="delPolicy" value="keep" <%= t.delPolicy === 'keep' ? 'checked' : '' %> class="radio radio-sm"><span class="text-sm"><b>处理1</b> 歌单移除+文件不删(默认)</span></label>
             <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="delPolicy" value="delete" <%= t.delPolicy === 'delete' ? 'checked' : '' %> class="radio radio-sm"><span class="text-sm"><b>处理2</b> 歌单移除 + 删除文件</span></label>
-            <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="delPolicy" value="archive" <%= t.delPolicy === 'archive' ? 'checked' : '' %> class="radio radio-sm"><span class="text-sm"><b>处理3</b> 移入归档歌单: <input name="archivePlaylist" class="input input-bordered input-sm" style="width:12rem" value="<%= t.archivePlaylist || '歌单同步任务归档' %>"></span></label>
+            <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="delPolicy" value="archive" <%= t.delPolicy === 'archive' ? 'checked' : '' %> class="radio radio-sm"><span class="text-sm"><b>处理3</b> 移入归档歌单: <input name="archivePlaylist" class="input input-bordered input-sm" style="width:12rem" placeholder="默认 歌单同步任务归档" value="<%= t.archivePlaylist || '歌单同步任务归档' %>"></span></label>
+            <div class="ml-6 mt-1 flex flex-wrap items-center gap-1.5">
+              <select class="select select-bordered select-sm" style="width:15rem" data-arch-picker="archivePlaylist" onchange="archPickFrom(this)">
+                <option value="">选择归档目标…</option>
+                <option value="歌单同步任务归档">统一：歌单同步任务归档</option>
+                <option value="[歌单名]归档">按来源：[歌单名]归档</option>
+                <optgroup label="<%= targetName %> 已有播放列表">
+                  <% for (const p of embyPlaylists) { %><option value="<%= p.name %>"><%= p.name %></option><% } %>
+                </optgroup>
+              </select>
+              <span class="text-xs c-sub">输入框写目标歌单名（新的也行）；下拉挑预设或已有歌单。保存时不存在会自动创建，运行中被删则降级为「保留文件」</span>
+            </div>
           </div>
         </div>
       </div>
-      <% } %>
       <div class="flex flex-wrap items-center gap-2">
         <span class="text-sm font-medium w-24 shrink-0">定时 cron</span>
         <input name="cronExpr" value="<%= t.cronExpr || '' %>" placeholder="0 6 * * *" class="input input-bordered input-sm font-mono text-xs" style="width:12rem">

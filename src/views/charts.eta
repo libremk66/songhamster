@@ -12,12 +12,6 @@
                     background: oklch(var(--b1)); padding: .6rem .7rem; max-width: 100%; overflow-x: auto; }
   /* 桌面右侧歌曲区:占满整高、内容超高内部滚动(与左侧榜单框一致) */
   #ch-songs-box { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
-  /* 订阅卡操作按钮:桌面同行右对齐;≤767px 独占一行可横滚 */
-  .ch-actions { display: flex; align-items: center; gap: .25rem; margin-left: auto; flex-wrap: nowrap;
-                align-self: center; /* 按钮组相对左列两行信息垂直居中 */ }
-  @media (max-width: 767.98px) {
-    .ch-actions { flex-basis: 100%; margin-left: 0; overflow-x: auto; padding-bottom: 2px; }
-  }
   /* 榜单行横向防护:长名省略号、多行区横向滚动 */
   #ch-boards .multi-box { overflow: auto; }
   #ch-boards .ch-row { min-width: 0; }
@@ -44,17 +38,17 @@
   </header>
 
   <!-- ===== 我的榜单订阅 ===== -->
-  <section id="ch-subs-section" class="card bg-base-100 border border-base-300 shadow-sm">
+  <section id="ch-subs-section" class="card tier1 border border-base-300 shadow-sm">
     <div class="card-body gap-3">
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h3 class="card-title text-base">我的榜单订阅</h3>
-          <p class="text-xs c-sub mt-0.5">订阅 = 定时拉榜 → 自动下载新上榜歌曲 → 加入 <%= targetName %> 同名播放列表（跌出榜单不删文件）</p>
-        </div>
-        <button type="button" id="ch-new-btn" class="btn btn-primary" onclick="chToggleForm()"><svg aria-hidden="true"><use href="#i-plus"/></svg>新建榜单订阅</button>
+      <div class="flex flex-wrap items-center gap-2">
+        <h3 class="sec-green flex-1" style="margin-bottom:0">我的榜单订阅</h3>
+        <button type="button" id="ch-new-btn" class="btn btn-primary sec-green-btn" onclick="chToggleForm()"><svg aria-hidden="true"><use href="#i-plus"/></svg>新建榜单订阅</button>
       </div>
+      <p class="text-xs c-sub">订阅 = 定时拉榜 → 自动下载新上榜歌曲 → 加入 <%= targetName %> 同名播放列表（默认跌出榜单不删，可选镜像跟随/归档）</p>
+      <p id="ch-list-msg" class="text-sm"></p>
 
       <form id="ch-form" style="display:none" hx-post="/api/tasks" hx-swap="none" hx-on::after-request="chFormDone(event)"
+            data-fdel-ok="<%= fileDeleteOK ? 1 : 0 %>"
             class="rounded-lg border border-base-300 bg-base-200/50 p-3">
         <h4 class="text-sm font-bold mb-2">新建订阅</h4>
         <div class="fg">
@@ -84,6 +78,28 @@
             <span class="text-xs c-sub mt-1">⚠️ 各榜单刷新周期不同（部分每日、部分每周），建议按榜单特点自定义 cron；留空则仅手动同步。默认每天早上 8 点。</span>
           </label>
         </div>
+        <div class="mt-3 border-t border-base-200 pt-2">
+          <span class="text-sm font-medium block mb-1">同步方式</span>
+          <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="mode" value="incremental" checked class="radio radio-sm" onchange="chMode('new')"><span class="text-sm"><b>增量</b><span class="text-xs c-sub"> 只增不减——跌出榜单的歌留在播放列表里（默认）</span></span></label>
+          <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="mode" value="mirror" class="radio radio-sm" onchange="chMode('new')"><span class="text-sm"><b>镜像</b><span class="text-xs c-sub"> 跟随榜单——跌出即按下面策略处理（播放列表 = 当前榜单）</span></span></label>
+          <div id="ch-del-new" style="display:none" class="mt-1">
+            <span class="text-xs font-bold c-sub block mb-1">跌出榜单时处理方式:</span>
+            <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="delPolicy" value="keep" checked class="radio radio-sm" disabled><span class="text-sm"><b>处理1</b> 播放列表移除 + 文件不删(默认)</span></label>
+            <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="delPolicy" value="delete" class="radio radio-sm" disabled><span class="text-sm"><b>处理2</b> 播放列表移除 + 删除文件<% if (!fileDeleteOK) { %><span class="text-error">(当前 <%= targetName %> 不支持)</span><% } %></span></label>
+            <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="delPolicy" value="archive" class="radio radio-sm" disabled><span class="text-sm"><b>处理3</b> 移入归档歌单: <input name="archivePlaylist" class="input input-bordered input-sm" style="width:12rem" placeholder="默认 榜单订阅归档" value="榜单订阅归档" disabled></span></label>
+            <div class="ml-6 mt-1 flex flex-wrap items-center gap-1.5">
+              <select class="select select-bordered select-sm" style="width:15rem" data-arch-picker="archivePlaylist" onchange="archPickFrom(this)" disabled>
+                <option value="">选择归档目标…</option>
+                <option value="榜单订阅归档">统一：榜单订阅归档</option>
+                <option value="[榜单名]归档">按来源：[榜单名]归档</option>
+                <optgroup label="<%= targetName %> 已有播放列表">
+                  <% for (const p of embyPlaylists) { %><option value="<%= p.name %>"><%= p.name %></option><% } %>
+                </optgroup>
+              </select>
+              <span class="text-xs c-sub">输入框写目标歌单名（新的也行）；下拉挑预设或已有歌单。保存时不存在会自动创建，运行中被删则降级为「保留文件」</span>
+            </div>
+          </div>
+        </div>
         <div class="flex flex-wrap items-center gap-4 mt-2">
           <label class="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" name="createSameNamePlaylist" value="1" checked class="checkbox checkbox-sm">
@@ -107,9 +123,9 @@
   </section>
 
   <!-- ===== 榜单浏览 ===== -->
-  <section class="card bg-base-100 border border-base-300 shadow-sm">
+  <section class="card tier1 border border-base-300 shadow-sm">
     <div class="card-body gap-3">
-      <h3 class="card-title text-base">榜单浏览</h3>
+      <h3 class="sec-green">榜单浏览</h3>
       <div class="ch2">
         <div class="rounded-lg border border-base-300 p-3">
           <div class="flow-label-row">
@@ -188,19 +204,35 @@ function chToggleForm() {
 }
 function chFormDone(ev) {
   var f = document.getElementById('ch-form')
-  var m = document.getElementById('ch-subs-msg')
   if (ev.detail.successful) {
     f.style.display = 'none'
     document.getElementById('chf-name').value = ''
-    m.innerHTML = '<span class="ok">✅ 订阅已创建</span>'
+    chSubMsg('订阅已创建')
     htmx.ajax('GET', '/api/charts/subs', { target: '#ch-subs-rows' })
   } else {
-    m.innerHTML = '<span class="bad">创建失败，请检查参数</span>'
+    document.getElementById('ch-subs-msg').innerHTML = '<span class="bad">创建失败，请检查参数</span>'
   }
 }
 function chSubMsg(msg) {
-  var m = document.getElementById('ch-subs-msg')
-  m.innerHTML = '<span class="ok">' + msg + '</span>'
+  // 提示放列表标题旁：新建表单保存后会收起，放表单里的消息看不见
+  var m = document.getElementById('ch-list-msg')
+  if (m) m.innerHTML = '<span class="ok">✅ ' + msg + '</span>'
+}
+// 同步方式联动：只有镜像才启用"跌出处理"（处理2 还需目标服务器支持删文件）
+function chMode(suffix) {
+  var box = document.getElementById('ch-del-' + suffix)
+  if (!box) return
+  var form = box.closest('form')
+  var sel = form.querySelector('input[name="mode"]:checked')
+  var mirror = !!sel && sel.value === 'mirror'
+  box.style.display = mirror ? '' : 'none'
+  var fdelOK = form.getAttribute('data-fdel-ok') === '1'
+  box.querySelectorAll('input[name="delPolicy"], input[name="archivePlaylist"], select[data-arch-picker]').forEach(function (x) {
+    x.disabled = !mirror || (x.name === 'delPolicy' && x.value === 'delete' && !fdelOK)
+  })
+}
+function chEditDone(ev) {
+  if (ev.detail.successful) htmx.ajax('GET', '/api/charts/subs', { target: '#ch-subs-rows' })
 }
 // 浏览区"订阅"按钮：滚动到订阅区、展开新建表单并预填该榜单
 function chSubscribe(source, bangid, name) {

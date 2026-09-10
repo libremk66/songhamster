@@ -12,29 +12,11 @@
         class="card bg-base-100 border border-base-300 shadow-sm">
     <div class="card-body gap-3">
       <h3 class="card-title text-base">通用</h3>
-      <div class="flex flex-col gap-1.5">
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" name="autoIncludeNewPlaylists" value="1" <%= cfg.general.autoIncludeNewPlaylists ? 'checked' : '' %> class="checkbox checkbox-sm">
-          <span class="text-sm">自动纳入 LX 新建的歌单（默认：同名文件夹+同名 <%= targetName %> 歌单）</span>
-        </label>
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" name="cleanupOrphanFiles" value="1" <%= cfg.general.cleanupOrphanFiles ? 'checked' : '' %> class="checkbox checkbox-sm">
-          <span class="text-sm">完全同步时清理无引用的孤立文件（默认关）</span>
-        </label>
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" name="pauseAll" value="1" <%= cfg.general.pauseAll ? 'checked' : '' %> class="checkbox checkbox-sm">
-          <span class="text-sm">暂停所有同步（总开关）</span>
-        </label>
-      </div>
       <div class="fg">
         <label class="form-control w-full">
           <span class="label-text mb-1">日志保留天数</span>
           <input type="number" name="logRetentionDays" value="<%= cfg.general.logRetentionDays %>" min="1" max="365" class="input input-bordered w-28">
-        </label>
-        <label class="form-control w-full">
-          <span class="label-text mb-1">帮助链接（GitHub）</span>
-          <input name="githubUrl" value="<%= cfg.general.githubUrl %>" placeholder="https://github.com/xxx/songferry" class="input input-bordered w-full font-mono text-xs">
-          <span class="text-xs c-sub mt-1">显示在左侧栏底部「帮助」入口</span>
+          <span class="text-xs c-sub mt-1">日志按天存在 <code class="bg-base-200 px-1 rounded">data/logs/</code>；启动时清理超过该天数的旧文件。1~365 天，默认 30。</span>
         </label>
       </div>
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-3">
@@ -78,46 +60,7 @@
     </div>
   </form>
 
-  <!-- ===== 批量下载保护 ===== -->
-  <form method="post" action="/api/config/protection" hx-post="/api/config/protection" hx-target="#prot-msg"
-        class="card bg-base-100 border border-base-300 shadow-sm">
-    <div class="card-body gap-3">
-      <h3 class="card-title text-base">批量下载保护</h3>
-      <label class="flex items-center gap-2 cursor-pointer">
-        <input type="checkbox" name="enabled" value="1" <%= cfg.download.protection.enabled ? 'checked' : '' %> class="checkbox checkbox-sm">
-        <span class="text-sm">批量下载保护（推荐开启）</span>
-      </label>
-      <p class="text-xs c-sub leading-relaxed">下载保持单任务串行，并在每首歌曲成功或失败后等待一段时间；同时限制直链解析的请求节奏，降低音源限流或封禁 IP 的风险。</p>
-      <div class="fg">
-        <label class="form-control w-full">
-          <span class="label-text mb-1">下载间隔（秒）</span>
-          <input type="number" name="downloadIntervalSec" value="<%= cfg.download.protection.downloadIntervalSec %>" min="2" max="60" class="input input-bordered w-28">
-          <span class="text-xs c-sub mt-1">范围 2~60 秒，默认 5 秒；成功和失败的任务都会等待</span>
-        </label>
-        <label class="form-control w-full">
-          <span class="label-text mb-1">直链解析间隔（秒）</span>
-          <input type="number" name="resolveIntervalSec" value="<%= cfg.download.protection.resolveIntervalSec %>" min="1" max="30" class="input input-bordered w-28">
-          <span class="text-xs c-sub mt-1">范围 1~30 秒，默认 2 秒；只限制新的直链解析请求</span>
-        </label>
-      </div>
-      <p class="text-xs c-sub">当前已<%= cfg.download.protection.enabled ? '开启：下载间隔 ' + cfg.download.protection.downloadIntervalSec + ' 秒，直链解析间隔 ' + cfg.download.protection.resolveIntervalSec + ' 秒' : '关闭' %></p>
-      <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-3">
-        <button type="submit" class="btn btn-primary"><svg aria-hidden="true"><use href="#i-save"/></svg>保存保护设置</button>
-        <span id="prot-msg" class="text-sm"></span>
-      </div>
-      <details class="rounded-lg border border-base-300 p-2.5">
-        <summary class="cursor-pointer text-xs font-semibold select-none">批量下载保护说明</summary>
-        <ul class="text-xs c-sub space-y-1 mt-2 list-disc list-inside">
-          <li>下载任务始终按队列逐个执行，不会并发请求多个音源。</li>
-          <li>间隔从上一首下载完成或失败后开始计算，等待期间下一首不会发起请求。</li>
-          <li>直链解析间隔会错开连续的解析请求（换音质档位或自动重试时同样受控），避免短时间快速连发。</li>
-          <li>关闭保护会取消两个间隔，但下载仍保持串行；频繁请求可能触发音源平台限流或封禁 IP。</li>
-          <li>保存后影响后续请求，不会中断当前正在下载的任务。</li>
-        </ul>
-      </details>
-    </div>
-  </form>
-
+<% if (false) { /* 通知（预留）/ 高级设置：暂时不开发，先隐藏；要恢复就把本行改成 if (true) */ %>
   <!-- ===== 通知（预留） ===== -->
   <section class="card bg-base-100 border border-base-300 shadow-sm">
     <div class="card-body gap-2">
@@ -159,6 +102,7 @@
     </div>
   </form>
 
+<% } %>
   <!-- ===== 运行信息 ===== -->
   <section class="card bg-base-100 border border-base-300 shadow-sm">
     <div class="card-body gap-1">

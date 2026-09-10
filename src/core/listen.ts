@@ -1,5 +1,5 @@
 import type { AppConfig, ListenRules, ListenParams } from '../config.js'
-import { saveConfig } from '../config.js'
+import { saveConfig, resolveArchiveName } from '../config.js'
 import type { LxServerAdapter } from '../adapters/lxserver.js'
 import type { SyncEngine } from './sync-engine.js'
 import * as repo from '../store/repo.js'
@@ -31,10 +31,10 @@ export function evaluateListenRules(name: string, key: string, rules: ListenRule
   return 'sync'
 }
 
-/** 首次启用基线:记录当前 LX 歌单全集(启用前已存在的不自动纳入) */
+/** 首次启用基线:记录当前 LX 歌单全集(启用前已存在的不自动纳入);勾了"包含现有歌单"则不需要基线 */
 async function initBaselineIfNeeded(cfg: AppConfig, lx: LxServerAdapter): Promise<void> {
   const L = cfg.general.listen
-  if (!L.enabled || L.baselineKeys.length > 0) return
+  if (!L.enabled || L.includeExisting || L.baselineKeys.length > 0) return
   try {
     const playlists = await lx.listPlaylists()
     L.baselineKeys = playlists.map((p) => p.key)
@@ -85,7 +85,8 @@ export async function listenScan(
   const playlists = await lx.listPlaylists()
   const taskKeys = new Set(repo.listTasks().map((t) => t.lxPlaylistKey))
   const ignored = new Set(L.ignoredKeys)
-  const knownBase = isAll ? new Set(L.baselineKeys) : new Set<string>()
+  // 完全模式:默认用基线挡掉"启用前已存在"的歌单;勾了「包含现有歌单」则不看基线
+  const knownBase = isAll && !L.includeExisting ? new Set(L.baselineKeys) : new Set<string>()
   // 条件模式:无时间窗/基线 —— 规则命中且尚未建任务即纳入(含启用前已存在的歌单)
   const fresh = playlists.filter(
     (p) => p.key.startsWith('user:') && !taskKeys.has(p.key) && !ignored.has(p.key) && !knownBase.has(p.key),
@@ -103,6 +104,12 @@ export async function listenScan(
     const params = L.activeMode === 'all' ? L.all : L.filtered.params
     const origin = originOfMode(L.activeMode)
     const id = createFromParams(cfg, p, params, origin)
+    // 归档目标：配置期创建（按来源时 [歌单名] 会解析成该歌单自己的名字）
+    if (params.delPolicy === 'archive') {
+      const an = resolveArchiveName(params.archivePlaylist, p.name)
+      const ar = await engine.ensureArchiveTarget(an)
+      if (ar.created) logger.info(`[listen] 已创建归档歌单「${an}」`)
+    }
     names.push(p.name)
     logger.info(`[listen] ${L.activeMode === 'all' ? '完全' : '条件'}模式:新歌单「${p.name}」→ 任务#${id}(origin=${origin}),立即同步`)
     const r = await engine.runTask(id, 'manual')

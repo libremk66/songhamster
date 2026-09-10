@@ -82,9 +82,8 @@ export const LAYOUT = `<!doctype html>
     }
     aside.sidebar nav a svg { width: 1.15em; height: 1.15em; flex-shrink: 0; }
     aside.sidebar nav a:hover { background: color-mix(in oklab, var(--sfg) 14%, transparent); color: var(--sfg-deep); }
-    aside.sidebar nav a.active { font-weight: 700; background: var(--sfg); color: var(--sfg-ink); }
+    aside.sidebar nav a.active { font-weight: 700; background: var(--sfg-fill); color: #fff; }
     aside.sidebar .sidebar-foot { margin-top: auto; padding-top: .8rem; font-size: .88em; }
-    aside.sidebar .foot-help { display:block; margin-bottom:.2rem; color: oklch(var(--p)); text-decoration:none; }
     aside.sidebar .foot-ver { color: oklch(var(--bc) / 0.6); font-size: .82em; }
     aside.sidebar .foot-hr { border:0; border-top:1px solid oklch(var(--bc) / 0.15); margin:.6rem 0; }
     aside.sidebar .foot-acct { display:flex; align-items:center; gap:.5rem; flex-wrap:nowrap; }
@@ -123,6 +122,9 @@ export const LAYOUT = `<!doctype html>
       --sfg: oklch(0.7 0.12 153);
       --sfg-deep: oklch(0.44 0.1 152);
       --sfg-ink: oklch(0.16 0.03 152);
+      /* 实心绿块(标题栏/主按钮/选中项)的填充色:不透明主题绿 —— 块内文字一律白字,
+         半透明会让白字压不住(改这一处即可整体调浓淡) */
+      --sfg-fill: var(--sfg);
     }
     /* 钉死根字号 16px:pico 桥 :root{font-size:var(--pico-font-size)} 在宽屏放大到 125%(20px),
        会把所有 rem 尺寸(控件 26px 等)实际放大 25% */
@@ -133,7 +135,7 @@ export const LAYOUT = `<!doctype html>
     .checkbox:checked { border-color: var(--sfg); }
     html[data-theme="light"], html[data-theme="dark"], html[data-theme="corporate"], html[data-theme=""] {
       --p: var(--sfg-deep); --pf: oklch(0.38 0.1 152); --pc: oklch(0.97 0.01 152);
-      --su: var(--sfg); --suf: oklch(0.62 0.12 153); --suc: var(--sfg-ink);
+      --su: var(--sfg); --suf: oklch(0.62 0.12 153); --suc: #fff;
       --wa: oklch(0.8 0.07 152); --waf: oklch(0.74 0.09 152); --wac: oklch(0.28 0.07 152);
     }
     /* 按钮内图标:继承文字色(点击/悬停/禁用状态色随文字走) */
@@ -147,10 +149,11 @@ export const LAYOUT = `<!doctype html>
     .icv-off { background: #e03131; }
     /* 主操作(填充型):亮绿底 + 深绿字;字号 11px、窄内边距 */
     .btn-primary { padding-left: .4rem; padding-right: .4rem; font-size: .6875rem; font-weight: 600;
-                   background-color: var(--sfg); border-color: var(--sfg); color: var(--sfg-ink); }
-    .btn-primary:hover, .btn-primary:focus-visible { background-color: oklch(0.62 0.12 153); border-color: oklch(0.62 0.12 153); }
-    .btn-primary:active { background-color: oklch(0.56 0.12 153); border-color: oklch(0.56 0.12 153); }
-    .btn-primary:disabled { background-color: oklch(0.8 0.06 153); border-color: oklch(0.8 0.06 153); color: oklch(0.35 0.04 152); }
+                   background-color: var(--sfg); border-color: var(--sfg); color: #fff; }
+    .btn-primary:hover, .btn-primary:focus-visible { background-color: oklch(0.62 0.12 153); border-color: oklch(0.62 0.12 153); color: #fff; }
+    .btn-primary:active { background-color: oklch(0.56 0.12 153); border-color: oklch(0.56 0.12 153); color: #fff; }
+    /* 禁用：整体降透明度（保持白字比例可读），而不是把底色冲淡 */
+    .btn-primary:disabled { background-color: var(--sfg); border-color: var(--sfg); color: #fff; opacity: .45; }
     /* 次级按钮统一绿(必须显式接管:pico 桥 [type=button] 等属性选择器与 .btn-outline 同特异性且排后,
        不写即被 pico 涂成蓝色) */
     .btn-outline { background-color: transparent; border-color: color-mix(in oklab, var(--sfg-deep) 45%, transparent); color: var(--sfg-deep); }
@@ -161,6 +164,13 @@ export const LAYOUT = `<!doctype html>
     button.btn[type="submit"] { width: auto; }
     /* pico 桥的 line-height:1.5+上下内边距会把文字挤偏;去上下内边距 + line-height:1,交还 flex 居中 */
     button.btn { padding-top: 0 !important; padding-bottom: 0 !important; line-height: 1 !important; }
+    /* pico 桥的 [type=button]{margin-bottom:1rem}：按钮做 flex 子项时会把整行撑高、按钮被顶偏
+       → 全站按钮纵向 margin 清零（属性选择器特异性更高，必须 !important；
+          自定义胶囊按钮 .hist-tab/.conn-tab 等不带 .btn，也在覆盖范围内） */
+    button { margin-top: 0 !important; margin-bottom: 0 !important; }
+    /* 同理 pico 桥的 input:not([type=checkbox],[type=radio]),select,textarea{margin-bottom:1rem}
+       —— 表单控件做 flex 子项时同样会被顶偏（日志页搜索框就比同级按钮高 8px） */
+    input, select, textarea { margin-top: 0 !important; margin-bottom: 0 !important; }
     /* !important: pico 桥的 input:not(...) 属性选择器特异性更高,不加 important 会被压回 ~42px */
     .input, .select, .textarea { height: 1.625rem !important; min-height: 1.625rem !important; font-size: .75rem !important; padding: 0 .5rem !important; border-radius: .375rem !important; }
     .card-body { padding: .875rem; }
@@ -176,6 +186,17 @@ export const LAYOUT = `<!doctype html>
     /* 规则行(标签宽 11em + 控件 + 提示) */
     .prow { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .4rem 0; }
     .prow > .p-lbl { width: 11em; flex-shrink: 0; font-size: .8125rem; font-weight: 500; }
+
+    /* ===== 页面级共享块（歌单同步 / 榜单订阅 同源，勿各页另写一份） ===== */
+    /* 区块主标题：主题绿底圆角条（固定 2rem，便于与右侧动作按钮同高） */
+    .sec-green { display: flex; align-items: center; height: 2rem; background: var(--sfg-fill); color: #fff;
+                 font-weight: 700; font-size: .95rem; padding: 0 .85rem; border-radius: .6rem; margin-bottom: .7rem; }
+    /* 绿条右侧的动作按钮：与绿条同高（用它替代 .btn-sm） */
+    .sec-green-btn { height: 2rem; min-height: 2rem; font-size: .8125rem; padding-left: .75rem; padding-right: .75rem; }
+    /* 一级卡片：浅灰半透明底；其中的内层小框保持白底 + 轻阴影，形成层次 */
+    .tier1 { background: oklch(0.94 0 0 / 0.65); }
+    @media (prefers-color-scheme: dark) { .tier1 { background: oklch(0.3 0 0 / 0.65); } }
+    .tier1 .rounded-lg.border { background: oklch(var(--b1)); box-shadow: 0 1px 3px oklch(var(--bc) / 0.12); }
 
     /* ===== 兼容 Pico 旧类（迁移期间过渡，逐步移除） ===== */
     body { font-size: 13px; }
@@ -288,7 +309,7 @@ export const LAYOUT = `<!doctype html>
                         text-decoration: none; transition: background .15s, color .15s; }
       .mob-panel li a svg { width: 1.1em; height: 1.1em; flex-shrink: 0; }
       .mob-panel li a:hover { background: color-mix(in oklab, var(--sfg) 14%, transparent); color: var(--sfg-deep); }
-      .mob-panel li a.active { font-weight: 700; background: var(--sfg); color: var(--sfg-ink); }
+      .mob-panel li a.active { font-weight: 700; background: var(--sfg-fill); color: #fff; }
       .mob-panel .mob-foot { margin-top: auto; padding-top: .7rem; border-top: 1px solid oklch(var(--bc) / .15); font-size: .82em; color: oklch(var(--bc) / .6); }
       /* 移动端触控友好:控件回大到 34px */
       .btn { height: 2.125rem; min-height: 2.125rem; font-size: .8125rem; }
@@ -321,9 +342,6 @@ ${ICON_SPRITE}
       </nav>
     </div>
     <div class="sidebar-foot">
-      <% if (it.githubUrl) { %>
-        <a class="foot-help" href="<%= it.githubUrl %>" target="_blank" rel="noopener">帮助</a>
-      <% } %>
       <div class="foot-ver">v<%= it.version %></div>
       <hr class="foot-hr">
       <div class="foot-acct">
@@ -374,7 +392,15 @@ function teMode(id) {
   var mirror = m && m.value === 'mirror'
   var del = document.getElementById('edit-del-' + id)
   if (del) del.style.display = mirror ? '' : 'none'
-  f.querySelectorAll('input[name="delPolicy"], input[name="archivePlaylist"]').forEach(function (x) { x.disabled = !mirror })
+  f.querySelectorAll('input[name="delPolicy"], input[name="archivePlaylist"], select[data-arch-picker="archivePlaylist"]').forEach(function (x) { x.disabled = !mirror })
+}
+// 归档目标选择器：选完写入同名输入框并复位——它只当"选择器"，不表示状态
+function archPickFrom(sel) {
+  var name = sel.getAttribute('data-arch-picker')
+  var root = sel.closest('form') || document
+  var inp = root.querySelector('input[name="' + name + '"]')
+  if (inp && sel.value) inp.value = sel.value
+  sel.value = ''
 }
 function toggleExistingId(el, suffix) {
   var box = document.getElementById('existing-box' + suffix)

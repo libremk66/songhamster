@@ -5,7 +5,7 @@
               border: 1px solid oklch(var(--bc) / .22); border-radius: 999px; transition: color .15s, border-color .15s, background .15s; }
   .hist-tab svg { width: 1em; height: 1em; margin-right: .35em; }
   .hist-tab:hover { border-color: var(--sfg); color: var(--sfg-deep); }
-  .hist-tab.active { background: var(--sfg); border-color: var(--sfg); color: var(--sfg-ink); font-weight: 650; }
+  .hist-tab.active { background: var(--sfg-fill); border-color: var(--sfg-fill); color: #fff; font-weight: 650; }
   /* 规则行(标签+控件+提示) */
   .prow { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .4rem 0; }
   .prow > .p-lbl { width: 11em; flex-shrink: 0; font-size: .8125rem; font-weight: 500; }
@@ -222,17 +222,10 @@
       </div>
     </section>
 
+    <!-- 回收站已移到「进度历史 → 回收站」标签（此处暂不重复挂载）；恢复本页时如需再放回来，把 trash-host 容器加回即可 -->
     <details class="rounded-lg border border-base-300 bg-base-100">
-      <summary class="cursor-pointer text-sm font-semibold px-3 py-2 select-none">🗑 回收站（删除缓冲：移入可恢复）</summary>
-      <div class="px-3 pb-3">
-        <div class="flex flex-wrap items-center gap-2 py-2">
-          <button type="button" class="btn btn-outline btn-xs px-2" hx-get="/api/trash/partial" hx-target="#trash-panel" hx-swap="innerHTML"><svg aria-hidden="true"><use href="#i-refresh"/></svg>刷新回收站</button>
-          <span class="text-xs c-sub">移入/恢复/彻底删除后自动刷新；如未更新请点此刷新</span>
-        </div>
-        <div id="trash-panel" hx-get="/api/trash/partial" hx-trigger="load">
-          <p class="c-sub text-xs py-6 text-center">加载中…</p>
-        </div>
-      </div>
+      <summary class="cursor-pointer text-sm font-semibold px-3 py-2 select-none">🗑 回收站已移至「进度历史」页</summary>
+      <div class="px-3 pb-3 text-xs c-sub py-2">在「进度历史」页右侧的「回收站」标签里查看与操作（恢复 / 彻底删除）。</div>
     </details>
   </div>
 

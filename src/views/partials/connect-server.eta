@@ -1,0 +1,49 @@
+<section id="conn-section"<% if (oob) { %> hx-swap-oob="outerHTML"<% } %> class="card tier1 border border-base-300 shadow-sm">
+  <div class="card-body gap-3">
+
+    <!-- 标题栏：连接媒体服务器 + 服务器选项卡 + 确定 -->
+    <div class="flex flex-wrap items-center gap-2">
+      <h3 class="sec-green shrink-0" style="margin-bottom:0;padding-right:.4rem">连接媒体服务器</h3>
+      <div class="flex flex-wrap items-center gap-1.5">
+        <% for (const s of specs) { %>
+        <button type="button" class="conn-tab <%= s.key === type ? 'on' : '' %>"
+          hx-get="/api/connect/section?type=<%= s.key %>" hx-target="#conn-section" hx-swap="outerHTML"
+          title="<%= s.label %>"><% if (s.key === target) { %><span class="conn-dot" title="当前同步目标"></span><% } %><%= s.short %></button>
+        <% } %>
+      </div>
+      <button type="button" class="btn btn-sm btn-invert ml-auto" hx-post="/api/connect/apply" hx-include="#conn-form"
+        hx-vals='{"type":"<%= type %>"}' hx-target="#conn-msg" hx-swap="innerHTML" hx-indicator="#conn-busy">
+        <svg aria-hidden="true"><use href="#i-check"/></svg>确定
+      </button>
+    </div>
+
+    <!-- 表单（白框：tier1 灰卡下一级） -->
+    <div class="rounded-lg border border-base-300 p-3">
+    <div class="text-sm font-semibold mb-2">媒体服务器信息<span class="text-xs c-sub font-normal" style="margin-left:.5rem">（<%= spec.label %>）</span></div>
+    <form id="conn-form">
+      <div class="fg">
+        <% for (const f of spec.fields) { %>
+        <label class="form-control w-full"<% if (f.wide) { %> style="grid-column:1/-1"<% } %>>
+          <span class="label-text mb-1"><%= f.label %></span>
+          <input name="<%= f.k %>" type="<%= f.password ? 'password' : 'text' %>" value="<%= vals[f.k] ?? '' %>"
+                 placeholder="<%= f.ph ?? '' %>" autocomplete="off" class="input input-bordered w-full">
+          <% if (f.hint) { %><span class="text-xs c-sub mt-1"><%= f.hint %></span><% } %>
+        </label>
+        <% } %>
+      </div>
+    </form>
+    </div>
+
+    <!-- 操作 + 反馈 -->
+    <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-3">
+      <button type="button" class="btn btn-primary btn-sm" hx-post="/api/config/<%= type %>" hx-include="#conn-form" hx-target="#conn-msg" hx-swap="innerHTML" hx-indicator="#conn-busy"><svg aria-hidden="true"><use href="#i-save"/></svg>保存配置</button>
+      <button type="button" class="btn btn-outline btn-sm" hx-post="/api/test/<%= type %>" hx-include="#conn-form" hx-target="#conn-msg" hx-swap="innerHTML" hx-indicator="#conn-busy"><svg aria-hidden="true"><use href="#i-plug"/></svg>测试连接</button>
+      <% if (spec.probePath) { %>
+      <button type="button" class="btn btn-outline btn-sm" hx-post="<%= spec.probePath %>" hx-include="#conn-form" hx-target="#conn-msg" hx-swap="innerHTML" hx-indicator="#conn-busy"><svg aria-hidden="true"><use href="#i-scan"/></svg>探测媒体库</button>
+      <% } %>
+      <span id="conn-busy" class="htmx-indicator text-xs c-sub">处理中…</span>
+    </div>
+
+    <p class="text-xs c-sub">「确定」= 保存这台服务器的配置 → 测试连接 → 探测媒体库 → <b>全部通过才设为同步目标</b>；只想存不想切换就用「保存配置」。</p>
+  </div>
+</section>

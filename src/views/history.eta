@@ -1,38 +1,56 @@
 <style>
-  /* 双 tab(同步/洗版):下划线式 */
+  /* 标签:胶囊,未选中白底/选中绿底 */
   .hist-tab { display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .9rem; font-size: .8125rem;
               cursor: pointer; background: oklch(var(--b1)); color: oklch(var(--bc) / .75);
               border: 1px solid oklch(var(--bc) / .22); border-radius: 999px; transition: color .15s, border-color .15s, background .15s; }
-  .hist-tab { display: inline-flex; align-items: center; }
   .hist-tab svg { width: 1em; height: 1em; margin-right: .35em; }
-  .hist-tab:hover { color: var(--sfg-deep); }
   .hist-tab:hover { border-color: var(--sfg); color: var(--sfg-deep); }
-  .hist-tab.active { background: var(--sfg); border-color: var(--sfg); color: var(--sfg-ink); font-weight: 650; }
+  .hist-tab.active { background: var(--sfg-fill); border-color: var(--sfg-fill); color: #fff; font-weight: 650; }
 </style>
 <div class="space-y-4">
 
   <!-- ===== 页头 ===== -->
   <header>
     <div class="flex items-center gap-2 flex-wrap">
-      <h2 class="text-lg font-extrabold tracking-tight">历史记录</h2>
+      <h2 class="text-lg font-extrabold tracking-tight">进度历史</h2>
+      <span class="badge badge-outline badge-sm font-normal px-2 py-1 text-xs">实时 1 秒刷新</span>
     </div>
   </header>
 
-  <section class="card bg-base-100 border border-base-300 shadow-sm">
+  <!-- 顶部：正在跑的任务（原「任务进度」页；跑完的结果落到下方历史里） -->
+  <div id="progress-live" hx-get="/api/progress/live" hx-trigger="load, every 1s" hx-swap="innerHTML">
+    <p class="c-sub text-xs py-4 text-center">加载中…</p>
+  </div>
+
+  <!-- ===== 历史：按任务类型分标签 ===== -->
+  <section class="card tier1 border border-base-300 shadow-sm">
     <div class="card-body gap-2">
       <div class="flex flex-wrap gap-1.5">
-        <button type="button" class="hist-tab active" id="tab-sync"
-          hx-get="/api/history/partial" hx-target="#hist-content" hx-swap="innerHTML"
-          onclick="switchHistTab('tab-sync')"><svg aria-hidden="true"><use href="#i-clock"/></svg>同步任务历史记录</button>
-        <button type="button" class="hist-tab" id="tab-upgrade"
+        <button type="button" class="hist-tab active" id="tab-playlist"
+          hx-get="/api/history/partial?type=playlist" hx-target="#hist-content" hx-swap="innerHTML"
+          onclick="switchHistTab('tab-playlist')"><svg aria-hidden="true"><use href="#i-playlist"/></svg>歌单同步任务</button>
+        <button type="button" class="hist-tab" id="tab-chart"
+          hx-get="/api/history/partial?type=chart" hx-target="#hist-content" hx-swap="innerHTML"
+          onclick="switchHistTab('tab-chart')"><svg aria-hidden="true"><use href="#i-listSearch"/></svg>榜单订阅任务</button>
+        <!-- 洗版记录：随洗版功能一起隐藏（曲库管理页同样已隐藏）。恢复时取消注释即可 -->
+        <!-- <button type="button" class="hist-tab" id="tab-upgrade"
           hx-get="/api/upgrade/history/partial" hx-target="#hist-content" hx-swap="innerHTML"
-          onclick="switchHistTab('tab-upgrade')"><svg aria-hidden="true"><use href="#i-refresh"/></svg>洗版历史记录</button>
+          onclick="switchHistTab('tab-upgrade')"><svg aria-hidden="true"><use href="#i-refresh"/></svg>洗版记录</button> -->
+        <button type="button" class="hist-tab ml-auto" id="tab-trash"
+          hx-get="/api/trash/partial" hx-target="#hist-content" hx-swap="innerHTML"
+          onclick="switchHistTab('tab-trash')"><svg aria-hidden="true"><use href="#i-trash"/></svg>回收站</button>
       </div>
-      <div id="hist-content" hx-get="/api/history/partial" hx-trigger="load">
+      <div id="hist-content" class="trash-host" hx-get="/api/history/partial?type=playlist" hx-trigger="load">
         <p class="c-sub text-xs py-10 text-center">加载中…</p>
       </div>
     </div>
   </section>
+
+  <!-- 排查用：各歌单每首歌的当前状态（DB 累计，非本次进度）；默认收起、展开才加载 -->
+  <details class="rounded-lg border border-base-300 bg-base-100" hx-get="/api/progress/table" hx-trigger="toggle once" hx-target="#progress-area" hx-swap="innerHTML">
+    <summary class="px-3 py-2 text-xs c-sub cursor-pointer select-none">排查用：各歌单歌曲当前状态（非本次进度）</summary>
+    <div id="progress-area" class="p-2"><p class="c-sub text-xs py-6 text-center">展开后加载…</p></div>
+  </details>
 
 </div>
 
