@@ -87,7 +87,7 @@
             <div id="p1_delbox" style="display:none" class="mt-2">
               <h4 class="text-xs font-bold c-sub mb-1.5">镜像同步 · LX 端删除时,歌单/歌曲的处理方式:</h4>
               <label class="drow"><input type="radio" name="p1_del" value="keep" checked class="radio radio-sm" onchange="dSync('p1')"><span class="text-sm"><b>处理1</b> 歌曲从播放列表移除 + 媒体库文件不删(最安全,默认)</span></label>
-              <label class="drow"><input type="radio" name="p1_del" value="delete" class="radio radio-sm" onchange="dSync('p1')"><span class="text-sm"><b>处理2</b> 歌曲从播放列表移除 + 媒体库<b>同时删除文件</b>(仅映射目录内;Emby/Navidrome 可用,道理鱼/Subsonic 不可用将置灰)</span></label>
+              <label class="drow"><input type="radio" name="p1_del" value="delete" class="radio radio-sm" onchange="dSync('p1')"><span class="text-sm"><b>处理2</b> 歌单移除 + 删除文件(仅映射目录内;道理鱼/Subsonic 不可用将置灰)</span></label>
               <label class="drow"><input type="radio" name="p1_del" value="archive" class="radio radio-sm" onchange="dSync('p1')"><span class="text-sm"><b>处理3</b> 从本歌单移除 + 移入归档歌单:<input id="p1_arch" class="input input-bordered input-sm mx-1" style="width:12rem" value="歌单同步任务归档"></span></label>
             </div>
           </div>
@@ -154,7 +154,7 @@
             <div id="p2_delbox" style="display:none" class="mt-2">
               <h4 class="text-xs font-bold c-sub mb-1">LX 端删除时处理方式:</h4>
               <label class="drow"><input type="radio" name="p2_del" value="keep" checked class="radio radio-sm" onchange="dSync('p2')"><span class="text-sm"><b>处理1</b> 歌单移除 + 文件不删</span></label>
-              <label class="drow"><input type="radio" name="p2_del" value="delete" class="radio radio-sm" onchange="dSync('p2')"><span class="text-sm"><b>处理2</b> 歌单移除 + 媒体库删文件(能力受限置灰)</span></label>
+              <label class="drow"><input type="radio" name="p2_del" value="delete" class="radio radio-sm" onchange="dSync('p2')"><span class="text-sm"><b>处理2</b> 歌单移除 + 删除文件(能力受限置灰)</span></label>
               <label class="drow"><input type="radio" name="p2_del" value="archive" class="radio radio-sm" onchange="dSync('p2')"><span class="text-sm"><b>处理3</b> 移入归档歌单:<input id="p2_arch" class="input input-bordered input-sm mx-1" style="width:11rem" value="歌单同步任务归档"></span></label>
             </div>
             <div class="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-base-200">
@@ -200,7 +200,7 @@
             </div>
             <div id="p2b_delbox" style="display:none" class="mt-2">
               <label class="drow"><input type="radio" name="p2b_del" value="keep" checked class="radio radio-sm" onchange="dSync('p2b')"><span class="text-sm"><b>处理1</b> 歌单移除+文件不删</span></label>
-              <label class="drow"><input type="radio" name="p2b_del" value="delete" class="radio radio-sm" onchange="dSync('p2b')"><span class="text-sm"><b>处理2</b> 歌单移除+删文件(受限置灰)</span></label>
+              <label class="drow"><input type="radio" name="p2b_del" value="delete" class="radio radio-sm" onchange="dSync('p2b')"><span class="text-sm"><b>处理2</b> 歌单移除+删除文件(受限置灰)</span></label>
               <label class="drow"><input type="radio" name="p2b_del" value="archive" class="radio radio-sm" onchange="dSync('p2b')"><span class="text-sm"><b>处理3</b> 移入归档:<input id="p2b_arch" class="input input-bordered input-sm mx-1" style="width:11rem" value="歌单同步任务归档"></span></label>
             </div>
             <div class="flex flex-wrap items-center gap-2 mt-2">
@@ -329,7 +329,7 @@ function dSum(p) {
   if (m === 'inc') parts.push('方式:增量(只增不减)')
   else if (m === 'mirror') {
     var del = (document.querySelector('input[name="' + p + '_del"]:checked') || {}).value
-    var delTxt = { keep: '处理1 歌单移除+文件不删', delete: '处理2 歌单移除+删媒体库文件', archive: '处理3 移入归档【' + ((document.getElementById(p + '_arch') || {}).value || '') + '】' }[del]
+    var delTxt = { keep: '处理1 歌单移除+文件不删', delete: '处理2 歌单移除+删除文件', archive: '处理3 移入归档【' + ((document.getElementById(p + '_arch') || {}).value || '') + '】' }[del]
     parts.push('方式:镜像 ⇄ LX 看齐')
     parts.push('删除时:' + (delTxt || '未选删除策略 ⚠'))
   }

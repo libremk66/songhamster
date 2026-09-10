@@ -47,7 +47,7 @@
           <div id="edit-del-<%= t.id %>" class="mt-1">
             <span class="text-xs font-bold c-sub block mb-1">LX 端删除时处理方式:</span>
             <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="delPolicy" value="keep" <%= t.delPolicy === 'keep' ? 'checked' : '' %> class="radio radio-sm"><span class="text-sm"><b>处理1</b> 歌单移除+文件不删(默认)</span></label>
-            <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="delPolicy" value="delete" <%= t.delPolicy === 'delete' ? 'checked' : '' %> class="radio radio-sm"><span class="text-sm"><b>处理2</b> 歌单移除+删媒体库文件</span></label>
+            <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="delPolicy" value="delete" <%= t.delPolicy === 'delete' ? 'checked' : '' %> class="radio radio-sm"><span class="text-sm"><b>处理2</b> 歌单移除 + 删除文件</span></label>
             <label class="flex items-start gap-2 cursor-pointer py-0.5"><input type="radio" name="delPolicy" value="archive" <%= t.delPolicy === 'archive' ? 'checked' : '' %> class="radio radio-sm"><span class="text-sm"><b>处理3</b> 移入归档歌单: <input name="archivePlaylist" class="input input-bordered input-sm" style="width:12rem" value="<%= t.archivePlaylist || '歌单同步任务归档' %>"></span></label>
           </div>
         </div>
