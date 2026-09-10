@@ -31,7 +31,7 @@ function readHead(path: string, n: number): Buffer {
 }
 
 /** FLAC：STREAMINFO 精确解析（bps/sampleRate/总时长） */
-function probeFlac(path: string, size: number): ProbeResult | null {
+export function probeFlac(path: string, size: number): ProbeResult | null {
   const h = readHead(path, 64)
   if (h.length < 42 || !(h[0] === 0x66 && h[1] === 0x4c && h[2] === 0x61 && h[3] === 0x43)) return null
   const sampleRate = ((h[18] << 12) | (h[19] << 4) | (h[20] >> 4)) & 0xfffff
@@ -52,7 +52,7 @@ function probeFlac(path: string, size: number): ProbeResult | null {
  * - CBR：帧码率即平均码率（精确）
  * - VBR：仅读首帧会偏高，扫帧统计平均（精确）；限制扫描前 2MB 近似
  */
-function probeMp3(path: string, size: number): ProbeResult | null {
+export function probeMp3(path: string, size: number): ProbeResult | null {
   const MAX_SCAN = 2 * 1024 * 1024
   const head = readHead(path, 4)
   if (head.length < 4 || head[0] !== 0xff || (head[1] & 0xe0) !== 0xe0) return null

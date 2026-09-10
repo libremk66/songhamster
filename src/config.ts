@@ -3,7 +3,7 @@ import path from 'node:path'
 import YAML from 'yaml'
 
 /** 音质顺序（高→低尝试），界面复选框顺序即此 */
-export const QUALITY_ORDER = ['master', 'atmos_plus', 'atmos', 'hires', 'flac24bit', 'flac', '320k', '128k'] as const
+export const QUALITY_ORDER = ['master', 'atmos_plus', 'atmos', 'hires', 'flac24bit', 'flac', '320k', '192k', '128k'] as const
 export type Quality = (typeof QUALITY_ORDER)[number]
 
 /** 媒体服务器显示名 */
@@ -24,6 +24,7 @@ export const QUALITY_LABELS: Record<Quality, string> = {
   flac24bit: 'FLAC 24-Bit',
   flac: '无损·FLAC',
   '320k': '高品质·320K',
+  '192k': '192K',
   '128k': '标准·128K',
 }
 

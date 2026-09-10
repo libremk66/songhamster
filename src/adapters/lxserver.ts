@@ -32,6 +32,7 @@ const QUALITY_SET: Record<string, Quality> = {
   flac24bit: 'flac24bit',
   flac: 'flac',
   '320k': '320k',
+  '192k': '192k',
   '128k': '128k',
 }
 

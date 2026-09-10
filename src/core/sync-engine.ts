@@ -300,9 +300,9 @@ export class SyncEngine {
             }
           }
         }
-        // 校验（格式/版本词；flac24bit→flac 降级视为可接受路径）
-        const expectedCheck: Quality = effectiveQuality === 'flac' && quality === 'flac24bit' ? 'flac' : quality
-        const v = validateFile(moved.filePath, song, expectedCheck)
+        // 校验(格式/版本词/有损档码率/沉浸声容器);expectedCheck 用【实得档】——
+        // 修复原盲区:master/hires 降级为 flac 时曾用原始档校验,不查 FLAC magic
+        const v = validateFile(moved.filePath, song, effectiveQuality)
         if (!v.ok) {
           rmSync(moved.filePath, { force: true })
           logger.warn(`[engine] ${song.name} 校验失败: ${v.reasons.join('; ')}`)
@@ -311,12 +311,17 @@ export class SyncEngine {
           }
           continue
         }
-        // 降级时按 flac 档检查用户是否勾选；未勾选 → 拒收
-        if (effectiveQuality === 'flac' && quality === 'flac24bit' && !qualities.includes('flac')) {
-          rmSync(moved.filePath, { force: true })
-          return { status: 'unsatisfied', quality: 'flac24bit', reason: '实得 16bit flac，未勾选 flac 档' }
+        for (const w of v.warnings ?? []) logger.warn(`[engine] ${song.name} ${w}`)
+        // 有损档实测降级(320k→192k/128k 等;validator 已实测)
+        if (v.actualQuality && v.actualQuality !== effectiveQuality) {
+          effectiveQuality = v.actualQuality
         }
-        // 降级时修正文件名（flac24bit → flac）
+        // 降级档必须在勾选链内(未勾选绝不使用);统一覆盖 无损/有损 全部降级路径
+        if (effectiveQuality !== quality && !qualities.includes(effectiveQuality)) {
+          rmSync(moved.filePath, { force: true })
+          return { status: 'unsatisfied', quality, reason: `实得 ${effectiveQuality}，未勾选该档` }
+        }
+        // 降级时修正文件名(如 flac24bit → flac / 320k → 128k)
         if (effectiveQuality !== quality) {
           const oldP = moved.filePath
           const reExt = path.extname(oldP)
