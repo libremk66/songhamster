@@ -84,6 +84,11 @@ export const LAYOUT = `<!doctype html>
     aside.sidebar nav a:hover { background: color-mix(in oklab, var(--sfg) 14%, transparent); color: var(--sfg-deep); }
     aside.sidebar nav a.active { font-weight: 700; background: var(--sfg-fill); color: #fff; }
     aside.sidebar .sidebar-foot { margin-top: auto; padding-top: .8rem; font-size: .88em; }
+    /* 项目主页链接（账户行上方，桌面侧栏 + 移动面板同款） */
+    aside.sidebar .foot-repo, .mob-panel .foot-repo { display: flex; align-items: center; gap: .35rem; margin-bottom: .3rem;
+                               color: var(--sfg-deep); text-decoration: none; font-size: .82em; }
+    aside.sidebar .foot-repo:hover, .mob-panel .foot-repo:hover { color: var(--sfg); }
+    aside.sidebar .foot-repo svg, .mob-panel .foot-repo svg { width: 1.1em; height: 1.1em; flex-shrink: 0; }
     aside.sidebar .foot-ver { color: oklch(var(--bc) / 0.6); font-size: .82em; }
     aside.sidebar .foot-hr { border:0; border-top:1px solid oklch(var(--bc) / 0.15); margin:.6rem 0; }
     aside.sidebar .foot-acct { display:flex; align-items:center; gap:.5rem; flex-wrap:nowrap; }
@@ -158,7 +163,9 @@ export const LAYOUT = `<!doctype html>
        不写即被 pico 涂成蓝色) */
     .btn-outline { background-color: transparent; border-color: color-mix(in oklab, var(--sfg-deep) 45%, transparent); color: var(--sfg-deep); }
     .btn-outline:hover { background-color: color-mix(in oklab, var(--sfg) 20%, transparent); border-color: var(--sfg-deep); color: var(--sfg-deep); }
-    .btn-ghost { background-color: transparent; color: var(--sfg-deep); }
+    /* 弱操作 = ghost + 淡描边（规范 §3）。必须显式给 border-color：
+       否则 type="button" 的 ghost 会被 pico 桥涂成蓝色描边（type="submit" 的则是透明，两套不一致） */
+    .btn-ghost { background-color: transparent; color: var(--sfg-deep); border-color: oklch(var(--bc) / .22); }
     .btn-ghost:hover { background-color: color-mix(in oklab, var(--sfg) 20%, transparent); color: var(--sfg-deep); }
     /* pico 桥对 button[type=submit] 强制 width:100%(特异性更高),钉回自适应宽度 */
     button.btn[type="submit"] { width: auto; }
@@ -342,6 +349,9 @@ ${ICON_SPRITE}
       </nav>
     </div>
     <div class="sidebar-foot">
+      <a class="foot-repo" href="<%= it.githubUrl || 'https://github.com/wowjking/songferry' %>" target="_blank" rel="noopener" title="项目主页（GitHub）">
+        <svg aria-hidden="true"><use href="#i-github"/></svg>GitHub 项目主页
+      </a>
       <div class="foot-ver">v<%= it.version %></div>
       <hr class="foot-hr">
       <div class="foot-acct">
@@ -376,7 +386,10 @@ ${ICON_SPRITE}
         <li><a href="/<%= item.id %>" class="<%= item.id === it.active ? 'active' : '' %>"><% if (NAV_ICON[item.id]) { %><svg aria-hidden="true"><use href="#i-<%= NAV_ICON[item.id] %>"/></svg><% } %><%= item.label %></a></li>
       <% } %>
     </ul>
-    <div class="mob-foot">v<%= it.version %> · <% if (it.authEnabled && it.authUser) { %>👤 <%= it.authUser %><% } else if (it.authEnabled) { %>未登录<% } else { %>认证未启用<% } %></div>
+    <div class="mob-foot">
+      <a class="foot-repo" href="<%= it.githubUrl || 'https://github.com/wowjking/songferry' %>" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-github"/></svg>GitHub 项目主页</a>
+      <div>v<%= it.version %> · <% if (it.authEnabled && it.authUser) { %>👤 <%= it.authUser %><% } else if (it.authEnabled) { %>未登录<% } else { %>认证未启用<% } %></div>
+    </div>
   </nav>
 
   <script>
