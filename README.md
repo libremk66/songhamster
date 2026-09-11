@@ -1,5 +1,9 @@
 # SongFerry — LX 歌单同步入库音乐媒体库
 
+[![Docker Hub](https://img.shields.io/docker/v/libremk66/songferry?label=docker%20hub&logo=docker&logoColor=white)](https://hub.docker.com/r/libremk66/songferry)
+[![Docker Pulls](https://img.shields.io/docker/pulls/libremk66/songferry)](https://hub.docker.com/r/libremk66/songferry)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+
 将 [LX Music Sync Server](https://github.com/XCQ0607/lxserver) 的歌单（"我喜欢的"、自建歌单）与榜单订阅**自动下载**（完整标签/封面/歌词）并同步进音乐媒体库与播放列表。
 
 支持 **Emby / Navidrome / Jellyfin / 道理鱼 / Subsonic（飞牛等）** 五种媒体服务器，在「连接容器」页用选项卡切换同步目标。
