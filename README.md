@@ -73,7 +73,7 @@ docker-compose.example.yml  部署路径约定模板
 
 ## 快速开始（Docker 部署）
 
-镜像：**`libremk66/songferry:latest`**（Docker Hub）。运行目录 `/app`，配置与数据库在 `/app/data`（首次启动自动生成默认 config.yaml）。
+镜像：**`libremk66/songferry:latest`**（Docker Hub，多架构 `linux/amd64` + `linux/arm64`，拉取时自动匹配）。运行目录 `/app`，配置与数据库在 `/app/data`（首次启动自动生成默认 config.yaml）。
 
 ![三方 Docker 部署：路径映射与「连接容器」页填法](docs/path-mapping-diagram.png)
 
