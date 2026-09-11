@@ -87,27 +87,6 @@
     </div>
   </section>
 
-  <!-- ===== 路径关系说明 ===== -->
-  <details class="collapse collapse-arrow tier1 border border-base-300 shadow-sm">
-    <summary class="collapse-title text-base font-semibold">路径关系说明（部署必读）</summary>
-    <div class="collapse-content">
-      <div class="rounded-lg border border-base-300 p-3 space-y-3">
-      <p class="text-sm leading-relaxed">SongFerry 与 LXSyncServer、Emby 等媒体服务器共享<b>同一个音乐数据目录</b>，只是各容器内看到的路径不同：</p>
-      <pre class="bg-base-200 rounded-lg p-3 text-xs leading-relaxed overflow-x-auto"><code>宿主机 music-data（唯一真相源）
-  ├── 挂给 lxserver → /server/music     LX 下载写这里
-  ├── 挂给 Emby    → /media/music    媒体库扫描这里
-  └── 挂给 本项目  → /data/music     本项目读/移动/洗版</code></pre>
-      <p class="text-sm leading-relaxed">界面里两个路径字段填的是<b>不同容器视角</b>的名字：</p>
-      <ul class="list-disc list-inside text-sm c-mid space-y-1.5">
-        <li><b>LX 下载目录</b>：本项目容器内看到的路径（本项目要读写它）——Docker 填 <code class="bg-base-200 px-1 rounded">/data/music</code></li>
-        <li><b>媒体库根</b>：你在媒体服务器后台给该音乐媒体库选的<b>文件夹路径</b>（其容器内视角，如 <code class="bg-base-200 px-1 rounded">/media/music/歌单同步</code>）——需先挂载共享目录并在后台建库指向它，SongFerry 仅用于探测匹配</li>
-        <li>下载目录与媒体库文件夹是同一目录的两个名字；漏挂任一方卷或媒体库指向别处，文件就不会出现在对应端</li>
-      </ul>
-        <p class="text-xs c-sub">本机直接运行（npm run dev）无容器视角差异，两处填宿主机实际路径即可。完整示例见 <code class="bg-base-200 px-1 rounded">docker-compose.example.yml</code>。</p>
-      </div>
-    </div>
-  </details>
-
 </div>
 
 <script>

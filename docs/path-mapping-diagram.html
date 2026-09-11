@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 28px 32px 32px; width: 1280px;
+    font-family: system-ui, "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
+    background: #f4f6f5; color: #1f2a24;
+  }
+  h1 { font-size: 23px; margin: 0 0 4px; letter-spacing: -.3px; }
+  .sub { font-size: 13px; color: #6b7873; margin-bottom: 20px; }
+  .sec { font-size: 13px; font-weight: 700; color: #2f7a4d; letter-spacing: .3px; margin: 0 0 8px; }
+  .card { background: #fff; border: 1px solid #dfe5e1; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+
+  /* ===== 上半：宿主机 + 三方容器 ===== */
+  .host { padding: 12px 16px; }
+  .host .t { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+  .tree { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; line-height: 1.65; color: #37443e; }
+  .tree b { color: #2f7a4d; }
+  .flow { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 12px; position: relative; }
+  .mount { position: absolute; top: -12px; left: 16.6%; width: 66.6%; height: 1px; background: #b8c9bf; }
+  .box { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .box .hd { display: flex; align-items: center; gap: 8px; }
+  .box .nm { font-size: 14px; font-weight: 700; }
+  .box .tag { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: #eaf4ed; color: #2f7a4d; font-weight: 600; }
+  .box .tag.ro { background: #eef1f0; color: #66736d; }
+  .box .tag.rw { background: #e6f2ff; color: #1c6ea4; }
+  .path { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 14px; font-weight: 700;
+          color: #1c5c3a; background: #eaf4ed; border: 1px dashed #a9cdb8; border-radius: 7px; padding: 5px 9px; text-align: center; }
+  .box ul { margin: 0; padding-left: 16px; font-size: 12.5px; line-height: 1.6; color: #4a5651; }
+  .who { font-size: 11.5px; color: #7b8781; }
+  .mount-lbl { text-align: center; font-size: 12px; color: #6b7873; margin-top: -4px; }
+
+  /* ===== 下半：界面填法 ===== */
+  .fill { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 6px; }
+  .fm { padding: 12px 14px; }
+  .fm .hd { font-size: 13.5px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 7px; }
+  .fm .hd .n { width: 18px; height: 18px; border-radius: 5px; background: #2f7a4d; color: #fff; font-size: 11px;
+               display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  td { padding: 5px 0; vertical-align: top; line-height: 1.5; }
+  td.k { width: 108px; color: #5a6660; white-space: nowrap; }
+  td.v { font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: 600; color: #1c5c3a; white-space: nowrap; }
+  td.w { color: #7b8781; font-size: 12px; padding-left: 10px; }
+  .star { color: #d97706; font-weight: 700; }
+
+  /* ===== 底部：坑 ===== */
+  .tips { padding: 12px 16px; }
+  .tips div { font-size: 12.5px; line-height: 1.85; }
+  .ok { color: #2f7a4d; font-weight: 700; }
+  .no { color: #c0392b; font-weight: 700; }
+  .arrow { font-size: 15px; color: #9fb0a8; }
+</style>
+</head>
+<body>
+
+  <h1>三方 Docker 部署 · 路径映射与界面填法</h1>
+  <div class="sub">核心：三个容器<b>共享同一个真实目录</b>，只是各自看到的路径名不同 —— 界面上两个路径字段填的是<b>不同容器的视角</b>。</div>
+
+  <div class="sec">① 一个真实目录，三方各挂一次</div>
+  <div class="card host">
+    <div class="t">宿主机 / NAS</div>
+    <div class="tree"><b>/mnt/music-data/</b>　← 唯一真相源（宿主机上的实际文件夹，名字随你）<br>
+      　├── 歌单同步/　　　　├── 我喜欢的/　　　　└── 手动下载/ …</div>
+
+    <div class="mount-lbl" style="margin-top:14px">▼ 同一个目录，挂载三次 ▼</div>
+    <div class="flow">
+      <div class="box card">
+        <div class="hd"><span class="nm">lxserver</span><span class="tag">下载源</span></div>
+        <div class="path">/server/music</div>
+        <div class="who">容器内看到的路径</div>
+        <ul><li>歌曲下载落盘</li><li>写入标签/封面/歌词</li><li>需<b>读写</b></li></ul>
+      </div>
+      <div class="box card">
+        <div class="hd"><span class="nm">音乐服务器</span><span class="tag">Emby 等</span></div>
+        <div class="path">/media/music</div>
+        <div class="who">容器内看到的路径</div>
+        <ul><li>扫描文件 → 入库</li><li>建播放列表</li><li>只读即可</li></ul>
+      </div>
+      <div class="box card">
+        <div class="hd"><span class="nm">SongFerry</span><span class="tag rw">本项目</span></div>
+        <div class="path">/data/music</div>
+        <div class="who">容器内看到的路径</div>
+        <ul><li>校验/重命名/移动文件</li><li>写歌单文件夹</li><li>需<b>读写</b></li></ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" style="margin-top:20px">② 「连接容器」页两个路径字段怎么填</div>
+  <div class="fill">
+    <div class="fm card">
+      <div class="hd"><span class="n">1</span>连接 LXSyncServer</div>
+      <table>
+        <tr><td class="k">服务地址</td><td class="v">http://lxserver:19527</td><td class="w">SongFerry 能访问到的地址</td></tr>
+        <tr><td class="k">API key</td><td class="v">lx_tk_…</td><td class="w"></td></tr>
+        <tr><td class="k">下载用户名</td><td class="v">king</td><td class="w">容器内用户目录标识</td></tr>
+        <tr><td class="k">LX 下载目录</td><td class="v">/data/music</td><td class="w"><span class="star">★</span> 填 <b>SongFerry 容器</b>看到的路径<br>（本项目要读写它）</td></tr>
+      </table>
+    </div>
+    <div class="fm card">
+      <div class="hd"><span class="n">2</span>连接媒体服务器（Emby）</div>
+      <table>
+        <tr><td class="k">服务器地址</td><td class="v">http://emby:8096</td><td class="w">SongFerry 能访问到的地址</td></tr>
+        <tr><td class="k">API key</td><td class="v">…</td><td class="w">Emby 后台 → 设置 → API 密钥</td></tr>
+        <tr><td class="k">媒体库根路径</td><td class="v">/media/music/歌单同步</td><td class="w"><span class="star">★</span> 填 <b>Emby 后台给该音乐库<br>选的文件夹</b>（Emby 容器视角）</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="sec" style="margin-top:20px">③ 三个最容易踩的坑</div>
+  <div class="card tips">
+    <div><span class="ok">✅</span> 同一个真实目录，<b>三个容器各挂一次</b>（没挂的容器就是看不到文件）。</div>
+    <div><span class="no">✕</span> 把「LX 下载目录」填成 Emby 视角的 <code>/media/music</code> —— 本项目在它自己的容器里找不到这个路径，会读写失败。</div>
+    <div><span class="no">✕</span> 「媒体库根路径」填成挂载点 <code>/media/music</code> —— 应填你在 <b>Emby 后台给音乐库选的那个文件夹</b>（可点「探测媒体库」自动识别）。</div>
+    <div><span class="ok">💡</span> 本机直接 <code>npm run dev</code>（无容器）时没有视角差异：两个路径都填<b>宿主机实际路径</b>即可。</div>
+  </div>
+
+</body>
+</html>
