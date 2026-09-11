@@ -42,9 +42,8 @@ services:
       # 其它媒体目录按需挂载
 
   # --- SongFerry（本项目：同步调度 / 文件整理 / 洗版） ---
-  # 镜像尚未发布时可用 npm run dev 或自行构建（见 README）
   songferry:
-    image: your-registry/songferry:latest    # 替换为你的镜像地址
+    image: wowjking/songferry:latest         # Docker Hub 官方镜像
     container_name: songferry
     restart: unless-stopped
     ports:
@@ -58,4 +57,4 @@ services:
       SONGFERRY_EMBY_KEY: <emby api key>
     volumes:
       - ./music-data:/data/music        # ← 同一目录：本项目下载根 + 歌单目录 + 曲库洗版
-      - ./songferry-data:/data            #   配置(config.yaml)与数据库放这里
+      - ./songferry-data:/app/data      #   配置(config.yaml)与数据库放这里（应用工作目录是 /app）

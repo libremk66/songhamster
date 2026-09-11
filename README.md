@@ -69,7 +69,53 @@ docker-compose.example.yml  部署路径约定模板
 
 ## 快速开始（Docker 部署）
 
-### 构建镜像
+镜像：**`wowjking/songferry:latest`**（Docker Hub）。运行目录 `/app`，配置与数据库在 `/app/data`（首次启动自动生成默认 config.yaml）。
+
+### 方式一：docker run（最简）
+
+```bash
+docker run -d --name songferry \
+  --restart unless-stopped \
+  -p 8935:8935 \
+  -v /你的路径/music-data:/data/music \
+  -v /你的路径/songferry-data:/app/data \
+  -e SONGFERRY_AUTH_USER=admin \
+  -e SONGFERRY_AUTH_PASSWORD=改成你的密码 \
+  wowjking/songferry:latest
+```
+
+打开 `http://<nas>:8935` → 用上面的账号登录 → 「连接容器」页填 LX 与媒体服务器信息。
+
+> `-v /你的路径/music-data:/data/music` 就是**与 lxserver、媒体服务器共享的同一个目录**（见上方示意图）。
+> 连接信息也可以直接用环境变量注入，省去界面填写：
+> `-e SONGFERRY_LXSERVER_URL=http://lxserver:19527 -e SONGFERRY_LXSERVER_KEY=lx_tk_xxx -e SONGFERRY_EMBY_URL=http://emby:8096 -e SONGFERRY_EMBY_KEY=xxx`
+
+### 方式二：docker compose（三容器联动，推荐）
+
+```yaml
+services:
+  songferry:
+    image: wowjking/songferry:latest
+    container_name: songferry
+    restart: unless-stopped
+    ports:
+      - "8935:8935"
+    environment:
+      SONGFERRY_AUTH_USER: admin            # 首次启动自动启用认证
+      SONGFERRY_AUTH_PASSWORD: change-me    # 一定要改
+      SONGFERRY_LXSERVER_URL: http://lxserver:19527
+      SONGFERRY_LXSERVER_KEY: <lx 用户 token>
+      SONGFERRY_EMBY_URL: http://emby:8096
+      SONGFERRY_EMBY_KEY: <emby api key>
+    volumes:
+      - ./music-data:/data/music            # ← 与 lxserver / Emby 共享的同一目录
+      - ./songferry-data:/app/data          #   配置(config.yaml) + 数据库
+
+  # lxserver、Emby 两个服务的完整写法（含端口/卷约定）见
+  # docker-compose.example.yml —— 三方把同一个 ./music-data 各挂一次即可
+```
+
+### 方式三：自己构建
 
 ```bash
 # 本仓库根目录
@@ -78,7 +124,7 @@ docker build -t songferry .
 
 > 构建说明：better-sqlite3 原生模块在构建阶段编译（自动装 python3/make/g++），运行镜像保持精简。
 
-镜像运行目录 `/app`，数据卷挂到 `/app/data`（首次启动自动生成默认 config.yaml）。快速验证镜像：
+构建后冒烟验证：
 
 ```bash
 docker run --rm -d --name songferry-smoke -p 8936:8935 \

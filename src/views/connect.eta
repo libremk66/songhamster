@@ -33,7 +33,6 @@
         class="card tier1 border border-base-300 shadow-sm">
     <div class="card-body gap-3.5">
       <h3 class="sec-green">连接 LXSyncServer</h3>
-      <p class="text-xs c-sub">LX Music 歌单同步服务 —— 歌曲下载、标签/封面/歌词写入都由它完成</p>
       <div class="rounded-lg border border-base-300 p-3">
       <div class="fg">
         <label class="form-control w-full">
