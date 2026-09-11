@@ -287,4 +287,43 @@ function chManualDownload(source, bangid) {
     .catch(function (e) { if (msg) msg.innerHTML = '<span class="bad">提交失败：' + e + '</span>' })
 }
 chLoadBoards()
+
+// ===== 榜单订阅列表：任务运行中时显示微缩进度条（轮询 /api/progress/json）=====
+var chLive = { runningId: 0, shownId: 0 }
+function chPollLive() {
+  fetch('/api/progress/json')
+    .then(function (r) { return r.json() })
+    .then(function (d) {
+      var rows = document.querySelectorAll('#ch-subs-rows tr[data-task-id]')
+      if (!rows.length) return
+      if (d.running) {
+        var row = document.querySelector('#ch-subs-rows tr[data-task-id="' + d.taskId + '"]')
+        if (!row) return // 跑的不是本页的订阅（比如歌单任务），不打扰
+        var cell = row.querySelector('[data-live-task]')
+        if (!cell) {
+          // 这一行还没渲染成"运行中" → 刷新一次列表让它显示进度条
+          // （正在编辑时不刷新，免得把编辑表单冲掉）
+          if (!document.querySelector('#ch-subs-rows .edit-row') && chLive.shownId !== d.taskId) {
+            chLive.shownId = d.taskId
+            htmx.ajax('GET', '/api/charts/subs', { target: '#ch-subs-rows' })
+          }
+          return
+        }
+        var bar = cell.querySelector('.mini-bar > i')
+        if (bar) bar.style.width = d.pct + '%'
+        var wrap = cell.querySelector('.mini-bar')
+        if (wrap) wrap.title = '第 ' + d.done + '/' + d.total + ' 首 · ' + d.phase + (d.current ? '（' + d.current + '）' : '')
+        chLive.runningId = d.taskId
+      } else if (chLive.runningId) {
+        // 刚刚跑完 → 刷新一次，把"运行中"换成最终结果
+        chLive.runningId = 0
+        chLive.shownId = 0
+        if (!document.querySelector('#ch-subs-rows .edit-row')) {
+          htmx.ajax('GET', '/api/charts/subs', { target: '#ch-subs-rows' })
+        }
+      }
+    })
+    .catch(function () { /* 网络抖动，下次再试 */ })
+}
+setInterval(chPollLive, 2500)
 </script>

@@ -481,7 +481,7 @@ export function apiRouter(
       .listTasks()
       .filter((t) => t.taskType === 'chart')
       .map((t) => ({ ...t, lastSnap: repo.getLatestChartSnapshot(t.id) }))
-    res.send(renderBody('partials/chart-subs', { tasks, targetName: cfg.target === 'navidrome' ? 'Navidrome' : 'Emby' }))
+    res.send(renderBody('partials/chart-subs', { tasks, targetName: cfg.target === 'navidrome' ? 'Navidrome' : 'Emby', live: engine.live }))
   })
 
   r.get('/lx/playlists/options', async (_req, res) => {
@@ -781,6 +781,27 @@ export function apiRouter(
         pct: l && l.total > 0 ? Math.min(100, Math.round((l.done / l.total) * 100)) : 0,
       }),
     )
+  })
+
+  // 实时进度（JSON）：列表页轮询用（微缩进度条）
+  r.get('/progress/json', (_req, res) => {
+    const l = engine.live
+    if (!l || l.finishedAt !== null) return res.json({ running: false })
+    const pct = l.total > 0 ? Math.min(100, Math.round((l.done / l.total) * 100)) : 0
+    res.json({
+      running: true,
+      taskId: l.taskId,
+      taskName: l.taskName,
+      phase: l.phase,
+      index: l.index,
+      total: l.total,
+      done: l.done,
+      pct,
+      ok: l.ok,
+      fail: l.fail,
+      unsat: l.unsat,
+      current: l.current?.name ?? null,
+    })
   })
 
   r.get('/progress/table', (_req, res) => {
