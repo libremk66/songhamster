@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
 import path from 'node:path'
-import { rmSync, renameSync } from 'node:fs'
+import { rmSync, renameSync, existsSync } from 'node:fs'
 import type { AppConfig, DelPolicy, Quality } from '../config.js'
 import { HIGH_RES_FLAC, QUALITY_ORDER, supportsFileDelete, archiveNameOf } from '../config.js'
 import type { LxSong } from '../adapters/lxserver.js'
@@ -380,14 +380,22 @@ export class SyncEngine {
     const dirName = opts?.dirName ?? task.lxPlaylistName
     for (const quality of qualities) {
       // 已有文件（该歌+该音质）→ dup 直接走 Emby 侧
+      // ⚠️ 必须确认文件还在磁盘上：登记表可能残留（手动删过 / 处理2 移入回收站后清空），
+      //    只看登记的话这首歌会"永远跳过、再也下不回来"
       const existing = repo.findSongFile(song.songKey, quality)
-      if (existing) {
-        if (!opts?.skipIngest) await this.ensureInEmby(taskId, task, song)
+      if (existing && !existsSync(existing.filePath)) {
+        logger.warn(`[engine] ${song.name} [${quality}] 有登记但文件已不在磁盘（${existing.filePath}）→ 按需重新下载`)
+      }
+      if (existing && existsSync(existing.filePath)) {
+        // 入库结果如实上报：文件在但入不了库（比如媒体库里已无此条目）应记 failed 以便下次重试，
+        // 旧实现无条件记 success，会让这类问题永远不被发现
+        const embyOk = opts?.skipIngest ? true : await this.ensureInEmby(taskId, task, song)
         repo.upsertSongStatus({
           taskId, songKey: song.songKey, songName: song.name, singer: song.singer,
-          status: 'success', quality,
+          status: embyOk ? 'success' : 'failed', quality: existing.quality,
+          errorReason: embyOk ? undefined : '文件已在库但入库失败',
         })
-        return { status: 'dup', quality }
+        return { status: 'dup', quality: existing.quality, reason: embyOk ? undefined : '文件已在库但入库失败' }
       }
       logger.info(`[engine] 下载 ${song.name} [${quality}]`)
 

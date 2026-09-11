@@ -246,7 +246,14 @@ export function findSongFile(songKey: string, quality: string): SongFileRow | nu
 
 export function registerFile(input: { songKey: string; quality: string; fileName: string; filePath: string; size?: number }): number {
   const existing = findSongFile(input.songKey, input.quality)
-  if (existing) return existing.id
+  if (existing) {
+    // 同档重下（原文件被删后再次下载）→ 更新路径/文件名/大小，
+    // 否则登记里还是旧路径，下次又会判定"文件不在"而反复重下
+    getDb()
+      .prepare('UPDATE song_files SET fileName = ?, filePath = ?, size = ? WHERE id = ?')
+      .run(input.fileName, input.filePath, input.size ?? null, existing.id)
+    return existing.id
+  }
   const info = getDb()
     .prepare(`INSERT INTO song_files (songKey, quality, fileName, filePath, size, firstDownloadedAt) VALUES (?, ?, ?, ?, ?, ?)`)
     .run(input.songKey, input.quality, input.fileName, input.filePath, input.size ?? null, new Date().toISOString())

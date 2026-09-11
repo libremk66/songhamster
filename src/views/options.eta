@@ -23,6 +23,7 @@
           <% } %>
         </div>
         <p class="text-xs c-sub mt-1.5 leading-relaxed">实际能拿到哪一档取决于音源支持（按 LX 搜索结果自动识别）；勾选范围均拿不到的歌会标记「未满足」。Atmos 系为多声道沉浸式，体积较大。</p>
+        <p class="text-xs c-sub mt-1 leading-relaxed"><b>已下载过的歌不会重复下载</b>（按「歌 + 音质」判定，与这里的勾选无关）。<br>· 想换更高音质：<b>删掉那个文件</b>，下次同步会重新下载；· ⚠️ 调低音质偏好后重跑，对「原档位已不在勾选里」的歌会补下一份低档文件（库里会多一份）。</p>
       </section>
 
       <div class="divider my-0"></div>
