@@ -351,7 +351,8 @@ ${ICON_SPRITE}
       </nav>
     </div>
     <div class="sidebar-foot">
-      <a class="foot-repo" href="<%= it.githubUrl || 'https://github.com/libremk66/songferry' %>" target="_blank" rel="noopener" title="项目主页（GitHub）">
+      <% /* 帮助链接指向 GitHub 仓库；仓库改名后再同步成新地址（GitHub 对旧地址会自动重定向） */ %>
+      <a class="foot-repo" href="<%= it.githubUrl || 'https://github.com/wowjking/songferry' %>" target="_blank" rel="noopener" title="项目主页（GitHub）">
         <svg aria-hidden="true"><use href="#i-github"/></svg>帮助说明
       </a>
       <div class="foot-ver">v<%= it.version %></div>
@@ -389,7 +390,7 @@ ${ICON_SPRITE}
       <% } %>
     </ul>
     <div class="mob-foot">
-      <a class="foot-repo" href="<%= it.githubUrl || 'https://github.com/libremk66/songferry' %>" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-github"/></svg>帮助说明</a>
+      <a class="foot-repo" href="<%= it.githubUrl || 'https://github.com/wowjking/songferry' %>" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-github"/></svg>帮助说明</a>
       <div>v<%= it.version %> · <% if (it.authEnabled && it.authUser) { %>👤 <%= it.authUser %><% } else if (it.authEnabled) { %>未登录<% } else { %>认证未启用<% } %></div>
     </div>
   </nav>
