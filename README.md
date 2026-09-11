@@ -97,6 +97,8 @@ docker rm -f songferry-smoke
 
 > 核心：**三方共享同一个音乐数据目录**，只是各自容器内看到的路径不同。
 
+![三方 Docker 部署：路径映射与「连接容器」页填法](docs/path-mapping-diagram.png)
+
 ```
 宿主机 ./music-data（唯一真相源）
   ├── 挂给 lxserver → /server/music   （LX 下载写这里）
