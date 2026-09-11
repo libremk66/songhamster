@@ -43,7 +43,7 @@ services:
 
   # --- SongFerry（本项目：同步调度 / 文件整理 / 洗版） ---
   songferry:
-    image: wowjking/songferry:latest         # Docker Hub 官方镜像
+    image: libremk66/songferry:latest         # Docker Hub 官方镜像
     container_name: songferry
     restart: unless-stopped
     ports:

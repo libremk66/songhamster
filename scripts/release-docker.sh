@@ -3,7 +3,7 @@
 # 构建 SongFerry 镜像并推送到 Docker Hub
 #
 # 用法（需要 docker 权限，本机 docker 只允许 root，所以用 sudo）：
-#   sudo bash scripts/release-docker.sh                 # 默认推 wowjking/songferry
+#   sudo bash scripts/release-docker.sh                 # 默认推 libremk66/songferry
 #   sudo bash scripts/release-docker.sh <dockerhub用户名>
 #
 # 首次使用请先登录（用 Docker Hub 的 Access Token 当密码，不是账号密码）：
@@ -14,7 +14,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-DOCKERHUB_USER="${1:-wowjking}"
+DOCKERHUB_USER="${1:-libremk66}"
 IMAGE="${DOCKERHUB_USER}/songferry"
 VERSION="$(grep -m1 '"version"' package.json | sed 's/.*: *"\([^"]*\)".*/\1/')"
 
