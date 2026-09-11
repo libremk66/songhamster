@@ -105,8 +105,25 @@ export function updateTask(id: number, patch: Partial<SyncTaskRow>): void {
     )
 }
 
+/**
+ * 删除任务：连带清理它的全部关联数据（历史批次+明细 / 快照 / 文件引用 / 歌曲状态）。
+ *
+ * ⚠️ 必须先删子表再删主表：这些表都声明了 `REFERENCES sync_task(id)`，而连接开了
+ * `foreign_keys = ON`，直接删 sync_task 会抛 `FOREIGN KEY constraint failed`
+ * （旧实现就是这个 bug：界面弹了确认框，删完任务还在列表里）。
+ * 整个过程包在事务里——中途失败不会留下半删状态。
+ */
 export function deleteTask(id: number): void {
-  getDb().prepare('DELETE FROM sync_task WHERE id = ?').run(id)
+  const db = getDb()
+  db.transaction((tid: number) => {
+    db.prepare('DELETE FROM history_item WHERE batchId IN (SELECT id FROM history_batch WHERE taskId = ?)').run(tid)
+    db.prepare('DELETE FROM history_batch WHERE taskId = ?').run(tid)
+    db.prepare('DELETE FROM playlist_snapshot WHERE taskId = ?').run(tid)
+    db.prepare('DELETE FROM chart_snapshot WHERE taskId = ?').run(tid)
+    db.prepare('DELETE FROM current_song_status WHERE taskId = ?').run(tid)
+    db.prepare('DELETE FROM task_song_ref WHERE taskId = ?').run(tid)
+    db.prepare('DELETE FROM sync_task WHERE id = ?').run(tid)
+  })(id)
 }
 
 // ===== current_song_status（进度页矩阵 + 增量 diff 依据） =====

@@ -22,7 +22,7 @@
           <button type="button" class="btn btn-primary btn-xs" hx-post="/api/task/<%= t.id %>/run" hx-swap="none" hx-confirm="立即同步该订阅？将拉取当前榜单并下载范围内新上榜的歌曲。" hx-on::after-request="chSubMsg('<%= t.lxPlaylistName %> 同步已开始，请稍后在任务进度页查看…')"><svg aria-hidden="true"><use href="#i-play"/></svg>同步</button>
           <button type="button" class="btn btn-ghost btn-xs" hx-get="/api/charts/subs/<%= t.id %>/edit" hx-target="closest tr" hx-swap="outerHTML"><svg aria-hidden="true"><use href="#i-pencil"/></svg>编辑</button>
           <button type="button" class="btn btn-ghost btn-xs" hx-post="/api/task/<%= t.id %>/toggle" hx-swap="none" hx-on::after-request="htmx.ajax('GET','/api/charts/subs',{target:'#ch-subs-rows'})"><% if (t.enabled) { %><svg aria-hidden="true"><use href="#i-pause"/></svg>停用<% } else { %><svg aria-hidden="true"><use href="#i-play"/></svg>启用<% } %></button>
-          <button type="button" class="btn btn-ghost btn-xs text-error" hx-post="/api/task/<%= t.id %>/delete" hx-swap="none" hx-confirm="删除订阅「<%= t.lxPlaylistName %>」？已下载文件与播放列表内容保留，仅停止后续订阅。" hx-on::after-request="htmx.ajax('GET','/api/charts/subs',{target:'#ch-subs-rows'})"><svg aria-hidden="true"><use href="#i-trash"/></svg>删除</button>
+          <button type="button" class="btn btn-ghost btn-xs text-error" hx-post="/api/task/<%= t.id %>/delete" hx-swap="none" hx-confirm="删除订阅「<%= t.lxPlaylistName %>」？&#10;&#10;· 已下载的文件与播放列表内容保留&#10;· 仅停止后续订阅&#10;· 该订阅的历史记录一并删除" hx-on::after-request="htmx.ajax('GET','/api/charts/subs',{target:'#ch-subs-rows'})"><svg aria-hidden="true"><use href="#i-trash"/></svg>删除</button>
         </td>
       </tr>
       <% } %>

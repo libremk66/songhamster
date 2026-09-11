@@ -102,7 +102,7 @@
       <dialog id="del-dlg" class="modal">
         <div class="modal-box max-w-md">
           <h3 class="text-base font-bold">删除同步任务</h3>
-          <p class="text-sm mt-2">将删除任务「<b id="del-dlg-name"></b>」。</p>
+          <p class="text-sm mt-2">将删除任务「<b id="del-dlg-name"></b>」<span class="c-sub">（连同它的同步历史记录）</span>。</p>
           <label id="del-dlg-ignorerow" class="flex items-start gap-2 cursor-pointer mt-3">
             <input type="checkbox" id="del-dlg-ignore" class="checkbox checkbox-sm" checked>
             <span class="text-sm">永久忽略该歌单
