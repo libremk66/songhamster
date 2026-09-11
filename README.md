@@ -66,7 +66,7 @@ src/                  源码（Node.js ≥22 + TypeScript，前端 htmx 无构�
 static/               自绘图标与前端静态资源
 Dockerfile            多阶段构建镜像（node:22-slim 运行）
 config.example.yaml   配置模板（带注释，不含密钥）
-docs/                 部署指南（AI-DEPLOYMENT / 路径映射详解 / 同步重设计规格 / UI 规范）
+docs/                 部署指南（路径映射详解 / 同步重设计规格 / UI 规范）
 data/logs/            按天落盘的运行日志（界面「日志」页数据源）
 docker-compose.example.yml  部署路径约定模板
 ```
@@ -74,6 +74,11 @@ docker-compose.example.yml  部署路径约定模板
 ## 快速开始（Docker 部署）
 
 镜像：**`libremk66/songferry:latest`**（Docker Hub）。运行目录 `/app`，配置与数据库在 `/app/data`（首次启动自动生成默认 config.yaml）。
+
+![三方 Docker 部署：路径映射与「连接容器」页填法](docs/path-mapping-diagram.png)
+
+> ☝️ 三方（lxserver / 媒体服务器 / SongFerry）**共享同一个音乐目录**，只是各容器看到的路径名不同；
+> 「连接容器」页两个路径字段该填哪个视角、三个常见坑，都在图里。完整部署说明见 [docs/path-mapping.md](docs/path-mapping.md)。
 
 ### 方式一：docker run（最简）
 
@@ -90,11 +95,11 @@ docker run -d --name songferry \
 
 打开 `http://<nas>:8935` → 用上面的账号登录 → 「连接容器」页填 LX 与媒体服务器信息。
 
-> `-v /你的路径/music-data:/data/music` 就是**与 lxserver、媒体服务器共享的同一个目录**（见上方示意图）。
+> `-v /你的路径/music-data:/data/music` 就是**与 lxserver、媒体服务器共享的同一个目录**（见文末示意图）。
 > 连接信息也可以直接用环境变量注入，省去界面填写：
 > `-e SONGFERRY_LXSERVER_URL=http://lxserver:19527 -e SONGFERRY_LXSERVER_KEY=lx_tk_xxx -e SONGFERRY_EMBY_URL=http://emby:8096 -e SONGFERRY_EMBY_KEY=xxx`
 
-### 方式二：docker compose（三容器联动，推荐）
+### 方式二：docker compose（推荐）
 
 ```yaml
 services:
@@ -119,63 +124,15 @@ services:
   # docker-compose.example.yml —— 三方把同一个 ./music-data 各挂一次即可
 ```
 
-### 方式三：自己构建
+### 方式三：自己构建（可选）
 
 ```bash
-# 本仓库根目录
-docker build -t songferry .
+docker build -t songferry .        # 本仓库根目录
+docker run -d --name songferry -p 8935:8935 \
+  -v /你的路径/music-data:/data/music -v /你的路径/songferry-data:/app/data songferry
 ```
 
-> 构建说明：better-sqlite3 原生模块在构建阶段编译（自动装 python3/make/g++），运行镜像保持精简。
-
-构建后冒烟验证：
-
-```bash
-docker run --rm -d --name songferry-smoke -p 8936:8935 \
-  -e SONGFERRY_AUTH_USER=admin -e SONGFERRY_AUTH_PASSWORD=change-me songferry
-curl -s http://127.0.0.1:8936/healthz   # → {"ok":true,...}
-docker rm -f songferry-smoke
-```
-
-更完整的镜像/容器参数直接参考下方 compose 模板。
-
-### 与 LX Sync Server、Emby 三容器联动
-
-> 🤖 **让 AI 帮你部署**：把 [docs/AI-DEPLOYMENT.md](docs/AI-DEPLOYMENT.md) 交给任意 AI 助手，它会收集参数并逐步完成部署、建库与验证，你只需提供挂载目录等必要信息。
-
-> 📖 路径映射是三服务部署最容易出错的地方，完整图文梳理见 [docs/path-mapping.md](docs/path-mapping.md)（含三方 compose 实例与常见错误自查表）。
-
-> 核心：**三方共享同一个音乐数据目录**，只是各自容器内看到的路径不同。
-
-![三方 Docker 部署：路径映射与「连接容器」页填法](docs/path-mapping-diagram.png)
-
-```
-宿主机 ./music-data（唯一真相源）
-  ├── 挂给 lxserver → /server/music   （LX 下载写这里）
-  ├── 挂给 Emby    → /media/music  （媒体库扫描这里）
-  └── 挂给 songferry → /data/music   （本项目读/移动/洗版）
-```
-
-1. 参照 `docker-compose.example.yml` 把同一目录挂给三个容器
-2. 首次启动设置 `SONGFERRY_AUTH_USER` / `SONGFERRY_AUTH_PASSWORD` 自动启用登录
-3. 浏览器打开 `http://<nas>:8935` → **[连接容器]** 页配置 LX 与媒体服务器（选项卡切类型，点「确定」一键完成 保存 → 测连接 → 探测媒体库 → 设为同步目标）
-4. **[歌单同步]** 页添加歌单任务（或开启**监听同步**让新歌单自动建任务）→ 立即同步或等 cron
-
-**路径填写提示（最容易踩坑）**：
-
-| 界面字段 | 填什么 | 原因 |
-|---------|--------|------|
-| LX 下载目录 downloadRoot | **本项目容器内**路径（如 `/data/music`） | 本项目要读/移动 LX 下载的文件 |
-| Emby 媒体库根 libraryRoot | Emby 后台给该音乐媒体库选的**文件夹路径**（如 `/media/music/歌单同步`） | 与 Emby API 返回的媒体库位置匹配（可点"探测媒体库"自动识别） |
-| 曲库洗版目录 | 默认 `<downloadRoot>/曲库洗版` | 独立目录，旧文件零触碰 |
-
-> 本机直接 `npm run dev` 运行（无容器）时没有视角差异：`downloadRoot` 填宿主机 LX 下载目录，`libraryRoot` 填 Emby 里显示的媒体库路径即可。
-
-**Emby 侧要区分两件事**：
-1. **挂载**（compose 卷 `./music:/media/music`）= Emby 容器能看到共享目录
-2. **媒体库文件夹** = 你在 Emby 后台给该音乐媒体库选的路径（如 `/media/music/歌单同步`，位于挂载点之下或等于挂载点）
-
-`libraryRoot` 填的是 **2（媒体库文件夹路径）**，不是 1。完整图文见 [docs/path-mapping.md](docs/path-mapping.md)。
+> better-sqlite3 原生模块在构建阶段编译（自动装 python3/make/g++）。
 
 ## 开发运行
 
