@@ -13,13 +13,13 @@
 # 产出标签：<用户名>/songferry:latest、:<版本号>，以及两个架构专用标签
 #          <用户名>/songferry:<版本号>-amd64 / -arm64（manifest 合并的来源，保留便于排查）
 #
-# 为什么不用 docker buildx？
-#   buildx 的 docker-container 驱动会把 BuildKit 跑在**独立容器**里，
-#   它不继承 dockerd 的 systemd 代理设置（HTTP_PROXY），且走 docker bridge 网络，
-#   结果是拉基础镜像时 connection reset by peer。
-#   本脚本改用「经典构建（走 dockerd 的网络/代理，已验证可用）+ docker manifest 合并」，
-#   多架构效果与 buildx 相同。arm64 由宿主已注册的 QEMU binfmt 模拟执行。
-#   arm64 那一路要现场编译 better-sqlite3，首次较慢（约 10~30 分钟）。
+# 两个已知坑与对策（2026-09 实测）：
+#   ① buildx 的 docker-container 驱动把 BuildKit 跑在独立容器里、不继承 dockerd 的代理，
+#      拉基础镜像必 connection reset → 改用「经典构建 + docker manifest 合并」。
+#   ② 经典构建里，BuildKit 的 registry 客户端**不认 HTTP_PROXY**（只认自己的直连），
+#      所以构建期的 metadata 拉取会被墙 → 构建前先 docker pull 预拉基础镜像
+#      （docker pull 走 dockerd 的下载器，认代理），build 时 metadata 命中本地不再联网。
+#   arm64 由宿主已注册的 QEMU binfmt 模拟执行，且要现场编译 better-sqlite3，首次较慢。
 # ============================================================
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -50,8 +50,23 @@ if [ -z "${LOGGED_IN}" ]; then
 fi
 echo "==> 已登录为：${LOGGED_IN}"
 
+# Dockerfile 里的基础镜像（第一行 FROM 的镜像名）
+BASE_IMAGE="$(grep -m1 '^FROM ' Dockerfile | awk '{print $2}')"
+
+# 预拉基础镜像：docker pull 走 dockerd 的下载器（认 HTTP_PROXY），
+# 拉好后 build 的 metadata 直接命中本地 → 绕开「BuildKit 直连被墙」
+prepull_base() {
+  local arch="$1"
+  echo "==> 预拉基础镜像 ${BASE_IMAGE} (linux/${arch}) —— 走 dockerd 代理 …"
+  if ! docker pull --platform "linux/${arch}" "${BASE_IMAGE}"; then
+    echo "❌ 预拉失败：检查 dockerd 的代理设置（systemctl show docker --property=Environment）"
+    exit 1
+  fi
+}
+
 build_and_push_arch() {
   local arch="$1"
+  prepull_base "${arch}"
   echo "==> 构建 linux/${arch} …"
   docker build --platform "linux/${arch}" -t "${IMAGE}:${VERSION}-${arch}" .
   echo "==> 推送 ${VERSION}-${arch} …"
@@ -61,6 +76,7 @@ build_and_push_arch() {
 if [ -n "${SINGLE}" ]; then
   # ---------- 单架构：经典构建 + push（最快） ----------
   HOST_ARCH="$(docker version -f '{{.Server.Arch}}' 2>/dev/null || uname -m)"
+  prepull_base "${HOST_ARCH}"
   echo "==> 单架构构建（linux/${HOST_ARCH}）…"
   docker build -t "${IMAGE}:latest" -t "${IMAGE}:${VERSION}" .
   docker push "${IMAGE}:latest"
