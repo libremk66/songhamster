@@ -83,20 +83,22 @@ export const LAYOUT = `<!doctype html>
     aside.sidebar nav a svg { width: 1.15em; height: 1.15em; flex-shrink: 0; }
     aside.sidebar nav a:hover { background: color-mix(in oklab, var(--sfg) 14%, transparent); color: var(--sfg-deep); }
     aside.sidebar nav a.active { font-weight: 700; background: var(--sfg-fill); color: #fff; }
-    aside.sidebar .sidebar-foot { margin-top: auto; padding-top: .8rem; font-size: .88em; }
+    /* 页脚整区与菜单项同字号(1.2em);下面各行的 em 值都相对它,改这一处即整体缩放 */
+    aside.sidebar .sidebar-foot { margin-top: auto; padding-top: .9rem; font-size: 1.2em; }
     /* 项目主页链接（账户行上方，桌面侧栏 + 移动面板同款） */
-    aside.sidebar .foot-repo, .mob-panel .foot-repo { display: flex; align-items: center; gap: .35rem; margin-bottom: .3rem;
-                               color: var(--sfg-deep); text-decoration: none; font-size: .82em; }
+    aside.sidebar .foot-repo, .mob-panel .foot-repo { display: flex; align-items: center; gap: .4rem; margin-bottom: .4rem;
+                               color: var(--sfg-deep); text-decoration: none; font-size: 1em; }
     aside.sidebar .foot-repo:hover, .mob-panel .foot-repo:hover { color: var(--sfg); }
-    aside.sidebar .foot-repo svg, .mob-panel .foot-repo svg { width: 1.1em; height: 1.1em; flex-shrink: 0; }
-    aside.sidebar .foot-ver { color: oklch(var(--bc) / 0.6); font-size: .82em; }
+    aside.sidebar .foot-repo svg, .mob-panel .foot-repo svg { width: 1.25em; height: 1.25em; flex-shrink: 0; }
+    aside.sidebar .foot-ver { color: oklch(var(--bc) / 0.6); font-size: 1em; }
     aside.sidebar .foot-hr { border:0; border-top:1px solid oklch(var(--bc) / 0.15); margin:.6rem 0; }
     aside.sidebar .foot-acct { display:flex; align-items:center; gap:.5rem; flex-wrap:nowrap; }
     aside.sidebar .foot-acct form.foot-logout { display:flex; align-items:center; margin:0; } /* 图标按钮与用户名同轴居中 */
-    aside.sidebar .foot-acct .btn { display:inline-flex; align-items:center; justify-content:center; padding-inline:.45rem; flex-shrink:0; margin:0; }
+    aside.sidebar .foot-acct .btn { display:inline-flex; align-items:center; justify-content:center; padding-inline:.5rem; flex-shrink:0; margin:0;
+                                     font-size: 1em; height: 1.9em; min-height: 1.9em; border-radius: .45rem; }
     aside.sidebar .foot-acct .btn svg { display:block; }
-    aside.sidebar .foot-acct .u { display:inline-flex; align-items:center; gap:.3rem; height:26px; line-height:26px;
-                                  font-size:1.05em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; max-width: 170px; }
+    aside.sidebar .foot-acct .u { display:inline-flex; align-items:center; gap:.35rem; line-height:1.4;
+                                  font-size:1em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; max-width: 12em; }
 
     main.content { flex: 1; min-width: 0; padding: 1.4rem 2rem; display: flex; flex-direction: column; align-items: center;
                    position: relative; z-index: 0; }
@@ -317,7 +319,7 @@ export const LAYOUT = `<!doctype html>
       .mob-panel li a svg { width: 1.1em; height: 1.1em; flex-shrink: 0; }
       .mob-panel li a:hover { background: color-mix(in oklab, var(--sfg) 14%, transparent); color: var(--sfg-deep); }
       .mob-panel li a.active { font-weight: 700; background: var(--sfg-fill); color: #fff; }
-      .mob-panel .mob-foot { margin-top: auto; padding-top: .7rem; border-top: 1px solid oklch(var(--bc) / .15); font-size: .82em; color: oklch(var(--bc) / .6); }
+      .mob-panel .mob-foot { margin-top: auto; padding-top: .7rem; border-top: 1px solid oklch(var(--bc) / .15); font-size: 1.15em; color: oklch(var(--bc) / .6); }
       /* 移动端触控友好:控件回大到 34px */
       .btn { height: 2.125rem; min-height: 2.125rem; font-size: .8125rem; }
       .input, .select, .textarea { height: 2.125rem !important; min-height: 2.125rem !important; font-size: .8125rem !important; }
