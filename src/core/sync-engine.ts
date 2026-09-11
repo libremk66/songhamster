@@ -390,6 +390,10 @@ export class SyncEngine {
         // 入库结果如实上报：文件在但入不了库（比如媒体库里已无此条目）应记 failed 以便下次重试，
         // 旧实现无条件记 success，会让这类问题永远不被发现
         const embyOk = opts?.skipIngest ? true : await this.ensureInEmby(taskId, task, song)
+        // 登记归属：这首歌经本任务加入了目标歌单 → 记 task_song_ref。
+        // ⚠️ 缺了它会有两个后果：① 处理2 删文件时 fileRefCount 少算，把别的任务还在用的文件移进回收站；
+        //    ② 镜像删除时 hasTaskSongRef 为 false，被当成"非本任务加入"而永远不移除。
+        if (embyOk) repo.refTaskFile(taskId, song.songKey, existing.id)
         repo.upsertSongStatus({
           taskId, songKey: song.songKey, songName: song.name, singer: song.singer,
           status: embyOk ? 'success' : 'failed', quality: existing.quality,
