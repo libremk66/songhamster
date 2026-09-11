@@ -617,6 +617,9 @@ export function apiRouter(
       name = String(b.lxPlaylistName ?? '').trim() || `${chartSource}·${chartName}`
     } else {
       if (!key) return res.status(400).send(err('未选择 LX 歌单'))
+      // 同一歌单重复建任务：友好提示（lxPlaylistKey 是 UNIQUE，不拦会抛 500）
+      const dup = repo.listTasks().find((t) => t.lxPlaylistKey === key)
+      if (dup) return res.send(err(`该歌单已有同步任务（任务「${dup.lxPlaylistName}」）—— 请勿重复添加`))
       const keyToName = await lxKeyToName()
       name = keyToName[key] ?? String(b.lxPlaylistName ?? '') ?? key
     }
