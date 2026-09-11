@@ -146,16 +146,6 @@ npm start          # node dist/server.js
 环境变量（docker secrets 注入用）：
 `SONGFERRY_AUTH_USER` / `SONGFERRY_AUTH_PASSWORD` / `SONGFERRY_LXSERVER_URL` / `SONGFERRY_LXSERVER_KEY` / `SONGFERRY_EMBY_URL` / `SONGFERRY_EMBY_KEY` / `SONGFERRY_PORT`
 
-## Roadmap
-
-- [x] Emby 媒体库 + 播放列表同步
-- [x] **Navidrome / Jellyfin / 道理鱼 / Subsonic 适配**（连接容器页切换同步目标）
-- [x] 安全洗版 / 查重清理 / 回收站
-- [x] 监听同步 / 榜单订阅 / 镜像 + 三级删除策略（含归档）
-- [ ] 曲库管理（洗版 / 查重）界面恢复开放
-- [ ] 通知渠道（飞书 webhook，界面已预留）
-- [ ] GitHub Actions 自动构建镜像（ghcr.io）
-
 ## 致谢与借鉴
 
 - [XCQ0607/lxserver](https://github.com/XCQ0607/lxserver) — LX Music 数据同步服务端（下载引擎）
