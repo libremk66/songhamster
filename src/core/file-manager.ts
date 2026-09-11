@@ -1,4 +1,4 @@
-import { mkdirSync, renameSync, existsSync } from 'node:fs'
+import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import type { Quality } from '../config.js'
 import type { LxSong } from '../adapters/lxserver.js'
@@ -28,7 +28,8 @@ export function moveToPlaylistDir(input: {
   song: LxSong
   quality: Quality
   template: string
-  embedLyric: boolean
+  /** 外置歌词(.lrc)：开=把 .lrc 一起搬走；关=清掉同名 .lrc 残留（不选就不该有） */
+  cacheLyric: boolean
   /** 直接指定目标目录（绝对路径，替代 歌单同步/<name> 约定）——手动下载等场景 */
   absoluteDir?: string
 }): { filePath: string; moved: boolean; reason?: string } {
@@ -49,10 +50,11 @@ export function moveToPlaylistDir(input: {
     return { filePath: '', moved: false, reason: `移动失败: ${(e as Error).message}` }
   }
 
-  // 外置歌词 .lrc 一并移动（若存在且配置开启）
+  // 外置歌词 .lrc：按「外置歌词」开关决定去留。
+  // ⚠️ 旧实现用的是 embedLyric（内嵌开关），导致"没勾外置歌词却出现 .lrc"。
   let lrcMoved = false
-  if (input.embedLyric) {
-    const srcLrc = src.slice(0, -ext.length) + '.lrc'
+  const srcLrc = src.slice(0, -ext.length) + '.lrc'
+  if (input.cacheLyric) {
     if (existsSync(srcLrc)) {
       const destLrc = dest.slice(0, -ext.length) + '.lrc'
       try {
@@ -62,6 +64,9 @@ export function moveToPlaylistDir(input: {
         lrcMoved = false
       }
     }
+  } else if (existsSync(srcLrc)) {
+    // 没勾外置歌词：清掉同名残留（lxserver 缓存或历史遗留），保证落地目录里没有 .lrc
+    try { rmSync(srcLrc, { force: true }) } catch { /* 忽略 */ }
   }
   return { filePath: dest, moved: true }
 }

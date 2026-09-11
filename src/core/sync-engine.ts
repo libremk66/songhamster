@@ -414,7 +414,7 @@ export class SyncEngine {
           song,
           quality,
           template: cfg.download.filenameTemplate,
-          embedLyric: cfg.download.embedLyric,
+          cacheLyric: cfg.download.cacheLyric,
         })
         if (!moved.moved) {
           logger.warn(`[engine] ${song.name} 移动失败: ${moved.reason}`)
@@ -502,6 +502,7 @@ export class SyncEngine {
     try {
       const cfg = this.cfg()
       let embySong = knownId ? { embySongId: knownId, lastVerifiedAt: new Date().toISOString() } : null
+      let fromCache = false
       if (!embySong) {
         // 媒体库 id 始终由当前适配器解析（各服务器配置段不同——Emby/Jellyfin/其他）
         const libraryId = (await this.emby.resolveLibraryId()) ?? undefined
@@ -513,6 +514,7 @@ export class SyncEngine {
         await this.emby.scanLibrary(libraryId)
         // 等待入库并查找（scan 异步，重试几次）
         embySong = repo.getEmbyMap(song.songKey)
+        if (embySong) fromCache = true
         if (!embySong) {
           for (let i = 0; i < 6; i++) {
             await sleep(5000)
@@ -543,7 +545,16 @@ export class SyncEngine {
         }
       }
       for (const pid of new Set(playlistIds)) {
-        await this.emby.addItems(pid, [embySong.embySongId])
+        try {
+          await this.emby.addItems(pid, [embySong.embySongId])
+        } catch (e) {
+          if (!fromCache) throw e
+          // 缓存里的条目 Id 可能来自"切换前的另一台服务器"（emby_song_map 不含服务器维度）
+          // → 作废它并重新走一遍"扫描 + 搜索"，否则这首歌会永久失败
+          logger.warn(`[emby] 缓存条目 Id 在当前服务器无效（${embySong.embySongId}）→ 已作废并重新解析: ${(e as Error).message}`)
+          repo.clearEmbyMap(song.songKey)
+          return this.ensureInEmby(taskId, task, song)
+        }
       }
       return true
     } catch (e) {

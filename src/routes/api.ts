@@ -327,6 +327,12 @@ export function apiRouter(
         return back(`<span class="st-warn">⚠️ ${spec.label} 已连接，但探测媒体库出错（${escapeHtml((e as Error).message)}）；<b>同步目标未切换</b></span>`)
       }
     }
+    if (cfg.target !== spec.key) {
+      // 条目 Id 体系随服务器不同（Emby 数字 / Navidrome base64 …）→ 换目标必须作废缓存
+      const n = repo.clearAllEmbyMap()
+      if (n) logger.info(`[connect] 同步目标 ${cfg.target} → ${spec.key}：已清空 ${n} 条媒体库条目缓存（换服务器后 Id 不再有效）`)
+      else logger.info(`[connect] 同步目标切换为 ${spec.key}`)
+    }
     cfg.target = spec.key
     if (spec.key === 'emby' || spec.key === 'jellyfin') {
       const id = await ad.resolveLibraryId().catch(() => null)

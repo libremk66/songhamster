@@ -311,6 +311,17 @@ export function getEmbyMap(songKey: string): { embySongId: string; lastVerifiedA
   return r ?? null
 }
 
+/** 清空某首歌的媒体库条目缓存（条目 Id 变了 / 换服务器后作废） */
+export function clearEmbyMap(songKey: string): void {
+  getDb().prepare('DELETE FROM emby_song_map WHERE songKey = ?').run(songKey)
+}
+
+/** 清空全部媒体库条目缓存（切换同步目标时调用：Id 体系随服务器不同） */
+export function clearAllEmbyMap(): number {
+  const r = getDb().prepare('DELETE FROM emby_song_map').run()
+  return r.changes
+}
+
 export function setEmbyMap(songKey: string, embySongId: string): void {
   getDb()
     .prepare(`INSERT INTO emby_song_map (songKey, embySongId, lastVerifiedAt) VALUES (?, ?, ?)
