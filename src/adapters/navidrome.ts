@@ -186,7 +186,8 @@ export class NavidromeAdapter implements MediaServerAdapter {
     return this.toSong(hit)
   }
 
-  async findSongWithQuality(title: string, artist?: string): Promise<FoundSong | null> {
+  async findSongWithQuality(title: string, artist?: string, _opts?: { pathEndsWith?: string }): Promise<FoundSong | null> {
+    // 路径匹配暂未实现（接口约定见 media-server.ts）：忽略 _opts，行为与之前一致
     const hit = await this.pickSong(title, artist)
     return hit ? { id: hit.id, name: hit.name, artists: hit.artists, quality: hit.quality } : null
   }

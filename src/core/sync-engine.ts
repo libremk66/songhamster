@@ -443,7 +443,9 @@ export class SyncEngine {
       if (existing && existsSync(existing.filePath)) {
         // 入库结果如实上报：文件在但入不了库（比如媒体库里已无此条目）应记 failed 以便下次重试，
         // 旧实现无条件记 success，会让这类问题永远不被发现
-        const embyOk = opts?.skipIngest ? true : await this.ensureInEmby(taskId, task, song)
+        const embyOk = opts?.skipIngest
+          ? true
+          : await this.ensureInEmby(taskId, task, song, undefined, { expectPath: path.basename(existing.filePath) })
         // 登记归属：这首歌经本任务加入了目标歌单 → 记 task_song_ref。
         // ⚠️ 缺了它会有两个后果：① 处理2 删文件时 fileRefCount 少算，把别的任务还在用的文件移进回收站；
         //    ② 镜像删除时 hasTaskSongRef 为 false，被当成"非本任务加入"而永远不移除。
@@ -541,7 +543,9 @@ export class SyncEngine {
         repo.refTaskFile(taskId, song.songKey, fileId)
         this.liveSet({ phase: '写入媒体库', current: { name: song.name, singer: song.singer, quality: effectiveQuality } })
         // Emby 入库 + 入歌单（手动下载 skipIngest：仅落盘，媒体库扫描自然入库）
-        const embyOk = opts?.skipIngest ? true : await this.ensureInEmby(taskId, task, song)
+        const embyOk = opts?.skipIngest
+          ? true
+          : await this.ensureInEmby(taskId, task, song, undefined, { expectPath: path.basename(moved.filePath) })
         repo.upsertSongStatus({
           taskId, songKey: song.songKey, songName: song.name, singer: song.singer,
           status: embyOk ? 'success' : 'failed', quality: effectiveQuality,
@@ -565,21 +569,25 @@ export class SyncEngine {
     task: ReturnType<typeof repo.getTask> & {},
     song: LxSong,
     knownId?: string,
+    opts?: { expectPath?: string },
   ): Promise<boolean> {
     try {
       const cfg = this.cfg()
       let embySong = knownId ? { embySongId: knownId, lastVerifiedAt: new Date().toISOString() } : null
       let fromCache = false
       if (!embySong) {
-        // ① 先直接搜一次。绝大多数情况（文件早已入库、只是本任务还没记账，
-        //    或换过同步目标导致条目 Id 缓存被清空）这里就能秒中。
+        // ⚠️ 认条目必须带上"我们自己那份文件的路径"，不能只按歌名+歌手搜：
+        // 库里常有同名旧副本（例如用户自己另建的合集目录），只按歌名搜会认到旧副本 ——
+        // 结果是新下载的歌没进歌单，歌单反而挂到别人的文件上（实测踩到过）。
+        const want = opts?.expectPath
+        const q = want ? { pathEndsWith: want } : undefined
+        // ① 先搜一次。绝大多数情况（文件早已入库、只是本任务还没记账，或换过同步目标
+        //    导致条目 Id 缓存被清空）这里就能秒中。
         //    ⚠️ 原来是无条件"先全库扫描 + 先睡 5 秒再搜"，每首歌白等 5~30 秒：
         //    实测 7 首歌 92 秒里 65 秒耗在这上面（每首歌还顺带触发一次全库刷新）。
-        const first = await this.emby.findSong(song.name, song.singer)
-        if (first) {
-          embySong = { embySongId: first.id, lastVerifiedAt: new Date().toISOString() }
-          repo.setEmbyMap(song.songKey, first.id)
-          logger.info(`[emby] ${song.name} 直接搜到（跳过扫描与等待）`)
+        let found = await this.emby.findSongWithQuality(song.name, song.singer, q)
+        if (found) {
+          logger.info(`[emby] ${song.name} 直接搜到${want ? '（路径匹配到本任务的文件）' : ''}`)
         } else {
           // ② 搜不到才解析媒体库 + 触发扫描（新下载的文件 Emby 还没索引到）
           //    ——扫描每次运行最多一次，不按歌重复扫；resolveLibraryId 也一并挪进来（省掉每首歌一次 HTTP）
@@ -589,19 +597,17 @@ export class SyncEngine {
             return false
           }
           await this.scanLibraryOnce(libraryId)
-          for (let i = 0; i < 6 && !embySong; i++) {
+          for (let i = 0; i < 6 && !found; i++) {
             await sleep(5000)
-            const found = await this.emby.findSong(song.name, song.singer)
-            if (found) {
-              embySong = { embySongId: found.id, lastVerifiedAt: new Date().toISOString() }
-              repo.setEmbyMap(song.songKey, found.id)
-            }
+            found = await this.emby.findSongWithQuality(song.name, song.singer, q)
           }
-          if (!embySong) {
+          if (!found) {
             logger.warn(`[emby] 未找到入库的歌曲: ${song.name}（扫描可能需要更久）`)
             return false
           }
         }
+        embySong = { embySongId: found.id, lastVerifiedAt: new Date().toISOString() }
+        repo.setEmbyMap(song.songKey, found.id)
       }
       // 加入目标歌单（daoliyu 目录驱动：落盘即入库+入同名目录歌单，无需 API 操作）
       const playlistIds: string[] = this.emby.kind === 'daoliyu' ? [] : [...task.embyTargetPlaylistIdsParsed]
@@ -627,7 +633,7 @@ export class SyncEngine {
           // → 作废它并重新走一遍"扫描 + 搜索"，否则这首歌会永久失败
           logger.warn(`[emby] 缓存条目 Id 在当前服务器无效（${embySong.embySongId}）→ 已作废并重新解析: ${(e as Error).message}`)
           repo.clearEmbyMap(song.songKey)
-          return this.ensureInEmby(taskId, task, song)
+          return this.ensureInEmby(taskId, task, song, undefined, opts)
         }
       }
       return true

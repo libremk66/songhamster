@@ -46,6 +46,8 @@ export interface FoundSong {
   name: string
   artists: string[]
   quality: string | null
+  /** 文件路径（服务器视角）。用于"只认我们自己下载的那份"，避免命中库里的同名旧副本 */
+  path?: string
 }
 
 export interface MediaServerAdapter {
@@ -68,7 +70,13 @@ export interface MediaServerAdapter {
   /** 搜索已入库歌曲（幂等映射重搜；入库延迟型服务器可内部轮询） */
   findSong(title: string, artist?: string): Promise<MediaSong | null>
   /** 查重搜索：同名歌曲 + 音质档位判定（dedup pre-check 用） */
-  findSongWithQuality(title: string, artist?: string): Promise<FoundSong | null>
+  /**
+   * 查重/入库搜索。`opts.pathEndsWith` 给出时必须只匹配"路径以它结尾"的条目
+   * （= 我们自己刚下载/登记的那个文件），匹配不到要返回 null —— 绝不能退而求其次
+   * 返回库里的同名副本，否则歌单会挂到别人的文件上。
+   * 不支持路径匹配的适配器可忽略该参数（行为退化为"第一个同名条目"）。
+   */
+  findSongWithQuality(title: string, artist?: string, opts?: { pathEndsWith?: string }): Promise<FoundSong | null>
 
   // ===== 媒体库 / 扫描 =====
   /** 音乐类媒体库列表（界面下拉/查重范围选择） */

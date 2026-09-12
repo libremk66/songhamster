@@ -157,7 +157,7 @@ export class EmbyAdapter implements MediaServerAdapter {
    * 判定来源：MediaSources.Container + MediaStreams(BitRate/BitsPerSample/SampleRate)
    * quality: master/atmos_plus/atmos/hires/flac24bit/flac/320k/192k/128k/null(未知)
    */
-  async findSongWithQuality(title: string, artist?: string): Promise<FoundSong | null> {
+  async findSongWithQuality(title: string, artist?: string, opts?: { pathEndsWith?: string }): Promise<FoundSong | null> {
     const qs = new URLSearchParams({
       SearchTerm: title,
       IncludeItemTypes: 'Audio',
@@ -167,7 +167,14 @@ export class EmbyAdapter implements MediaServerAdapter {
     })
     const data = await this.request(`/Items?${qs}`)
     const items: any[] = data?.Items ?? []
-    const pick = (it: any) => ({ id: String(it.Id), name: String(it.Name), artists: it.Artists ?? [], quality: this.qualityOfItem(it) })
+    const pathOf = (it: any) => String(it?.MediaSources?.[0]?.Path ?? '')
+    const pick = (it: any) => ({ id: String(it.Id), name: String(it.Name), artists: it.Artists ?? [], quality: this.qualityOfItem(it), path: pathOf(it) })
+    // 指定了"必须是我们那份文件"：只认路径匹配的条目；没匹配到就返回 null，
+    // 让调用方去扫描/等待 —— 库里有同名旧副本时绝不能认错（歌单会挂到别人的文件上）
+    if (opts?.pathEndsWith) {
+      const mine = items.find((it) => pathOf(it).endsWith(opts.pathEndsWith!))
+      return mine ? pick(mine) : null
+    }
     if (artist) {
       const hit = items.find((it) => (it.Artists ?? []).some((a: string) => a === artist))
       if (hit) return pick(hit)
