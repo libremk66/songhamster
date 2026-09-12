@@ -1,4 +1,4 @@
-<img src="docs/icon/icon-rounded-256.png" alt="SongHamster" width="128" align="right">
+<p align="center"><img src="docs/icon/icon-rounded-256.png" alt="SongHamster" width="140"></p>
 
 # SongHamster — LX 歌单同步入库音乐媒体库
 
