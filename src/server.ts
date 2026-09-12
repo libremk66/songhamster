@@ -13,7 +13,7 @@ import { SyncEngine } from './core/sync-engine.js'
 import { Scheduler } from './scheduler/index.js'
 import { pagesRouter } from './routes/pages.js'
 import { apiRouter } from './routes/api.js'
-import { renderBody } from './views/render.js'
+import { renderBody, VERSION } from './views/render.js'
 import { authRequired, createSession, destroySession, initAuthFromEnv, isSessionValid, verifyPassword, COOKIE_NAME } from './auth.js'
 import { logger } from './core/logger.js'
 
@@ -57,7 +57,8 @@ app.use((req, res, next) => {
 })
 
 app.get('/healthz', (_req, res) => {
-  res.json({ ok: true, version: '0.1.0', time: new Date().toISOString() })
+  // 版本取自 package.json（曾写死 '0.1.0'，导致冒烟/监控永远看到错误的版本号）
+  res.json({ ok: true, version: VERSION, time: new Date().toISOString() })
 })
 
 // ===== 登录页（认证白名单） =====
