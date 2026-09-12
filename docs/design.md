@@ -31,9 +31,9 @@
 |------|------|
 | **音质偏好（复选框）** | flac24bit / flac / 320k / 128k 四档复选；下载按高→低依次尝试；未勾选的档绝不使用；全部勾选范围内拿不到 → 歌标记"未满足" |
 | **命名模板** | 自由文本 + `[占位符]` 替换；可选分隔符由用户写在模板里（如 `[歌手] - [歌曲名] ([音质])`）；占位符：`[歌手] [专辑名] [歌曲名] [音质]`；**实时预览框**（填完显示示例文件名） |
-| **写入信息（4 勾）** | ☑ ID3 标签（标题/歌手/专辑）、☑ 封面（专辑图）、☑ 内嵌歌词（LYRICS 标签）、☐ 外置歌词（.lrc 文件）——双份歌词分开勾选 |
-| **并发下载数** | 1-10，默认 3（防音源限流） |
-| **失败自动重试次数** | 默认 2 |
+| **写入信息（2 勾）** | ☑ 内嵌歌词（LYRICS 标签）、☐ 外置歌词（.lrc 文件）——双份歌词分开勾选 |
+| ~~ID3 标签 / 封面~~ | **已移除**（2026-09）：标签与封面由 LX 服务端下载时始终写入，没有参数可关，留着开关只会骗人 |
+| ~~并发下载数 / 失败重试~~ | **已移除**（2026-09）：下载始终逐首串行（"批量下载保护"的前提）；失败不自动重试，下次同步会自动再试，或去历史页手动「重试」 |
 
 ---
 
@@ -173,8 +173,8 @@ emby:
 download:
   qualities: [flac24bit, flac]           # 复选框保存，顺序固定高→低
   filenameTemplate: "[歌手] - [歌曲名] ([音质])"
-  writeId3: true / writeCover: true / embedLyric: true / cacheLyric: false
-  concurrency: 3 / retries: 2
+  embedLyric: true / cacheLyric: false
+  # （writeId3 / writeCover / concurrency / retries 2026-09 已移除：从未被代码读取）
 general:
   autoIncludeNewPlaylists: false
   cleanupOrphanFiles: false
@@ -225,7 +225,7 @@ cronExpr(空=仅手动), syncMode(incremental/full), lastRunAt, lastResult
 | 事件总线 → SSE | EventEmitter：song-status / batch-progress → 浏览器自动刷新 |
 
 ### 关键决策
-- **执行并发**：全局单飞（串行跑任务，最稳）；下载内部并发由音源限制（concurrency 3）
+- **执行并发**：全局单飞（串行跑任务，最稳）；下载同样逐首串行——这是"批量下载保护"能生效的前提，所以没有并发开关
 - **retrySong**：只重下该 songKey（不进 plan/diff），成功自动补 Emby 入库 + 加入目标歌单
 - cron 触发与正在运行的任务冲突 → 跳过本次
 - engine 是 store 的唯一写者之一（routes 只读写 sync_task 配置）；页面读 store 渲染

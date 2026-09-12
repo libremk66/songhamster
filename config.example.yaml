@@ -27,14 +27,11 @@ download:
     - flac24bit
     - flac
   filenameTemplate: "[歌手] - [歌曲名] ([音质])"
-  # 写入标签 / 内嵌封面 / 内嵌歌词 / 外置 .lrc 歌词
-  writeId3: true
-  writeCover: true
+  # 内嵌歌词（LYRICS 标签）/ 外置 .lrc 歌词
+  # 注：标题/歌手/专辑标签与封面由 LX 服务端下载时始终写入，无开关；
+  #     下载始终逐首串行、失败不自动重试（下次同步会再试）。
   embedLyric: true
   cacheLyric: false
-  # 并发与失败重试
-  concurrency: 3
-  retries: 2
   # 批量下载保护（防音源限流）：请求间隔/解析间隔（秒）
   protection:
     enabled: true

@@ -47,14 +47,6 @@
         <h3 class="text-xs font-bold c-sub mb-1.5">写入文件信息</h3>
         <div class="flex flex-wrap gap-x-5 gap-y-1.5">
           <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" name="writeId3" value="1" <%= cfg.download.writeId3 ? 'checked' : '' %> class="checkbox checkbox-sm">
-            <span class="text-sm">ID3 标签（标题/歌手/专辑）</span>
-          </label>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" name="writeCover" value="1" <%= cfg.download.writeCover ? 'checked' : '' %> class="checkbox checkbox-sm">
-            <span class="text-sm">封面</span>
-          </label>
-          <label class="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" name="embedLyric" value="1" <%= cfg.download.embedLyric ? 'checked' : '' %> class="checkbox checkbox-sm">
             <span class="text-sm">内嵌歌词</span>
           </label>
@@ -63,6 +55,8 @@
             <span class="text-sm">外置歌词 (.lrc)</span>
           </label>
         </div>
+        <p class="text-xs c-sub mt-1.5 leading-relaxed"><b>标题 / 歌手 / 专辑标签和封面没有开关</b>——下载请求里始终带着专辑名和封面地址，由 LX 服务端在下载时<b>一律写入</b>，所以这里不再放那两个勾选框（以前放的是摆设，勾不勾都一样）。</p>
+        <p class="text-xs c-sub mt-1 leading-relaxed"><b>外置歌词只管音乐仓鼠自己那一段</b>：勾上=把 .lrc 和歌曲放一起；不勾=落盘时清掉同名 .lrc。⚠️ 但 <b>LX 网页播放器</b>（127.0.0.1:19527）在播放歌曲、点「补全歌词」时也会往歌曲旁边写 .lrc，那份不受这里控制——要去它的「设置 → 本地缓存与重置 → 缓存歌词文件」里关。</p>
       </section>
 
       <div class="divider my-0"></div>
@@ -70,16 +64,7 @@
       <!-- 下载行为 -->
       <section>
         <h3 class="text-xs font-bold c-sub mb-1.5">下载行为</h3>
-        <div class="fg">
-          <label class="form-control w-full">
-            <span class="label-text mb-1">并发下载数</span>
-            <input type="number" name="concurrency" value="<%= cfg.download.concurrency %>" min="1" max="10" class="input input-bordered w-28">
-          </label>
-          <label class="form-control w-full">
-            <span class="label-text mb-1">失败自动重试次数</span>
-            <input type="number" name="retries" value="<%= cfg.download.retries %>" min="0" max="5" class="input input-bordered w-28">
-          </label>
-        </div>
+        <p class="text-xs c-sub leading-relaxed">下载<b>始终逐首串行</b>（不并发），请求节奏由下面的「批量下载保护」控制——所以这里没有"并发数"。<br>失败也<b>不会自动重试</b>：失败或「未满足」的歌，下次同步会自动再试；想立刻补，可在<b>历史记录页</b>对单曲点「重试」。</p>
       </section>
 
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-3">

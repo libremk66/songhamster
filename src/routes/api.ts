@@ -85,14 +85,10 @@ export function apiRouter(
     if (!valid.length) return res.status(400).send(err('至少勾选一种音质'))
     cfg.download.qualities = valid
     cfg.download.filenameTemplate = String(b.filenameTemplate ?? '').trim() || cfg.download.filenameTemplate
-    cfg.download.writeId3 = bool(b.writeId3)
-    cfg.download.writeCover = bool(b.writeCover)
     cfg.download.embedLyric = bool(b.embedLyric)
     cfg.download.cacheLyric = bool(b.cacheLyric)
-    cfg.download.concurrency = Math.min(10, Math.max(1, Number(b.concurrency) || 3))
-    cfg.download.retries = Math.min(5, Math.max(0, Number(b.retries) || 2))
     saveConfig(cfg)
-    logger.info(`[config] 下载选项：音质=${valid.join('>')} 模板=${cfg.download.filenameTemplate} 并发=${cfg.download.concurrency} 重试=${cfg.download.retries} 标签=${cfg.download.writeId3 ? '开' : '关'} 封面=${cfg.download.writeCover ? '开' : '关'} 歌词=${cfg.download.embedLyric ? '内嵌' : ''}${cfg.download.cacheLyric ? '+外置' : ''}`)
+    logger.info(`[config] 下载选项：音质=${valid.join('>')} 模板=${cfg.download.filenameTemplate} 歌词=${cfg.download.embedLyric ? '内嵌' : ''}${cfg.download.cacheLyric ? '+外置' : ''}（标签/封面由 LX 服务端始终写入；下载逐首串行、无自动重试）`)
     res.send(ok('下载选项已保存'))
   })
 

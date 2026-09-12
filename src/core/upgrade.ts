@@ -191,11 +191,17 @@ export async function upgradeOne(
       const destPath = path.join(outputDir, destName + (path.extname(file.filename) || '.flac'))
       if (existsSync(destPath)) rmSync(destPath, { force: true })
       renameSync(srcPath, destPath)
+      // 外置歌词 .lrc 按「外置歌词」开关处理（与 file-manager.moveToPlaylistDir 一致）。
+      // ⚠️ 旧实现误用了 embedLyric（内嵌开关）——那正是"没勾外置歌词却出现 .lrc"的老毛病。
       const srcLrc = srcPath.slice(0, -path.extname(srcPath).length) + '.lrc'
-      if (cfg.download.embedLyric && existsSync(srcLrc)) {
-        try {
-          renameSync(srcLrc, destPath.slice(0, -path.extname(destPath).length) + '.lrc')
-        } catch { /* 忽略 */ }
+      if (cfg.download.cacheLyric) {
+        if (existsSync(srcLrc)) {
+          try {
+            renameSync(srcLrc, destPath.slice(0, -path.extname(destPath).length) + '.lrc')
+          } catch { /* 忽略 */ }
+        }
+      } else if (existsSync(srcLrc)) {
+        try { rmSync(srcLrc, { force: true }) } catch { /* 忽略 */ }
       }
       logger.info(`[upgrade] ✅ ${item.title} 已洗版 → ${destPath}`)
       return { status: 'success', newQuality: quality, newPath: destPath, newSize: statSync(destPath).size, score }

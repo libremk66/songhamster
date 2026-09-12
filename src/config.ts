@@ -285,16 +285,19 @@ export interface AppConfig {
     qualities: Quality[]
     /** 命名模板：自由文本 + [歌手][专辑名][歌曲名][音质] 占位符 */
     filenameTemplate: string
-    writeId3: boolean
-    writeCover: boolean
     /** 内嵌歌词（LYRICS 标签） */
     embedLyric: boolean
     /** 外置歌词（.lrc 文件） */
     cacheLyric: boolean
-    concurrency: number
-    retries: number
     /** 批量下载保护：控制请求节奏，降低音源限流/封禁风险 */
     protection: DownloadProtection
+    // 这里没有"标签/封面/并发/重试"开关，是有意的：
+    //   · 标题/歌手/专辑标签与封面 —— 由 LX 服务端在下载时**始终写入**（请求里带着 songInfo 的专辑和封面地址），
+    //     没有对应参数可关，做开关只会是骗人的摆设；
+    //   · 并发 —— 下载始终逐首串行（这正是"批量下载保护"能生效的前提）；
+    //   · 重试 —— 失败不自动重试：失败/未满足的歌下次同步会自动再试，也可在历史记录页对单曲点「重试」。
+    // 历史：writeId3 / writeCover / concurrency / retries 四个字段曾存在但**从未被任何代码读取**，
+    //       2026-09 从界面与配置中移除（老配置文件里的残留键由 loadConfig 清理）。
   }
   general: {
     /** 自动纳入 LX 新建的歌单（旧字段，保留兼容；实际由 autoadd 接管） */
@@ -363,12 +366,8 @@ export const DEFAULT_CONFIG: AppConfig = {
   download: {
     qualities: ['flac24bit', 'flac'],
     filenameTemplate: '[歌手] - [歌曲名] ([音质])',
-    writeId3: true,
-    writeCover: true,
     embedLyric: true,
     cacheLyric: false,
-    concurrency: 3,
-    retries: 2,
     protection: { enabled: true, downloadIntervalSec: 5, resolveIntervalSec: 2 },
   },
   general: {
@@ -497,6 +496,11 @@ export function loadConfig(): AppConfig {
     auth: { ...DEFAULT_CONFIG.auth, ...fileCfg?.auth },
     upgrade: { ...DEFAULT_CONFIG.upgrade, ...fileCfg?.upgrade },
     advanced: { ...DEFAULT_CONFIG.advanced, ...fileCfg?.advanced },
+  }
+  // 老配置文件里可能还留着已废弃的下载选项（曾存在但从未生效）——加载时清掉，
+  // 免得它们继续躺在 config.yaml 里冒充"可调参数"。
+  for (const dead of ['writeId3', 'writeCover', 'concurrency', 'retries']) {
+    delete (merged.download as unknown as Record<string, unknown>)[dead]
   }
   return applyEnvOverrides(merged)
 }
