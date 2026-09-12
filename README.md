@@ -13,21 +13,6 @@
 > 💡 **这是什么**：SongHamster 是在用上 [lxserver](https://github.com/XCQ0607/lxserver) 之后，为了把歌单**落进 Emby 等媒体库**这个需求、和 AI 一起搓出来的**自用小工具**——只管"下载完成后怎么整理入库"，不做音源解析、不做播放器。
 > 期待 lxserver 将来推出相应的入库功能；在那之前，这个小工具够我自己用，也放出来给有同样需求的人。
 
-## 关于改名（v0.4.0 起：SongFerry → SongHamster）
-
-项目原名叫 SongFerry，因与 [songferry.com](https://www.songferry.com/)（一个在线音乐链接互转工具）重名，自 **v0.4.0** 起更名为 **SongHamster**。
-
-**老用户升级：什么都不用改，数据与配置全自动接续。**
-
-| 你原来的东西 | 升级后 |
-|---|---|
-| `SONGFERRY_*` 环境变量 | ✅ 继续生效（新名 `SONGHAMSTER_*` 优先，老名回退） |
-| `data/songferry.db` | ✅ 自动沿用（新库没有任务时不会误用空库）；想换名，把 `.db` / `.db-wal` / `.db-shm` 三个文件一起改名即可 |
-| `<下载目录>/.songferry-trash` | ✅ 自动沿用；想换名，把目录改名即可 |
-| 改名前的日志文件 | ✅ 日志页照常显示 |
-| 浏览器登录会话 | ✅ 不用重新登录 |
-| Docker 镜像 | ⚠️ 换成 `libremk66/songhamster`（老的 `songferry` 仓库不再更新） |
-
 ## 使用场景
 
 用 [LX Music](https://github.com/lyswhut/lx-music-desktop)（落雪音乐）在**安卓 / 电脑端**听歌收藏 →
