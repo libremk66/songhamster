@@ -675,12 +675,14 @@ export class SyncEngine {
     let unsatisfied = 0
     const prot = this.cfg().download.protection
     try {
-      logger.info(`[engine] 手动下载 ${songs.length} 首（落盘 downloadRoot/手动下载，不入歌单）`)
+      logger.info(`[engine] 手动下载 ${songs.length} 首（落盘 downloadRoot/歌单同步/手动下载，不入歌单）`)
       for (let idx = 0; idx < songs.length; idx++) {
         const song = songs[idx]
         this.liveSet({ index: idx + 1, phase: '解析直链', current: { name: song.name, singer: song.singer } })
         const outcome = await this.downloadOne(taskId, task, song, {
-          absoluteDir: path.join(this.cfg().lxserver.downloadRoot?.replace(/\/+$/, '') ?? '', '手动下载'),
+          // ⚠️ 必须落在「歌单同步」里面 —— 媒体库根目录是 downloadRoot/歌单同步，
+          // 放到它的兄弟目录（downloadRoot/手动下载）等于永远不入库（实测踩到过）
+          absoluteDir: path.join(this.cfg().lxserver.downloadRoot?.replace(/\/+$/, '') ?? '', '歌单同步', '手动下载'),
           skipIngest: true,
         })
         this.liveCount(outcome.status)
