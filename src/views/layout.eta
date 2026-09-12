@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>songferry</title>
+  <title>songhamster</title>
   <link rel="stylesheet" href="/static/pico.css">
   <script src="/static/htmx.min.js"></script>
   <style>
@@ -23,7 +23,7 @@
 <body>
   <header class="container">
     <nav>
-      <ul><li><strong>🎵 songferry</strong></li></ul>
+      <ul><li><strong>🎵 songhamster</strong></li></ul>
       <ul>
         <% for (const item of nav) { %>
           <li><a href="/<%= item.id %>" <%= item.id === active ? 'style="font-weight:bold;text-decoration:underline"' : '' %>><%= item.label %></a></li>
@@ -35,7 +35,7 @@
     <%~ it.content %>
   </main>
   <footer class="container hint">
-    songferry v0.1.0 · LX 歌单自动同步入库
+    songhamster v0.1.0 · LX 歌单自动同步入库
   </footer>
 </body>
 </html>

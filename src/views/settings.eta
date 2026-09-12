@@ -108,7 +108,7 @@
     <div class="card-body gap-1">
       <h3 class="card-title text-base">运行信息</h3>
       <p class="text-xs c-sub leading-relaxed">
-        配置: <code class="bg-base-200 px-1 rounded">data/config.yaml</code> ｜ 数据库: <code class="bg-base-200 px-1 rounded">data/songferry.db</code><br>
+        配置: <code class="bg-base-200 px-1 rounded">data/config.yaml</code> ｜ 数据库: <code class="bg-base-200 px-1 rounded">data/songhamster.db</code><br>
         Emby 媒体库 Id: <code class="bg-base-200 px-1 rounded"><%= cfg.emby.mediaLibraryId || '未探测' %></code>
       </p>
     </div>

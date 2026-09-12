@@ -4,7 +4,7 @@ import { DATA_DIR } from '../config.js'
 
 /**
  * 日志：内存环形（最新若干条）+ 按天落盘（重启不丢，日志页的数据源）。
- * 落盘目录 data/logs/songferry-YYYY-MM-DD.log；启动时清理超过保留天数的旧文件。
+ * 落盘目录 data/logs/songhamster-YYYY-MM-DD.log；启动时清理超过保留天数的旧文件。
  */
 type Level = 'info' | 'warn' | 'error'
 export interface LogEntry {
@@ -23,7 +23,7 @@ function nowParts(): { day: string; ts: string } {
   const iso = new Date(Date.now() + 8 * 3600_000).toISOString()
   return { day: iso.slice(0, 10), ts: iso.slice(11, 19) }
 }
-const fileOf = (day: string): string => path.join(LOGS_DIR, `songferry-${day}.log`)
+const fileOf = (day: string): string => path.join(LOGS_DIR, `songhamster-${day}.log`)
 
 function push(level: Level, msg: string): void {
   const { day, ts } = nowParts()
@@ -64,7 +64,7 @@ function tailFile(file: string, limit: number): LogEntry[] {
 function logFiles(): string[] {
   try {
     return readdirSync(LOGS_DIR)
-      .filter((f) => /^songferry-\d{4}-\d{2}-\d{2}\.log$/.test(f))
+      .filter((f) => /^(songhamster|songferry)-\d{4}-\d{2}-\d{2}\.log$/.test(f)) // 老前缀也认（改名前的日志仍可见）
       .sort()
       .reverse()
       .map((f) => path.join(LOGS_DIR, f))
@@ -103,7 +103,7 @@ export const logger = {
     const cutoff = new Date(Date.now() + 8 * 3600_000 - days * 86400_000).toISOString().slice(0, 10)
     let n = 0
     for (const f of logFiles()) {
-      const day = path.basename(f).replace(/^songferry-/, '').replace(/\.log$/, '')
+      const day = path.basename(f).replace(/^(songhamster|songferry)-/, '').replace(/\.log$/, '')
       if (day < cutoff) {
         try {
           unlinkSync(f)

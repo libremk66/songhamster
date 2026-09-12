@@ -1,6 +1,7 @@
 import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import YAML from 'yaml'
+import Database from 'better-sqlite3'
 
 /** 音质顺序（高→低尝试），界面复选框顺序即此 */
 export const QUALITY_ORDER = ['master', 'atmos_plus', 'atmos', 'hires', 'flac24bit', 'flac', '320k', '192k', '128k'] as const
@@ -404,22 +405,58 @@ export const DEFAULT_CONFIG: AppConfig = {
   advanced: { dedupCheck: false, dedupMinQuality: null },
 }
 
-export const DATA_DIR = process.env.SONGFERRY_DATA_DIR || path.join(process.cwd(), 'data')
-export const CONFIG_PATH = process.env.SONGFERRY_CONFIG || path.join(DATA_DIR, 'config.yaml')
-export const DB_PATH = process.env.SONGFERRY_DB || path.join(DATA_DIR, 'songferry.db')
+/**
+ * 读取环境变量，兼容改名前的旧前缀。
+ * v0.4.0 起项目由 SongFerry 更名 SongHamster：老部署的 `SONGFERRY_*` 一律继续生效
+ * （新名优先），否则升级镜像后配置会静默回落默认值、连不上 lxserver/媒体服务器。
+ */
+function envCompat(name: string): string | undefined {
+  return process.env[`SONGHAMSTER_${name}`] ?? process.env[`SONGFERRY_${name}`]
+}
 
-/** 环境变量覆盖（docker secrets 注入用）：SONGFERRY_LXSERVER_URL / _KEY 等 */
+export const DATA_DIR = envCompat('DATA_DIR') || path.join(process.cwd(), 'data')
+export const CONFIG_PATH = envCompat('CONFIG') || path.join(DATA_DIR, 'config.yaml')
+/**
+ * 数据库路径（改名兼容）：显式 env > 有数据的新库 > 老库 > 新库。
+ *
+ * ⚠️ 判据是"新库里有没有任务"，不是"新库文件在不在"：
+ * 老版本升级上来时，程序一启动就会创建空的 songhamster.db（SQLite 打开即建文件），
+ * 只看文件存在就会选到空库、让用户以为数据全丢了。
+ */
+export const DB_PATH = (() => {
+  const explicit = envCompat('DB')
+  if (explicit) return explicit
+  const fresh = path.join(DATA_DIR, 'songhamster.db')
+  const legacy = path.join(DATA_DIR, 'songferry.db')
+  if (existsSync(fresh) && dbHasTasks(fresh)) return fresh
+  if (existsSync(legacy)) return legacy
+  return fresh
+})()
+
+/** 库里有没有任务（打不开/无表 → 视为空库）；只读打开，不改动任何东西 */
+function dbHasTasks(file: string): boolean {
+  try {
+    const d = new Database(file, { readonly: true, fileMustExist: true })
+    const n = (d.prepare('SELECT COUNT(*) AS n FROM sync_task').get() as { n: number }).n
+    d.close()
+    return n > 0
+  } catch {
+    return false
+  }
+}
+
+/** 环境变量覆盖（docker secrets 注入用）：SONGHAMSTER_LXSERVER_URL / _KEY 等（老前缀 SONGFERRY_ 兼容） */
 function applyEnvOverrides(cfg: AppConfig): AppConfig {
   const map: Record<string, (v: string) => void> = {
-    SONGFERRY_LXSERVER_URL: (v) => (cfg.lxserver.baseUrl = v),
-    SONGFERRY_LXSERVER_KEY: (v) => (cfg.lxserver.apiKey = v),
-    SONGFERRY_LXSERVER_USER: (v) => (cfg.lxserver.username = v),
-    SONGFERRY_EMBY_URL: (v) => (cfg.emby.baseUrl = v),
-    SONGFERRY_EMBY_KEY: (v) => (cfg.emby.apiKey = v),
-    SONGFERRY_PORT: (v) => (cfg.server.port = Number(v)),
+    LXSERVER_URL: (v) => (cfg.lxserver.baseUrl = v),
+    LXSERVER_KEY: (v) => (cfg.lxserver.apiKey = v),
+    LXSERVER_USER: (v) => (cfg.lxserver.username = v),
+    EMBY_URL: (v) => (cfg.emby.baseUrl = v),
+    EMBY_KEY: (v) => (cfg.emby.apiKey = v),
+    PORT: (v) => (cfg.server.port = Number(v)),
   }
-  for (const [env, apply] of Object.entries(map)) {
-    const v = process.env[env]
+  for (const [name, apply] of Object.entries(map)) {
+    const v = envCompat(name)
     if (v) apply(v)
   }
   return cfg

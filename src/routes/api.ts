@@ -1561,7 +1561,7 @@ export function apiRouter(
   })
 
   r.post('/dupe/delete', async (req, res) => {
-    // 安全缓冲：删除 = 文件移入回收站（.songferry-trash），可恢复；Emby 条目由后续扫描自然清理
+    // 安全缓冲：删除 = 文件移入回收站（.songhamster-trash），可恢复；Emby 条目由后续扫描自然清理
     const b = req.body ?? {}
     const raw = b.ids
     const ids = Array.isArray(raw)

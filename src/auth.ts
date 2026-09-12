@@ -5,7 +5,9 @@ import { saveConfig } from './config.js'
 import { getDb } from './store/db.js'
 import { logger } from './core/logger.js'
 
-const COOKIE = 'songferry_session'
+const COOKIE = 'songhamster_session'
+/** 改名前的旧 cookie 名：老会话继续认（用户不必重新登录一次） */
+const LEGACY_COOKIES = ['songferry_session']
 const SESSION_DAYS = 30
 
 /** scrypt 哈希：salt:hash（不存明文） */
@@ -23,10 +25,15 @@ export function verifyPassword(password: string, stored: string): boolean {
   return calc.length === expect.length && timingSafeEqual(calc, expect)
 }
 
-/** 环境变量注入初始账号（docker 部署用）：SONGFERRY_AUTH_USER / SONGFERRY_AUTH_PASSWORD */
+/** 环境变量注入初始账号（docker 部署用）：SONGHAMSTER_AUTH_USER / SONGHAMSTER_AUTH_PASSWORD */
+/** 环境变量读取（新前缀优先，兼容改名前的 SONGFERRY_*） */
+function authEnv(name: 'AUTH_USER' | 'AUTH_PASSWORD'): string | undefined {
+  return process.env[`SONGHAMSTER_${name}`] ?? process.env[`SONGFERRY_${name}`]
+}
+
 export function initAuthFromEnv(cfg: AppConfig): void {
-  const user = process.env.SONGFERRY_AUTH_USER
-  const pass = process.env.SONGFERRY_AUTH_PASSWORD
+  const user = authEnv('AUTH_USER')
+  const pass = authEnv('AUTH_PASSWORD')
   if (user && pass && (!cfg.auth.enabled || !cfg.auth.username || !cfg.auth.passwordHash)) {
     cfg.auth.enabled = true
     cfg.auth.username = user
@@ -62,11 +69,20 @@ export function isSessionValid(token: string | undefined): boolean {
   return true
 }
 
+/** 取请求里的会话 token：新 cookie 名优先，改名前的旧名也认（用户不必重新登录） */
+function sessionToken(req: Request): string | undefined {
+  const c = (req.cookies ?? {}) as Record<string, string>
+  for (const name of [COOKIE, ...LEGACY_COOKIES]) {
+    if (c[name]) return c[name]
+  }
+  return undefined
+}
+
 /** 认证中间件：auth 开启时保护所有路由（白名单之外）；关闭时放行 */
 export function authRequired(cfg: () => AppConfig) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!cfg().auth.enabled) return next()
-    if (isSessionValid((req.cookies as Record<string, string>)?.[COOKIE])) return next()
+    if (isSessionValid(sessionToken(req))) return next()
     if (req.path.startsWith('/api/')) {
       res.status(401).json({ ok: false, error: '未登录' })
     } else {
@@ -76,7 +92,7 @@ export function authRequired(cfg: () => AppConfig) {
 }
 
 export function currentUser(req: Request): string | null {
-  const token = (req.cookies as Record<string, string>)?.[COOKIE]
+  const token = sessionToken(req)
   if (!token) return null
   const row = getDb().prepare('SELECT user, exp FROM auth_session WHERE token = ?').get(token) as
     | { user: string; exp: number }

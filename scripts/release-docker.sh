@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# 构建 SongFerry 镜像并推送到 Docker Hub
+# 构建 SongHamster 镜像并推送到 Docker Hub
 #
 # 用法（需要 docker 权限，本机 docker 只允许 root，所以用 sudo）：
 #   sudo bash scripts/release-docker.sh                      # 多架构 linux/amd64 + linux/arm64（默认）
@@ -11,8 +11,8 @@
 # 首次使用请先登录（密码用 Docker Hub 的 Access Token，不是账号密码）：
 #   sudo docker login -u libremk66
 #
-# 产出标签：<用户名>/songferry:latest、:<版本号>，以及两个架构专用标签
-#          <用户名>/songferry:<版本号>-amd64 / -arm64（manifest 合并的来源，保留便于排查）
+# 产出标签：<用户名>/songhamster:latest、:<版本号>，以及两个架构专用标签
+#          <用户名>/songhamster:<版本号>-amd64 / -arm64（manifest 合并的来源，保留便于排查）
 #
 # 两个已知坑与对策（2026-09 实测）：
 #   ① buildx 的 docker-container 驱动把 BuildKit 跑在独立容器里、不继承 dockerd 的代理，
@@ -42,7 +42,7 @@ case "${ONLY_ARCH}" in
   *) echo "❌ --arch 只支持 amd64 / arm64（收到：${ONLY_ARCH}）"; exit 1 ;;
 esac
 DOCKERHUB_USER="${ARGS[0]:-libremk66}"
-IMAGE="${DOCKERHUB_USER}/songferry"
+IMAGE="${DOCKERHUB_USER}/songhamster"
 VERSION="$(grep -m1 '"version"' package.json | sed 's/.*: *"\([^"]*\)".*/\1/')"
 
 echo "==> 目标镜像：${IMAGE}:latest 与 ${IMAGE}:${VERSION}"
@@ -176,21 +176,21 @@ fi
 # 3) 冒烟验证（拉远端镜像起临时容器，验证推送结果真的可用）
 CURRENT_STEP="冒烟验证"
 echo "==> 冒烟验证…"
-docker rm -f songferry-smoke >/dev/null 2>&1 || true
-docker run -d --name songferry-smoke -p 8936:8935 \
-  -e SONGFERRY_AUTH_USER=admin -e SONGFERRY_AUTH_PASSWORD=change-me \
+docker rm -f songhamster-smoke >/dev/null 2>&1 || true
+docker run -d --name songhamster-smoke -p 8936:8935 \
+  -e SONGHAMSTER_AUTH_USER=admin -e SONGHAMSTER_AUTH_PASSWORD=change-me \
   "${IMAGE}:${VERSION}" >/dev/null
 sleep 6
 if curl -sf -m 10 http://127.0.0.1:8936/healthz; then
   echo ""
   echo "✅ 冒烟通过"
 else
-  echo "❌ /healthz 未响应 —— 查看日志：docker logs songferry-smoke"
-  docker logs --tail 30 songferry-smoke || true
+  echo "❌ /healthz 未响应 —— 查看日志：docker logs songhamster-smoke"
+  docker logs --tail 30 songhamster-smoke || true
 fi
-docker rm -f songferry-smoke >/dev/null 2>&1 || true
+docker rm -f songhamster-smoke >/dev/null 2>&1 || true
 
 echo ""
-echo "🎉 完成：https://hub.docker.com/r/${DOCKERHUB_USER}/songferry"
+echo "🎉 完成：https://hub.docker.com/r/${DOCKERHUB_USER}/songhamster"
 [ -n "${SINGLE}" ] && echo "   本次仅推了当前机器架构；要补 arm64 请再跑一次不带 --single 的完整构建"
 exit 0

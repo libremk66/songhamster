@@ -1,8 +1,8 @@
 # ============================================================
-# SongFerry — LX 歌单同步入库媒体库（Emby / 未来更多）
+# SongHamster — LX 歌单同步入库媒体库（Emby / 未来更多）
 # 多阶段构建：Node 22 编译 → 精简运行镜像
 #
-# 构建:  docker build -t songferry .
+# 构建:  docker build -t songhamster .
 # 运行:  参照 docker-compose.example.yml（挂载音乐目录 + data 卷）
 # ============================================================
 FROM node:22-bookworm-slim AS build
@@ -38,7 +38,7 @@ COPY src/views ./src/views
 # 静态资源（htmx / pico / 图标）
 COPY static ./static
 
-# 运行数据（config.yaml + songferry.db）挂载点
+# 运行数据（config.yaml + songhamster.db）挂载点
 VOLUME /app/data
 
 EXPOSE 8935

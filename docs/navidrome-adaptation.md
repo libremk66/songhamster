@@ -1,7 +1,7 @@
 # Navidrome 适配设计（草案 v0.1 — 2026-09-05）
 
-> 目标：SongFerry 从"仅 Emby"演进为"多媒体服务器适配"（Emby 现有 + Navidrome 新增）。
-> 依据：Navidrome 源码调研（/tmp/navidrome, go 源码实证）+ SongFerry 依赖面分析。状态：待讨论。
+> 目标：SongHamster 从"仅 Emby"演进为"多媒体服务器适配"（Emby 现有 + Navidrome 新增）。
+> 依据：Navidrome 源码调研（/tmp/navidrome, go 源码实证）+ SongHamster 依赖面分析。状态：待讨论。
 
 ---
 
@@ -39,7 +39,7 @@
 
 ---
 
-## 二、SongFerry 侧依赖面（已盘点，见工程源码）
+## 二、SongHamster 侧依赖面（已盘点，见工程源码）
 
 ### 2.1 EmbyAdapter 公开方法（19 个）按用途分：
 | 归类 | 方法 |
@@ -130,7 +130,7 @@ LX 歌单拉取 → LX 下载（标签/封面/歌词）→ file-manager 落盘 <
 
 ## 五、待讨论决策点
 
-1. **测试环境**：Navidrome 现在是否已部署？建议 docker 起一个测试实例（同一 NAS），SongFerry 测试连它
+1. **测试环境**：Navidrome 现在是否已部署？建议 docker 起一个测试实例（同一 NAS），SongHamster 测试连它
 2. **目标二选一 or 并存**：初期建议 target 切换（推荐）；并存双写复杂度高，二期再说
 3. **认证配置**：username/password 明文入 config.yaml（本地自托管同 apiKey 待遇）——接受？
 4. **Navidrome 端歌曲清理**：回收站移走后 Navidrome 需 PurgeMissing 才清 record？还是仅标 missing？确认期望行为（影响查重历史/播放列表残留）
@@ -157,7 +157,7 @@ LX 歌单拉取 → LX 下载（标签/封面/歌词）→ file-manager 落盘 <
 | **删歌** | **`DELETE /api/playlist/{pid}/tracks?id=<关系id>`** | ⚠️ 参数是 **playlist_tracks 关系 id（数字）**，不是歌曲 id；逗号串不拆分（实测），多删用重复参数 `?id=1&id=2` 或循环单删；对应 Emby 的 entryId 语义 |
 | 删播放列表 | `DELETE /api/playlist/{pid}` | 返回 `{}` |
 
-**入库机制确认**：ND_SCANSCHEDULE=1m（本机配置每分钟定时扫描兜底）+ watcher（inotify，5s 去抖）。新文件落盘后 1 分钟内可见；「LX同步音乐」库 path 即 SongFerry downloadRoot 的容器视角——本地路径推算 = downloadRoot + song.path 相对路径，直接可用。
+**入库机制确认**：ND_SCANSCHEDULE=1m（本机配置每分钟定时扫描兜底）+ watcher（inotify，5s 去抖）。新文件落盘后 1 分钟内可见；「LX同步音乐」库 path 即 SongHamster downloadRoot 的容器视角——本地路径推算 = downloadRoot + song.path 相对路径，直接可用。
 
 **与 Emby adapter 的方法映射（接口设计锚点）**：
 - listPlaylists → `GET /api/playlist`

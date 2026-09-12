@@ -45,7 +45,7 @@
       <div id="log-area" class="rounded-lg border border-base-300 bg-base-100 p-1">
         <p class="text-xs c-sub py-8 text-center">加载中…</p>
       </div>
-      <p class="text-xs c-sub">日志写在 <code class="bg-base-200 px-1 rounded">data/logs/songferry-日期.log</code>（重启不丢），保留天数见「设置 → 通用」。你正在读历史或输入搜索词时会自动暂停刷新。</p>
+      <p class="text-xs c-sub">日志写在 <code class="bg-base-200 px-1 rounded">data/logs/songhamster-日期.log</code>（重启不丢），保留天数见「设置 → 通用」。你正在读历史或输入搜索词时会自动暂停刷新。</p>
     </div>
   </section>
 

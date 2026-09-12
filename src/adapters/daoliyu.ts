@@ -11,7 +11,7 @@ import type {
 /**
  * 道理鱼（daoliyu-music vnext）适配器（实测约定，见 docs/daoliyu-adaptation.md）：
  *  - 认证：POST /api/auth/login {email|username, password} → JWT；后续 Authorization: Bearer
- *  - 目录驱动：SongFerry 落盘 歌单同步/<歌单名>/ 后，道理鱼（歌单目录=歌单同步 时）自动入库并纳入同名歌单
+ *  - 目录驱动：SongHamster 落盘 歌单同步/<歌单名>/ 后，道理鱼（歌单目录=歌单同步 时）自动入库并纳入同名歌单
  *    → createPlaylist/addItems/removeItems 均为 no-op（引擎对 daoliyu 跳过播放列表段）
  *  - tracks 字段：filePath 为容器内绝对路径（/D8/...，与 downloadRoot 同源，前缀翻译即本地路径）
  *  - 音质：fileFormat/detectedContainer + bitDepth + sampleRate + bitrate(kbps，>1000 时视为 bps 自动归一)

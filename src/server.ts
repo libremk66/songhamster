@@ -1,7 +1,7 @@
 import express from 'express'
 import cookieParser from 'cookie-parser'
 import path from 'node:path'
-import { loadConfig, saveConfig } from './config.js'
+import { loadConfig, saveConfig, DB_PATH } from './config.js'
 import { getDb } from './store/db.js'
 import { LxServerAdapter } from './adapters/lxserver.js'
 import { EmbyAdapter } from './adapters/emby.js'
@@ -18,8 +18,12 @@ import { authRequired, createSession, destroySession, initAuthFromEnv, isSession
 import { logger } from './core/logger.js'
 
 const config = loadConfig()
+// 改名兼容提示：仍沿用改名前的数据库/回收站文件名时，明确告诉用户（不静默、不擅自改名）
+if (DB_PATH.endsWith('songferry.db')) {
+  logger.info('[config] 仍在使用改名前的数据库 songferry.db（数据完整，无需处理）；想换成新名字，把 songferry.db / songferry.db-wal / songferry.db-shm 三个文件一起改名为 songhamster.db* 即可，程序下次启动会自动改用新文件')
+}
 getDb() // 初始化 SQLite（含迁移）
-initAuthFromEnv(config) // docker env 注入初始账号（SONGFERRY_AUTH_USER/PASSWORD）
+initAuthFromEnv(config) // docker env 注入初始账号（SONGHAMSTER_AUTH_USER/PASSWORD）
 
 /** 按 cfg.target 实例化媒体服务器适配器 */
 function makeServer(): MediaServerAdapter {
@@ -118,6 +122,6 @@ logger.info(`[auth] 账号认证: ${config.auth.enabled ? `已启用（${config.
 }
 
 app.listen(config.server.port, () => {
-  console.log(`[songferry] listening on http://127.0.0.1:${config.server.port}`)
-  console.log(`[songferry] config: ${process.env.SONGFERRY_CONFIG || 'data/config.yaml'}`)
+  console.log(`[songhamster] listening on http://127.0.0.1:${config.server.port}`)
+  console.log(`[songhamster] config: ${process.env.SONGHAMSTER_CONFIG || 'data/config.yaml'}`)
 })

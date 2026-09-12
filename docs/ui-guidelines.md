@@ -1,4 +1,4 @@
-# SongFerry UI 设计规范(迁移期现行版)
+# SongHamster UI 设计规范(迁移期现行版)
 
 > 面向任何 AI/开发者修改本项目 UI。**改 UI 前先读本文件**,按规范执行;规范未覆盖处再问用户。
 > 技术栈:DaisyUI v4 + Tailwind 类 + oklch 主题变量;eta 服务端模板(htmx 局部刷新),**无前端框架、无组件库抽象**。
@@ -73,7 +73,7 @@ pico.css 仍在布局中兜底老页面裸元素(TODO: 每页迁完删除),它**
 1. 改 `.ts`(含 render.ts)→ tsx watch 自动热更(进程内 eta 缓存同时清空)
 2. 改 `.eta` → **必须重启 dev 进程**才生效(eta cache:true,tsx 不监听 .eta)。重启姿势见下
 3. 新增 tailwind/daisy 类 → **必须 `npm run build:css`**(扫描 src/views + render.ts;产物 static/daisy.css 是 tracked 文件,一起提交)
-4. 改完自查:本仓库已配截图自检 skill(见 `~/.claude/skills` 侧 ui-screenshot-check),登录 cookie 从 `data/songferry.db` 的 `auth_session` 表取(服务端已加 no-store,普通刷新即可)
+4. 改完自查:本仓库已配截图自检 skill(见 `~/.claude/skills` 侧 ui-screenshot-check),登录 cookie 从 `data/songhamster.db` 的 `auth_session` 表取(服务端已加 no-store,普通刷新即可)
 5. 提交粒度:一页一 commit,中文消息
 
 **dev 重启正确姿势(勿 pkill -f,会自杀)**:

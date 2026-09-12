@@ -241,7 +241,7 @@ export class NavidromeAdapter implements MediaServerAdapter {
       t: this.subsonicToken ?? '',
       s: this.subsonicSalt ?? '',
       v: '1.16.1',
-      c: 'SongFerry',
+      c: 'SongHamster',
       fullScan: 'false',
     })
     const res = await fetch(`${this.c.baseUrl}/rest/startScan?${qs}`)

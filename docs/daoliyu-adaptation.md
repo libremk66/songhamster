@@ -1,6 +1,6 @@
 # 道理鱼（daoliyu-music vnext）适配调研（2026-09-06）
 
-> 目标：将道理鱼作为 SongFerry 第三个媒体服务器目标（Emby / Navidrome / Daoliyu）。
+> 目标：将道理鱼作为 SongHamster 第三个媒体服务器目标（Emby / Navidrome / Daoliyu）。
 > 结论先行：**vnext 有完整 HTTP API（OpenAPI 196 端点 + Subsonic 兼容层），适配可行；但项目实际已闭源（镜像分发，源码不可得），细节需实测。**
 
 ## 一、开源状态
@@ -16,7 +16,7 @@
 - **认证**：`bearerAuth`（登录换 token）；另有 `client-credentials` / `client-pairings`（第三方客户端凭据/配对机制，疑似给 App/伴侣端用）
 - **Subsonic 兼容层**：`/rest/ping`（根级）与 `/api/v1/subsonic/rest/*` 均响应 subsonic-response——**标准 Subsonic 端点大概率可用（含 playlists 增删曲）**
 
-### 端点面（与 SongFerry 适配相关）
+### 端点面（与 SongHamster 适配相关）
 | 能力 | 端点 | 备注 |
 |---|---|---|
 | 登录 | `POST /api/auth/login` | body schema 未标注（实测确认 username/password）→ Bearer token |
@@ -35,7 +35,7 @@
 
 ⚠️ OpenAPI 质量：仅 18 个顶层 schema，业务对象字段多为空标注——**关键细节（登录 body、track 音质字段、tracks 过滤）必须实机验证**。
 
-## 三、SongFerry 适配映射评估
+## 三、SongHamster 适配映射评估
 
 | MediaServerAdapter 方法 | Daoliyu 对应 | 可行性 |
 |---|---|---|
@@ -86,7 +86,7 @@
 **歌单目录机制（用户 Web UI 确认，2026-09-06）**：道理鱼支持"目录即歌单"——
 - ① 选择目录的**一级子目录自动生成歌单**（目录名=歌单名）
 - ② m3u 文件在歌曲入库后生成对应歌单
-- SongFerry 落盘结构（downloadRoot/歌单同步/<歌单名>/）与①**天然同构**：若"歌单目录"指向 `歌单同步`，每个歌单文件夹自动成为道理鱼歌单、REALTIME 监听下新文件自动纳入 → **同步入库后 SongFerry 甚至无需 API 维护播放列表**
+- SongHamster 落盘结构（downloadRoot/歌单同步/<歌单名>/）与①**天然同构**：若"歌单目录"指向 `歌单同步`，每个歌单文件夹自动成为道理鱼歌单、REALTIME 监听下新文件自动纳入 → **同步入库后 SongHamster 甚至无需 API 维护播放列表**
 - ⚠️ 配置端点 REST 预留未实现（/api/admin/playlists/directory → 501）——需 Web UI 手动设置一次
 - 待验证：设置歌单目录 = 歌单同步 后，已有子目录（华语/我喜欢的/QQ·热歌榜/手动下载）是否自动生成歌单
 

@@ -1,7 +1,7 @@
 # ============================================================
-# SongFerry 配置模板（示例）
+# SongHamster 配置模板（示例）
 # 复制为 data/config.yaml 后按需修改；服务首次启动也会自动生成默认配置。
-# 运行数据（config.yaml + songferry.db）位于 data/ 目录，不入库、不备份请自备。
+# 运行数据（config.yaml + songhamster.db）位于 data/ 目录，不入库、不备份请自备。
 # Docker 部署可用环境变量覆盖部分字段（见下表），优先级高于本文件。
 # ============================================================
 
@@ -12,7 +12,7 @@ lxserver:
   apiKey: ""
   # 下载归属用户名（lxserver 的多用户下载身份）
   username: king
-  # 下载根目录（LX 落盘目录，SongFerry 会读写/移动文件；与 Emby 媒体库同源时查重可回收）
+  # 下载根目录（LX 落盘目录，SongHamster 会读写/移动文件；与 Emby 媒体库同源时查重可回收）
   downloadRoot: ""
 
 emby:
@@ -73,7 +73,7 @@ server:
   port: 8935
 
 auth:
-  # 账号认证（界面设置页开启；Docker 用 SONGFERRY_AUTH_USER/PASSWORD 首启自动开启）
+  # 账号认证（界面设置页开启；Docker 用 SONGHAMSTER_AUTH_USER/PASSWORD 首启自动开启）
   enabled: false
   username: ""
   passwordHash: ""   # scrypt 哈希，界面设置生成，勿手填
@@ -93,9 +93,9 @@ advanced:
 
 # ------------------------------------------------------------
 # Docker 环境变量覆盖（可选，优先级最高）
-#   SONGFERRY_AUTH_USER / SONGFERRY_AUTH_PASSWORD  首启自动启用登录
-#   SONGFERRY_LXSERVER_URL / SONGFERRY_LXSERVER_KEY / SONGFERRY_LXSERVER_USER
-#   SONGFERRY_EMBY_URL / SONGFERRY_EMBY_KEY
-#   SONGFERRY_PORT
-#   SONGFERRY_DATA_DIR / SONGFERRY_CONFIG / SONGFERRY_DB（数据路径，一般不覆盖）
+#   SONGHAMSTER_AUTH_USER / SONGHAMSTER_AUTH_PASSWORD  首启自动启用登录
+#   SONGHAMSTER_LXSERVER_URL / SONGHAMSTER_LXSERVER_KEY / SONGHAMSTER_LXSERVER_USER
+#   SONGHAMSTER_EMBY_URL / SONGHAMSTER_EMBY_KEY
+#   SONGHAMSTER_PORT
+#   SONGHAMSTER_DATA_DIR / SONGHAMSTER_CONFIG / SONGHAMSTER_DB（数据路径，一般不覆盖）
 # ------------------------------------------------------------

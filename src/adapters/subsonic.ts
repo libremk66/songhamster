@@ -35,7 +35,7 @@ export class SubsonicAdapter implements MediaServerAdapter {
     const { username, password } = this.c
     const salt = Math.random().toString(36).slice(2, 10)
     const t = createHash('md5').update(password + salt).digest('hex')
-    const qs = new URLSearchParams({ u: username, t, s: salt, v: '1.16.1', c: 'SongFerry' })
+    const qs = new URLSearchParams({ u: username, t, s: salt, v: '1.16.1', c: 'SongHamster' })
     return qs
   }
 

@@ -1,4 +1,4 @@
-# AI 部署指南（SongFerry）
+# AI 部署指南（SongHamster）
 
 > 本文面向 **AI 代理/助手**：用户会把本文件连同需求交给你，由你完成部署与初始化。
 > 请按顺序执行：每步含【目标】【动作】【验证】与失败时的【处理】。
@@ -8,10 +8,10 @@
 
 ## 0. 执行前须知
 
-- 本部署会创建 3 个 Docker 容器：`lxserver`（音乐下载）、`emby`（媒体库）、`songferry`（本项目）。
+- 本部署会创建 3 个 Docker 容器：`lxserver`（音乐下载）、`emby`（媒体库）、`songhamster`（本项目）。
 - 用户环境可能**已有 lxserver / Emby**：先问清楚，走第 2 步的"对接已有服务"分支，不要重复部署。
 - 所有需要用户提供的密钥（lxserver token、Emby API key）只能由用户提供，你不能自行获取。
-- 本项目尚未发布镜像时：`songferry` 用 `node:22-slim` 挂载源码 `npm ci && npm run build && npm start`（或提示用户按 README 开发运行）。
+- 本项目尚未发布镜像时：`songhamster` 用 `node:22-slim` 挂载源码 `npm ci && npm run build && npm start`（或提示用户按 README 开发运行）。
 
 ---
 
@@ -21,8 +21,8 @@
 
 | 参数 | 说明 | 默认建议 |
 |------|------|---------|
-| `PATH_MUSIC` | 宿主机音乐共享目录（三个容器共用） | `/srv/songferry/music`（可让用户指定任意位置） |
-| `PATH_SONGFERRY_DATA` | 本项目配置与数据库目录 | `PATH_MUSIC` 同级 `/srv/songferry/data` |
+| `PATH_MUSIC` | 宿主机音乐共享目录（三个容器共用） | `/srv/songhamster/music`（可让用户指定任意位置） |
+| `PATH_SONGHAMSTER_DATA` | 本项目配置与数据库目录 | `PATH_MUSIC` 同级 `/srv/songhamster/data` |
 | lxserver 是否已部署 | 有则取：地址/端口/用户名(king)/用户 token | — |
 | emby 是否已部署 | 有则取：地址/端口/API key | — |
 | 端口占用 | 9527(lxserver) 8096(emby) 8935(本项目) 是否可用 | 冲突则换宿主机端口 |
@@ -48,9 +48,9 @@ services:
     ports: ["19527:9527"]
     volumes:
       - ${PATH_MUSIC}:/server/music      # 关键：共享音乐目录
-      - ${PATH_SONGFERRY_DATA}/lxserver:/server/data
-      - ${PATH_SONGFERRY_DATA}/lxserver-logs:/server/logs
-      - ${PATH_SONGFERRY_DATA}/lxserver-cache:/server/cache
+      - ${PATH_SONGHAMSTER_DATA}/lxserver:/server/data
+      - ${PATH_SONGHAMSTER_DATA}/lxserver-logs:/server/logs
+      - ${PATH_SONGHAMSTER_DATA}/lxserver-cache:/server/cache
 
   emby:
     image: emby/embyserver:latest
@@ -58,24 +58,24 @@ services:
     restart: unless-stopped
     ports: ["8096:8096"]
     volumes:
-      - ${PATH_SONGFERRY_DATA}/emby-config:/config
+      - ${PATH_SONGHAMSTER_DATA}/emby-config:/config
       - ${PATH_MUSIC}:/media/music        # 关键：同一共享目录
 
-  songferry:
+  songhamster:
     image: <待发布镜像或本地构建>          # 见 README 开发运行
-    container_name: songferry
+    container_name: songhamster
     restart: unless-stopped
     ports: ["8935:8935"]
     environment:
-      SONGFERRY_AUTH_USER: <用户决定>         # 可选：设置则自动启用登录
-      SONGFERRY_AUTH_PASSWORD: <用户决定>
-      SONGFERRY_LXSERVER_URL: http://lxserver:9527
-      SONGFERRY_LXSERVER_KEY: <lxserver 用户 token>
-      SONGFERRY_EMBY_URL: http://emby:8096
-      SONGFERRY_EMBY_KEY: <emby API key>
+      SONGHAMSTER_AUTH_USER: <用户决定>         # 可选：设置则自动启用登录
+      SONGHAMSTER_AUTH_PASSWORD: <用户决定>
+      SONGHAMSTER_LXSERVER_URL: http://lxserver:9527
+      SONGHAMSTER_LXSERVER_KEY: <lxserver 用户 token>
+      SONGHAMSTER_EMBY_URL: http://emby:8096
+      SONGHAMSTER_EMBY_KEY: <emby API key>
     volumes:
       - ${PATH_MUSIC}:/data/music          # 关键：同一共享目录
-      - ${PATH_SONGFERRY_DATA}:/data
+      - ${PATH_SONGHAMSTER_DATA}:/data
 ```
 
 **验证**：`docker compose config` 无报错。
@@ -84,20 +84,20 @@ services:
 
 ```yaml
 services:
-  songferry:
+  songhamster:
     image: <镜像>
-    container_name: songferry
+    container_name: songhamster
     restart: unless-stopped
     ports: ["8935:8935"]
     environment:
-      SONGFERRY_AUTH_USER/PASSWORD: ...
-      SONGFERRY_LXSERVER_URL: http://<宿主IP>:<lxserver端口>
-      SONGFERRY_LXSERVER_KEY: <token>
-      SONGFERRY_EMBY_URL: http://<宿主IP>:<emby端口>
-      SONGFERRY_EMBY_KEY: <key>
+      SONGHAMSTER_AUTH_USER/PASSWORD: ...
+      SONGHAMSTER_LXSERVER_URL: http://<宿主IP>:<lxserver端口>
+      SONGHAMSTER_LXSERVER_KEY: <token>
+      SONGHAMSTER_EMBY_URL: http://<宿主IP>:<emby端口>
+      SONGHAMSTER_EMBY_KEY: <key>
     volumes:
       - ${PATH_MUSIC}:/data/music      # PATH_MUSIC = 你 lxserver 的 music 落盘目录（宿主机）
-      - ${PATH_SONGFERRY_DATA}:/data
+      - ${PATH_SONGHAMSTER_DATA}:/data
 ```
 > ⚠️ 分支 B 关键：`PATH_MUSIC` 必须等于 **lxserver 实际落盘目录**（即 lxserver 容器 music 卷对应的宿主机目录），否则本项目看不到下载的文件。
 > 同时确保该目录也已被 Emby 挂载/媒体库覆盖（见第 5 步）。
@@ -114,7 +114,7 @@ docker compose ps            # 三个容器应为 Up
 验证各服务：
 - lxserver：`curl http://127.0.0.1:<lx端口>/api/user/list`（带用户 token）返回 JSON
 - emby：`curl http://127.0.0.1:8096/System/Info -H "X-Emby-Token: <key>"` 返回 JSON
-- songferry：`curl http://127.0.0.1:8935/healthz` 返回 `{"ok":true}`
+- songhamster：`curl http://127.0.0.1:8935/healthz` 返回 `{"ok":true}`
 
 **处理**：容器未 Up → `docker compose logs` 查看；端口占用 → 换宿主机端口并同步改 URL。
 
@@ -122,7 +122,7 @@ docker compose ps            # 三个容器应为 Up
 
 ## 4. Web 初始化（可用 curl 自动完成）
 
-> 若设置了 `SONGFERRY_AUTH_USER`，所有请求需先登录：
+> 若设置了 `SONGHAMSTER_AUTH_USER`，所有请求需先登录：
 > `POST /api/auth/login {username,password}` → 记住返回 cookie。
 
 1. **写入连接配置**（POST 表单到 `/api/config/lx` 与 `/api/config/emby`，字段见连接容器页）：
@@ -174,7 +174,7 @@ docker compose ps            # 三个容器应为 Up
 
 | 症状 | 检查 | 修复 |
 |------|------|------|
-| songferry 找不到下载文件 | 路径自检"下载目录"行 | downloadRoot 容器路径与卷不一致；PATH_MUSIC 未挂给 songferry |
+| songhamster 找不到下载文件 | 路径自检"下载目录"行 | downloadRoot 容器路径与卷不一致；PATH_MUSIC 未挂给 songhamster |
 | Emby 扫不到 | `POST /api/paths/check` 媒体库行 / Emby 日志 | 媒体库文件夹 ≠ /media/music/歌单同步；未刷新库 |
 | 任务一直失败"搜索失败/直链失败" | lxserver 用户 token 是否有效、音源是否可用 | 换 token；检查 lxserver 自定义源状态 |
 | 同名歌单不自动建 | 行为 B 设计：同名已存在提示 | 需用户在界面处理或改目标（加入已有歌单） |

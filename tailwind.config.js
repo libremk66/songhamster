@@ -1,4 +1,4 @@
-/** Tailwind CSS 配置 — SongFerry DaisyUI 主题
+/** Tailwind CSS 配置 — SongHamster DaisyUI 主题
  * 扫所有 .eta 模板 + 静态资源，输出 static/daisy.css
  * 主题：light/dark/corporate 三主题；默认跟随系统
  */

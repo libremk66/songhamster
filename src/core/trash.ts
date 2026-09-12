@@ -5,7 +5,7 @@ import { logger } from './logger.js'
 
 /**
  * 回收站安全缓冲：
- * 删除操作 = 把文件移动到 <downloadRoot>/.songferry-trash/<时间戳>/（保留相对层级），可恢复；
+ * 删除操作 = 把文件移动到 <downloadRoot>/.songhamster-trash/<时间戳>/（保留相对层级），可恢复；
  * 只有回收站内的"彻底删除"才真正物理删除。
  *
  * Emby 条目路径（容器内）→ 本项目可操作路径的映射：
@@ -34,9 +34,18 @@ export function localizeEmbyPath(cfg: AppConfig, embyPath: string): string | nul
   return dl + '/歌单同步' + rest
 }
 
+/**
+ * 回收站根目录。改名（SongFerry → SongHamster）兼容：
+ * 新目录不存在而老的 `.songferry-trash` 在 → 继续用老目录，绝不会出现"两个回收站各存一半"。
+ * 想迁到新名字：把老目录改名成新名字即可（程序下次就用新的）。
+ */
 export function trashRoot(cfg: AppConfig): string | null {
   if (!cfg.lxserver.downloadRoot) return null
-  return cfg.lxserver.downloadRoot.replace(/\/+$/, '') + '/.songferry-trash'
+  const dl = cfg.lxserver.downloadRoot.replace(/\/+$/, '')
+  const fresh = dl + '/.songhamster-trash'
+  const legacy = dl + '/.songferry-trash'
+  if (!existsSync(fresh) && existsSync(legacy)) return legacy
+  return fresh
 }
 
 /** 把本地文件移入回收站（新批次目录）；返回回收站内新路径；失败抛错 */

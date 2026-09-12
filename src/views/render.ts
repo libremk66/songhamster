@@ -50,7 +50,7 @@ export const LAYOUT = `<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>SongFerry - LX 歌单自动同步入库</title>
+  <title>SongHamster - LX 歌单自动同步入库</title>
   <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
   <link rel="stylesheet" href="/static/daisy.css">
   <!-- TODO(迁移期): 内容页仍为 Pico 标记（裸 button/input/table），daisy 的 preflight 会重置其样式；
@@ -58,7 +58,7 @@ export const LAYOUT = `<!doctype html>
   <link rel="stylesheet" href="/static/pico.css">
   <script src="/static/htmx.min.js"></script>
   <style>
-    /* ===== SongFerry 布局微调（基于 DaisyUI 主题变量） ===== */
+    /* ===== SongHamster 布局微调（基于 DaisyUI 主题变量） ===== */
     body.app { display: flex; min-height: 100vh; margin: 0; padding-bottom: .75rem; } /* 底部留白(移动端) */
     @media (min-width: 1024px) { body.app { padding-bottom: 0; } } /* 桌面无底部留白 */
     aside.sidebar {
@@ -340,13 +340,13 @@ ${ICON_SPRITE}
   <input type="checkbox" id="nav-toggle" autocomplete="off" aria-hidden="true">
   <header class="mob-nav">
     <label for="nav-toggle" class="burger" role="button" aria-label="打开菜单" title="菜单">☰</label>
-    <span class="mob-brand">🎵 SongFerry</span>
+    <span class="mob-brand">🎵 SongHamster</span>
   </header>
   <label for="nav-toggle" class="mob-backdrop" aria-hidden="true"></label>
 
   <aside class="sidebar">
     <div>
-      <div class="brand"><img src="/static/logo.svg" alt="logo">SongFerry</div>
+      <div class="brand"><img src="/static/logo.svg" alt="logo">SongHamster</div>
       <div class="brand-sub">LX 歌单自动同步入库</div>
       <nav>
         <ul>
@@ -357,7 +357,7 @@ ${ICON_SPRITE}
       </nav>
     </div>
     <div class="sidebar-foot">
-      <a class="foot-repo" href="<%= it.githubUrl || 'https://github.com/libremk66/songferry' %>" target="_blank" rel="noopener" title="项目主页（GitHub）">
+      <a class="foot-repo" href="<%= it.githubUrl || 'https://github.com/libremk66/songhamster' %>" target="_blank" rel="noopener" title="项目主页（GitHub）">
         <svg aria-hidden="true"><use href="#i-github"/></svg>帮助说明
       </a>
       <div class="foot-ver">v<%= it.version %></div>
@@ -387,7 +387,7 @@ ${ICON_SPRITE}
 
   <!-- 移动端菜单面板(桌面端 display:none 不渲染影响) -->
   <nav class="mob-panel" aria-label="移动端导航">
-    <div class="mob-head"><img src="/static/logo.svg" alt="logo" class="mob-logo">SongFerry</div>
+    <div class="mob-head"><img src="/static/logo.svg" alt="logo" class="mob-logo">SongHamster</div>
     <div class="mob-sub">LX 歌单自动同步入库</div>
     <ul>
       <% for (const item of it.nav) { %>
@@ -395,7 +395,7 @@ ${ICON_SPRITE}
       <% } %>
     </ul>
     <div class="mob-foot">
-      <a class="foot-repo" href="<%= it.githubUrl || 'https://github.com/libremk66/songferry' %>" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-github"/></svg>帮助说明</a>
+      <a class="foot-repo" href="<%= it.githubUrl || 'https://github.com/libremk66/songhamster' %>" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-github"/></svg>帮助说明</a>
       <div>v<%= it.version %> · <% if (it.authEnabled && it.authUser) { %>👤 <%= it.authUser %><% } else if (it.authEnabled) { %>未登录<% } else { %>认证未启用<% } %></div>
     </div>
   </nav>

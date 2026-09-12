@@ -1,6 +1,6 @@
 {
-  "name": "songferry",
-  "version": "0.3.0",
+  "name": "songhamster",
+  "version": "0.4.0",
   "description": "LX 歌单同步到 Emby：下载（完整标签/封面/歌词）+ 入库 + Emby 歌单增量",
   "private": true,
   "type": "module",

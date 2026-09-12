@@ -1,11 +1,11 @@
-# SongFerry 部署路径约定示例
+# SongHamster 部署路径约定示例
 #
 # 核心思想：三方共享同一个「音乐数据目录」，只是各自容器内看到的路径不同。
 #
 #   宿主机 ./music-data（唯一真相源）
 #      ├── 挂给 lxserver → 容器内 /server/music    （LX 下载写这里）
 #      ├── 挂给 Emby    → 容器内 /media/music   （媒体库扫描这里）
-#      └── 挂给 songferry → 容器内 /data/music    （本项目读/移动/洗版）
+#      └── 挂给 songhamster → 容器内 /data/music    （本项目读/移动/洗版）
 #
 # 界面配置时（web 设置 → 连接容器）：
 #   · LX 下载目录 downloadRoot  = /data/music          （本项目容器内路径）
@@ -41,20 +41,20 @@ services:
       - ./music-data:/media/music   # ← 同一目录挂进来，作为音乐媒体库根
       # 其它媒体目录按需挂载
 
-  # --- SongFerry（本项目：同步调度 / 文件整理 / 洗版） ---
-  songferry:
-    image: libremk66/songferry:latest         # Docker Hub 官方镜像
-    container_name: songferry
+  # --- SongHamster（本项目：同步调度 / 文件整理 / 洗版） ---
+  songhamster:
+    image: libremk66/songhamster:latest         # Docker Hub 官方镜像
+    container_name: songhamster
     restart: unless-stopped
     ports:
       - "8935:8935"
     environment:
-      SONGFERRY_AUTH_USER: admin            # 初始账号（首次启动自动启用认证）
-      SONGFERRY_AUTH_PASSWORD: change-me
-      SONGFERRY_LXSERVER_URL: http://lxserver:9527
-      SONGFERRY_LXSERVER_KEY: <lx用户token>
-      SONGFERRY_EMBY_URL: http://emby:8096
-      SONGFERRY_EMBY_KEY: <emby api key>
+      SONGHAMSTER_AUTH_USER: admin            # 初始账号（首次启动自动启用认证）
+      SONGHAMSTER_AUTH_PASSWORD: change-me
+      SONGHAMSTER_LXSERVER_URL: http://lxserver:9527
+      SONGHAMSTER_LXSERVER_KEY: <lx用户token>
+      SONGHAMSTER_EMBY_URL: http://emby:8096
+      SONGHAMSTER_EMBY_KEY: <emby api key>
     volumes:
       - ./music-data:/data/music        # ← 同一目录：本项目下载根 + 歌单目录 + 曲库洗版
-      - ./songferry-data:/app/data      #   配置(config.yaml)与数据库放这里（应用工作目录是 /app）
+      - ./songhamster-data:/app/data      #   配置(config.yaml)与数据库放这里（应用工作目录是 /app）

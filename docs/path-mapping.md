@@ -12,7 +12,7 @@
 |------|--------------------------|------|
 | LXServer | `/server/music` | 下载音乐放这里 |
 | Emby | `/media/music` | 扫描入库 |
-| SongFerry | `/data/music` | 整理 / 移动 / 洗版 |
+| SongHamster | `/data/music` | 整理 / 移动 / 洗版 |
 
 ## 三步配置
 
@@ -20,14 +20,14 @@
 ```yaml
 lxserver:  volumes: ["[文件夹1]:/server/music"]
 emby:      volumes: ["[文件夹1]:/media/music"]
-songferry:   volumes: ["[文件夹1]:/data/music"]
+songhamster:   volumes: ["[文件夹1]:/data/music"]
 ```
 
 **② Emby 后台新建音乐媒体库**（推荐名"LX歌单同步"）
 文件夹选 `/media/music/歌单同步`。
 已有的其它音乐媒体库不受影响、无需改动。
 
-**③ SongFerry 界面填两个路径，点"路径自检"**
+**③ SongHamster 界面填两个路径，点"路径自检"**
 
 | 界面框 | 填 |
 |--------|-----|

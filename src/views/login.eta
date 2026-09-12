@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SongFerry - 登录</title>
+  <title>SongHamster - 登录</title>
   <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
   <link rel="stylesheet" href="/static/pico.css">
   <script src="/static/htmx.min.js"></script>
@@ -36,7 +36,7 @@
 </head>
 <body>
   <div class="login-card">
-    <div class="brand-row"><img src="/static/logo.svg" alt="logo"><span class="t">SongFerry</span></div>
+    <div class="brand-row"><img src="/static/logo.svg" alt="logo"><span class="t">SongHamster</span></div>
     <% if (!authEnabled) { %>
       <article style="text-align:center">
         <p>当前未启用账号认证，无需登录即可访问。</p>

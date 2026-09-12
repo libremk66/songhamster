@@ -1,4 +1,4 @@
-# SongFerry 产品设计文档（v1.0 定稿）
+# SongHamster 产品设计文档（v1.0 定稿）
 
 > 项目定位：把"LX 歌单 → 下载（完整标签/封面/歌词）→ Emby 入库 → Emby 歌单增量"管道做成一个稳定、可配置、可 Docker 部署的独立服务。
 > 对接：lxserver（XCQ0607/lxserver，音乐下载引擎）+ Emby（媒体库/歌单）。
