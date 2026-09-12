@@ -182,6 +182,19 @@ export const LAYOUT = `<!doctype html>
     button.btn[type="submit"] { width: auto; }
     /* pico 桥的 line-height:1.5+上下内边距会把文字挤偏;去上下内边距 + line-height:1,交还 flex 居中 */
     button.btn { padding-top: 0 !important; padding-bottom: 0 !important; line-height: 1 !important; }
+    /* 按钮内容不许换行：窄屏（移动端任务表）里单元格被压到 59px 时，
+       "编辑/启用/删除"会被拆成竖排的字、图标和文字分家、按钮互相重叠（实测踩到）。
+       ⚠️ 两件都要管：white-space 管文字，flex-wrap 管"图标和文字要不要分两行" */
+    .btn { white-space: nowrap; flex-wrap: nowrap; }
+    /* 操作列：按钮保持一行、不因列宽被压扁；放不下就让表格横向滚动（外层已有 overflow-x-auto） */
+    td.act { white-space: nowrap; }
+    td.act .btn { margin: 0; }
+    @media (max-width: 640px) {
+      /* 移动端：操作列按钮**上下堆叠**，每个占一整行、图标文字仍在同一行 */
+      td.act { white-space: normal; }
+      td.act .btn { display: flex; width: 100%; min-width: 4.5rem; justify-content: center; margin-bottom: .3rem !important; }
+      td.act .btn:last-child { margin-bottom: 0 !important; }
+    }
     /* pico 桥的 [type=button]{margin-bottom:1rem}：按钮做 flex 子项时会把整行撑高、按钮被顶偏
        → 全站按钮纵向 margin 清零（属性选择器特异性更高，必须 !important；
           自定义胶囊按钮 .hist-tab/.conn-tab 等不带 .btn，也在覆盖范围内） */
