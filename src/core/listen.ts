@@ -107,7 +107,7 @@ export async function listenScan(
     // 归档目标：配置期创建（按来源时 [歌单名] 会解析成该歌单自己的名字）
     if (params.delPolicy === 'archive') {
       const an = resolveArchiveName(params.archivePlaylist, p.name)
-      const ar = await engine.ensureArchiveTarget(an)
+      const ar = await engine.ensureArchiveTarget(an, 'shared') // 监听自动建的任务：目标歌单按"共享"处理
       if (ar.created) logger.info(`[listen] 已创建归档歌单「${an}」`)
     }
     names.push(p.name)

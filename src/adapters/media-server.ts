@@ -56,8 +56,13 @@ export interface MediaServerAdapter {
   test(): Promise<{ ok: boolean; error?: string }>
 
   // ===== 播放列表（同步管线） =====
-  /** 现有播放列表（映射表"加入已有歌单"数据源 / 同名查重） */
-  listPlaylists(): Promise<MediaPlaylist[]>
+  /**
+   * 现有播放列表（映射表"加入已有歌单"数据源 / 同名查重）。
+   * `scope`：'shared' = 只要共享的（所有账号可见）；'<userId>' = 该账号可见的；不传 = 服务器全部。
+   * Emby/Jellyfin 的歌单按用户存（同名歌单可能分属不同账号），作用域用来避免认错别人的歌单；
+   * 其他服务器（歌单本就按用户隔离）可忽略该参数。
+   */
+  listPlaylists(scope?: string): Promise<MediaPlaylist[]>
   /** 列出服务器用户（Emby/Jellyfin：歌单按用户存，用于"播放列表归属用户"选择器；其他服务器无此概念 → 不实现） */
   listUsers?(): Promise<{ id: string; name: string }[]>
   createPlaylist(name: string, itemIds?: string[]): Promise<{ id: string }>

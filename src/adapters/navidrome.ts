@@ -93,7 +93,7 @@ export class NavidromeAdapter implements MediaServerAdapter {
   }
 
   // ===== 播放列表 =====
-  async listPlaylists(): Promise<MediaPlaylist[]> {
+  async listPlaylists(_scope?: string): Promise<MediaPlaylist[]> {
     const data = await this.request('/api/playlist')
     return (Array.isArray(data) ? data : []).map((p: any) => ({
       id: String(p.id ?? ''),

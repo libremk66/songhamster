@@ -255,9 +255,16 @@ export function apiRouter(
     const c = (cfg as unknown as Record<string, Record<string, string>>)[type] ?? {}
     return {
       baseUrl: c.baseUrl ?? '', apiKey: c.apiKey ?? '', username: c.username ?? '', password: c.password ?? '', libraryRoot: c.libraryRoot ?? '',
-      playlistUserId: c.playlistUserId ?? '', playlistUserName: c.playlistUserName ?? '',
     }
   }
+  /** 解析表单里的「目标歌单归属」：'shared' 或 'id|名字'；返回 { scope, name } */
+  const parseScope = (raw: unknown): { scope: string; name: string } => {
+    const v = String(raw ?? '').trim()
+    if (!v || v === 'shared') return { scope: 'shared', name: '共享（所有人可见）' }
+    const [id, nm] = v.split('|')
+    return { scope: id || 'shared', name: nm || id }
+  }
+
   const renderConnSection = (type: string, oob = false): string => {
     const spec = specOf(type) ?? SERVER_SPECS[0]
     return renderBody('partials/connect-server', { specs: SERVER_SPECS, spec, type: spec.key, target: cfg.target, vals: serverVals(spec.key), oob })
@@ -271,14 +278,8 @@ export function apiRouter(
     const g = (k: string) => String(b[k] ?? '').trim()
     if (type === 'emby') {
       cfg.emby.baseUrl = g('baseUrl'); cfg.emby.apiKey = g('apiKey'); cfg.emby.libraryRoot = g('libraryRoot')
-      const [uid, uname] = g('playlistUserId').split('|')
-      cfg.emby.playlistUserId = uid || undefined
-      cfg.emby.playlistUserName = uname || undefined
     } else if (type === 'jellyfin') {
       cfg.jellyfin.baseUrl = g('baseUrl'); cfg.jellyfin.apiKey = g('apiKey'); cfg.jellyfin.libraryRoot = g('libraryRoot')
-      const [juid, juname] = g('playlistUserId').split('|')
-      cfg.jellyfin.playlistUserId = juid || undefined
-      cfg.jellyfin.playlistUserName = juname || undefined
     } else if (type === 'navidrome') {
       cfg.navidrome.baseUrl = g('baseUrl'); cfg.navidrome.username = g('username'); cfg.navidrome.password = g('password'); cfg.navidrome.libraryRoot = g('libraryRoot')
     } else if (type === 'daoliyu') {
@@ -481,6 +482,8 @@ export function apiRouter(
         targetName: TARGET_LABEL[cfg.target] ?? 'Emby',
         fileDeleteOK: supportsFileDelete(cfg.target),
         embyPlaylists,
+        scopeUI: cfg.target === 'emby' || cfg.target === 'jellyfin',
+        targetKey: cfg.target,
       }),
     )
   })
@@ -520,7 +523,7 @@ export function apiRouter(
     try {
       const ad = new EmbyAdapter(() => tmp, type === 'jellyfin' ? 'jellyfin' : 'emby')
       const users = (await ad.listUsers()) ?? []
-      const opts = ['<option value="">（不限制：匹配所有用户的歌单）</option>']
+      const opts = [`<option value="shared"${!cur || cur === 'shared' ? ' selected' : ''}>共享（所有人可见）</option>`]
       for (const u of users) {
         opts.push(`<option value="${escapeHtml(u.id)}|${escapeHtml(u.name)}"${u.id === cur ? ' selected' : ''}>${escapeHtml(u.name)}</option>`)
       }
@@ -530,14 +533,17 @@ export function apiRouter(
     }
   })
 
-  r.get('/emby/playlists/checkboxes', async (_req, res) => {
+  /** 「同步到已有播放列表」候选：按当前作用域列（hx-include 会带上表单里的 scope 与已勾选项） */
+  r.get('/emby/playlists/checkboxes', async (req, res) => {
     try {
-      const ps = await emby.listPlaylists()
-      if (!ps.length) return res.send('<span class="hint">Emby 中暂无播放列表</span>')
+      const scope = parseScope(req.query.playlistScope ?? req.query.scope ?? 'shared').scope
+      const checked = new Set((Array.isArray(req.query.embyTarget) ? req.query.embyTarget : req.query.embyTarget ? [req.query.embyTarget] : []).map(String))
+      const ps = await emby.listPlaylists(scope)
+      if (!ps.length) return res.send('<span class="hint">该作用域下没有可选播放列表</span>')
       const html = ps
         .map(
           (p) =>
-            `<label style="display:flex;align-items:center;gap:.3rem;margin:.15rem 0"><input type="checkbox" name="embyTarget" value="${escapeHtml(p.id)}"> ${escapeHtml(p.name)}</label>`,
+            `<label style="display:flex;align-items:center;gap:.3rem;margin:.15rem 0"><input type="checkbox" name="embyTarget" value="${escapeHtml(p.id)}"${checked.has(p.id) ? ' checked' : ''}> ${escapeHtml(p.name)}</label>`,
         )
         .join('')
       res.send(html)
@@ -629,7 +635,7 @@ export function apiRouter(
       // 归档目标：配置期创建（含 [歌单名] 占位符时按来源逐个建）
       if (b.delPolicy === 'archive') {
         const an = resolveArchiveName(String(b.archivePlaylist ?? ''), name)
-        const ar = await engine.ensureArchiveTarget(an)
+        const ar = await engine.ensureArchiveTarget(an, parseScope(b.playlistScope).scope)
         if (ar.created) archiveNote = `；已创建归档歌单「${an}」`
         else if (!ar.ok) archiveNote = `；归档歌单「${an}」创建失败：${ar.error}`
       }
@@ -668,6 +674,7 @@ export function apiRouter(
       name = keyToName[key] ?? String(b.lxPlaylistName ?? '') ?? key
     }
     const embyTargets = Array.isArray(b.embyTarget) ? b.embyTarget : b.embyTarget ? [b.embyTarget] : []
+    const sc = parseScope(b.playlistScope)
     const newTaskId = repo.createTask({
       lxPlaylistKey: key,
       lxPlaylistName: name || key,
@@ -685,6 +692,8 @@ export function apiRouter(
       chartId: isChart ? chartId : undefined,
       chartName: isChart ? chartName : undefined,
       maxCount: isChart ? maxCount : undefined,
+      playlistScope: sc.scope,
+      playlistScopeName: sc.name,
     } as never)
     logger.info(`[task] 新建任务 #${newTaskId}「${name}」${isChart ? '（榜单订阅）' : ''}${b.delPolicy === 'archive' ? ' 归档目标=' + String(b.archivePlaylist ?? '') : ''}${b.mode === 'mirror' ? ' 镜像' : ' 增量'}`)
     // 配置期创建归档目标（运行期只找不建：用户删了不重建，降级为"保留文件"）
@@ -695,7 +704,7 @@ export function apiRouter(
         name || key,
         isChart ? DEFAULT_CHART_ARCHIVE_PLAYLIST : DEFAULT_ARCHIVE_PLAYLIST,
       )
-      const ar = await engine.ensureArchiveTarget(an)
+      const ar = await engine.ensureArchiveTarget(an, sc.scope)
       if (ar.created) archiveNote = `；已创建归档歌单「${an}」`
       else if (!ar.ok) archiveNote = `；归档歌单「${an}」创建失败：${ar.error}`
     }
@@ -768,7 +777,7 @@ export function apiRouter(
     try {
       embyPlaylists = await emby.listPlaylists()
     } catch { /* 未连接 */ }
-    res.send(renderBody('partials/task-edit', { t, embyPlaylists, qOrder: QUALITY_ORDER, qLabels: QUALITY_LABELS, targetName: TARGET_LABEL[cfg.target] ?? 'Emby', }))
+    res.send(renderBody('partials/task-edit', { t, embyPlaylists, qOrder: QUALITY_ORDER, qLabels: QUALITY_LABELS, targetName: TARGET_LABEL[cfg.target] ?? 'Emby', scopeUI: cfg.target === 'emby' || cfg.target === 'jellyfin', targetKey: cfg.target }))
   })
 
   // 保存编辑
@@ -790,13 +799,15 @@ export function apiRouter(
         mode: chMode,
         delPolicy: chDel,
         archivePlaylist: String(b.archivePlaylist ?? '').trim() || null,
+        playlistScope: parseScope(b.playlistScope).scope,
+        playlistScopeName: parseScope(b.playlistScope).name,
       })
       // 配置期创建归档目标（运行期只找不建）
       let chNote = ''
       if (chMode === 'mirror' && chDel === 'archive') {
         const t2 = repo.getTask(id)!
         const an = archiveNameOf(t2)
-        const ar = await engine.ensureArchiveTarget(an)
+        const ar = await engine.ensureArchiveTarget(an, t2.playlistScope ?? 'shared')
         if (ar.created) chNote = `；已创建归档歌单「${an}」`
         else if (!ar.ok) chNote = `；归档歌单「${an}」创建失败：${ar.error}`
       }
@@ -818,13 +829,15 @@ export function apiRouter(
       cronExpr: String(b.cronExpr ?? '').trim() || null,
       dedupCheck: boolV(b.dedupCheck) ? 1 : 0,
       dedupMinQuality: String(b.dedupMinQuality ?? '').trim() || null,
+      playlistScope: parseScope(b.playlistScope).scope,
+      playlistScopeName: parseScope(b.playlistScope).name,
     })
     // 配置期创建归档目标（运行期只找不建）——用 oob 提示，表格照常刷新
     const t2 = repo.getTask(id)
     let oob = ''
     if (t2 && t2.delPolicy === 'archive') {
       const an = resolveArchiveName(t2.archivePlaylist, t2.lxPlaylistName)
-      const ar = await engine.ensureArchiveTarget(an)
+      const ar = await engine.ensureArchiveTarget(an, t2.playlistScope ?? 'shared')
       if (ar.created) oob = `<div id="task-msg" hx-swap-oob="innerHTML">${ok(`已创建归档歌单「${escapeHtml(an)}」`)}</div>`
       else if (!ar.ok) oob = `<div id="task-msg" hx-swap-oob="innerHTML">${err(`归档歌单「${escapeHtml(an)}」创建失败：${escapeHtml(ar.error ?? '')}`)}</div>`
     }

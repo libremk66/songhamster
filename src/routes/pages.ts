@@ -56,6 +56,8 @@ export function pagesRouter(getCfg: () => AppConfig, lx: LxServerAdapter, emby: 
         embyPlaylists,
         fileDeleteOK: supportsFileDelete(getCfg().target),
         delDialog: delTaskDialog('chart'),
+        scopeUI: getCfg().target === 'emby' || getCfg().target === 'jellyfin',
+        targetKey: getCfg().target,
       }),
     )
   })
@@ -86,7 +88,7 @@ export function pagesRouter(getCfg: () => AppConfig, lx: LxServerAdapter, emby: 
     const lis = getCfg().general.listen
     const skip = new Set([...repo.listTasks().map((t) => t.lxPlaylistKey), ...lis.ignoredKeys])
     const existingCount = lxPlaylists.filter((p) => p.key.startsWith('user:') && !skip.has(p.key)).length
-    res.type('html').send(renderPage('sync-setup', { ...base('sync-setup', _req), lxPlaylists, embyPlaylists, lxError, qOrder: QUALITY_ORDER, qLabels: QUALITY_LABELS, listen: lis, existingCount, fileDeleteOK: supportsFileDelete(getCfg().target), delDialog: delTaskDialog('playlist') }))
+    res.type('html').send(renderPage('sync-setup', { ...base('sync-setup', _req), lxPlaylists, embyPlaylists, lxError, qOrder: QUALITY_ORDER, qLabels: QUALITY_LABELS, listen: lis, existingCount, fileDeleteOK: supportsFileDelete(getCfg().target), delDialog: delTaskDialog('playlist'), scopeUI: getCfg().target === 'emby' || getCfg().target === 'jellyfin', targetKey: getCfg().target }))
   })
 
   // 进度历史：实时进度（页顶，原「任务进度」）+ 按类型分标签的历史

@@ -46,10 +46,12 @@ export function createTask(input: {
   chartId?: string
   chartName?: string
   maxCount?: number
+  playlistScope?: string | null
+  playlistScopeName?: string | null
 }): number {
   const stmt = getDb().prepare(
-    `INSERT INTO sync_task (lxPlaylistKey, lxPlaylistName, taskType, chartSource, chartId, chartName, maxCount, enabled, embyTargetPlaylistIds, createSameNamePlaylist, cronExpr, syncMode, mode, delPolicy, archivePlaylist, origin, dedupCheck, dedupMinQuality)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO sync_task (lxPlaylistKey, lxPlaylistName, taskType, chartSource, chartId, chartName, maxCount, enabled, embyTargetPlaylistIds, createSameNamePlaylist, cronExpr, syncMode, mode, delPolicy, archivePlaylist, origin, dedupCheck, dedupMinQuality, playlistScope, playlistScopeName)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
   const info = stmt.run(
     input.lxPlaylistKey,
@@ -69,6 +71,8 @@ export function createTask(input: {
     input.origin ?? 'manual',
     input.dedupCheck ? 1 : 0,
     input.dedupMinQuality ?? null,
+    input.playlistScope ?? null,
+    input.playlistScopeName ?? null,
   )
   return Number(info.lastInsertRowid)
 }
@@ -79,7 +83,7 @@ export function updateTask(id: number, patch: Partial<SyncTaskRow>): void {
   const next = { ...cur, ...patch }
   getDb()
     .prepare(
-      `UPDATE sync_task SET lxPlaylistName=?, taskType=?, chartSource=?, chartId=?, chartName=?, maxCount=?, enabled=?, embyTargetPlaylistIds=?, createSameNamePlaylist=?, cronExpr=?, syncMode=?, mode=?, delPolicy=?, archivePlaylist=?, origin=?, lastRunAt=?, lastResult=?, dedupCheck=?, dedupMinQuality=? WHERE id=?`,
+      `UPDATE sync_task SET lxPlaylistName=?, taskType=?, chartSource=?, chartId=?, chartName=?, maxCount=?, enabled=?, embyTargetPlaylistIds=?, createSameNamePlaylist=?, cronExpr=?, syncMode=?, mode=?, delPolicy=?, archivePlaylist=?, origin=?, lastRunAt=?, lastResult=?, dedupCheck=?, dedupMinQuality=?, playlistScope=?, playlistScopeName=? WHERE id=?`,
     )
     .run(
       next.lxPlaylistName,
@@ -101,6 +105,8 @@ export function updateTask(id: number, patch: Partial<SyncTaskRow>): void {
       next.lastResult,
       next.dedupCheck,
       next.dedupMinQuality,
+      next.playlistScope,
+      next.playlistScopeName,
       id,
     )
 }

@@ -100,6 +100,17 @@
             </div>
           </div>
         </div>
+        <% if (scopeUI) { %>
+        <label class="form-control w-full mt-2">
+          <span class="label-text mb-1">目标歌单归属</span>
+          <select name="playlistScope" id="scope-ch-new" class="select select-bordered select-sm w-full"
+                  hx-get="/api/media/users/options" hx-include="closest form" hx-vals='{"type":"<%= targetKey %>"}'
+                  hx-trigger="load" hx-target="this" hx-swap="innerHTML">
+            <option value="shared">共享（所有人可见）</option>
+          </select>
+          <span class="text-xs c-sub mt-1">歌单在 <%= targetName %> 里<b>按用户</b>存：选「共享」= 只找/建所有人可见的歌单；选某个账号 = 在该账号的歌单里找</span>
+        </label>
+        <% } %>
         <div class="flex flex-wrap items-center gap-4 mt-2">
           <label class="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" name="createSameNamePlaylist" value="1" checked class="checkbox checkbox-sm">

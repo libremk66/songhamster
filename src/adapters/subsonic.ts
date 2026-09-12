@@ -79,7 +79,7 @@ export class SubsonicAdapter implements MediaServerAdapter {
   }
 
   // ===== 播放列表 =====
-  async listPlaylists(): Promise<MediaPlaylist[]> {
+  async listPlaylists(_scope?: string): Promise<MediaPlaylist[]> {
     const xml = await this.request('getPlaylists')
     return this.tags(xml, 'playlist').map((p) => ({
       id: p.id ?? '',

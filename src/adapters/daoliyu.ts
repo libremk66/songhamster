@@ -88,7 +88,7 @@ export class DaoliyuAdapter implements MediaServerAdapter {
   }
 
   // ===== 播放列表（目录驱动：读可用；写 = no-op，由歌单目录自动接管） =====
-  async listPlaylists(): Promise<MediaPlaylist[]> {
+  async listPlaylists(_scope?: string): Promise<MediaPlaylist[]> {
     const data = await this.request('/api/playlists/mine')
     return (Array.isArray(data) ? data : []).map((p: any) => ({
       id: String(p.id ?? ''),

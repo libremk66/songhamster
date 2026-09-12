@@ -42,6 +42,10 @@ export interface SyncTaskRow {
   lastResult: string | null
   dedupCheck: number
   dedupMinQuality: string | null
+  /** 目标歌单归属作用域：'shared'（所有人可见）| 某个用户 id；空 = 按 'shared' 处理 */
+  playlistScope: string | null
+  /** 作用域显示名（仅界面/日志用） */
+  playlistScopeName: string | null
 }
 
 let db: Database.Database | null = null
@@ -224,6 +228,8 @@ function migrate(d: Database.Database): void {
   ensureCol('sync_task', 'chartName', 'chartName TEXT')
   ensureCol('sync_task', 'maxCount', 'maxCount INTEGER NOT NULL DEFAULT 30')
   ensureCol('history_batch', 'dedupCount', 'dedupCount INTEGER NOT NULL DEFAULT 0')
+  ensureCol('sync_task', 'playlistScope', 'playlistScope TEXT')
+  ensureCol('sync_task', 'playlistScopeName', 'playlistScopeName TEXT')
   rebuildHistoryBatchIfFk(d)
 }
 

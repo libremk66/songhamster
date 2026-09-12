@@ -154,9 +154,9 @@ export class SyncEngine {
    * 配置期：确保归档歌单存在（不存在则创建）——用户刚设定了这个目标 = 授权创建。
    * 运行期（removeSongs 里）只找不建：用户删掉的目标绝不静默重建，而是降级为"保留文件"。
    */
-  async ensureArchiveTarget(name: string): Promise<{ ok: boolean; created: boolean; error?: string }> {
+  async ensureArchiveTarget(name: string, scope = 'shared'): Promise<{ ok: boolean; created: boolean; error?: string }> {
     try {
-      if (await this.findPlaylistByName(name)) return { ok: true, created: false }
+      if (await this.findPlaylistByName(name, scope)) return { ok: true, created: false }
       await this.emby.createPlaylist(name)
       logger.info(`[engine] 已创建归档歌单「${name}」`)
       return { ok: true, created: true }
@@ -222,7 +222,7 @@ export class SyncEngine {
 
     this.runningTaskId = taskId
     this.scannedLibs.clear() // 每次运行重置：扫描配额与播放列表缓存都按次算，不跨次
-    this.playlistCache = null
+    this.playlistCache.clear()
     const batchId = repo.createBatch({ taskId, trigger })
     this.emit('batch-start', taskId, batchId)
     this.liveBegin({ taskId, taskName: task.lxPlaylistName, taskType: task.taskType ?? 'playlist', batchId, trigger, total: 0 })
@@ -612,7 +612,7 @@ export class SyncEngine {
       // 加入目标歌单（daoliyu 目录驱动：落盘即入库+入同名目录歌单，无需 API 操作）
       const playlistIds: string[] = this.emby.kind === 'daoliyu' ? [] : [...task.embyTargetPlaylistIdsParsed]
       if (task.createSameNamePlaylist) {
-        const same = await this.findPlaylistByName(task.lxPlaylistName)
+        const same = await this.findPlaylistByName(task.lxPlaylistName, this.scopeOf(task))
         if (same) {
           // 同名列表即本任务自动管理的同步目标 → 追加。
           // （旧"行为B不追加"会导致单次多首新歌的任务只加第一首——已修复；不需要自动管理时取消勾选"创建同名歌单"即可）
@@ -620,7 +620,8 @@ export class SyncEngine {
         } else {
           const np = await this.emby.createPlaylist(task.lxPlaylistName)
           // 同步进缓存：否则本任务后面的每首歌都以为它还不存在，会反复创建
-          this.playlistCache?.push({ id: np.id, name: task.lxPlaylistName })
+          const sc = this.scopeOf(task)
+          this.playlistCache.get(sc)?.push({ id: np.id, name: task.lxPlaylistName })
           playlistIds.push(np.id)
         }
       }
@@ -643,16 +644,24 @@ export class SyncEngine {
     }
   }
 
-  /** 本次运行的播放列表缓存（不然每首歌都要拉一次全量列表，纯浪费往返） */
-  private playlistCache: Awaited<ReturnType<MediaServerAdapter['listPlaylists']>> | null = null
+  /** 本次运行的播放列表缓存（按作用域分桶；不然每首歌都要拉一次全量列表，纯浪费往返） */
+  private playlistCache = new Map<string, Awaited<ReturnType<MediaServerAdapter['listPlaylists']>>>()
 
-  private async listPlaylistsCached() {
-    if (!this.playlistCache) this.playlistCache = await this.emby.listPlaylists()
-    return this.playlistCache
+  /** 任务的目标歌单作用域：'shared'（所有人可见）或某个用户 id；未设按 shared 处理 */
+  private scopeOf(t: { playlistScope?: string | null }): string {
+    return (t.playlistScope ?? '').trim() || 'shared'
   }
 
-  private async findPlaylistByName(name: string) {
-    const list = await this.listPlaylistsCached()
+  private async listPlaylistsCached(scope: string) {
+    const hit = this.playlistCache.get(scope)
+    if (hit) return hit
+    const list = await this.emby.listPlaylists(scope)
+    this.playlistCache.set(scope, list)
+    return list
+  }
+
+  private async findPlaylistByName(name: string, scope: string) {
+    const list = await this.listPlaylistsCached(scope)
     return list.find((p) => p.name === name) ?? null
   }
 
@@ -809,8 +818,9 @@ export class SyncEngine {
     // 受管播放列表:同名自动列表恒受管;已有列表按所有权
     const entries: { pid: string; managed: boolean }[] = []
     for (const pid of new Set(task.embyTargetPlaylistIdsParsed)) entries.push({ pid, managed: false })
+    const scope = this.scopeOf(task)
     if (task.createSameNamePlaylist) {
-      const same = await this.findPlaylistByName(task.lxPlaylistName)
+      const same = await this.findPlaylistByName(task.lxPlaylistName, scope)
       if (same) entries.push({ pid: same.id, managed: true })
     }
 
@@ -821,7 +831,7 @@ export class SyncEngine {
     const ensureArchive = async (): Promise<string | null> => {
       if (archiveId) return archiveId
       try {
-        const ex = await this.findPlaylistByName(archiveName)
+        const ex = await this.findPlaylistByName(archiveName, scope)
         if (ex) { archiveId = ex.id; return archiveId }
         if (!archiveDegraded) {
           archiveDegraded = archiveName

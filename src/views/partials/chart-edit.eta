@@ -20,6 +20,16 @@
         <span class="text-xs c-sub mt-1">各榜单刷新周期不同，建议按榜单自定</span>
       </label>
     </div>
+    <% if (scopeUI) { %>
+    <label class="form-control w-full mt-2">
+      <span class="label-text mb-1">目标歌单归属</span>
+      <select name="playlistScope" id="scope-<%= t.id %>" class="select select-bordered select-sm w-full"
+              hx-get="/api/media/users/options" hx-include="closest form" hx-vals='{"type":"<%= targetKey %>"}'
+              hx-trigger="load" hx-target="this" hx-swap="innerHTML">
+        <option value="<%= t.playlistScope ?? 'shared' %>|<%= t.playlistScopeName ?? '' %>" selected><%= t.playlistScopeName || '共享（所有人可见）' %></option>
+      </select>
+    </label>
+    <% } %>
     <label class="flex items-center gap-2 cursor-pointer mt-2">
       <input type="checkbox" name="createSameNamePlaylist" value="1" <%= t.createSameNamePlaylist ? 'checked' : '' %> class="checkbox checkbox-sm">
       <span class="text-sm">同步到新建同名 <%= targetName %> 播放列表</span>

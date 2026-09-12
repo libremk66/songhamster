@@ -9,19 +9,26 @@
         <div>
           <span class="text-sm font-medium block mb-1">同步到 <%= targetName %> 的目标</span>
           <label class="flex items-center gap-2 cursor-pointer py-0.5"><input type="checkbox" name="createSameNamePlaylist" value="1" <%= t.createSameNamePlaylist ? 'checked' : '' %> class="checkbox checkbox-sm"><span class="text-sm">同名播放列表/歌单(自动生成)</span></label>
+          <% if (scopeUI) { %>
+          <label class="form-control w-full mb-1">
+            <span class="label-text mb-1">目标歌单归属</span>
+            <select name="playlistScope" id="scope-<%= t.id %>" class="select select-bordered select-sm w-full"
+                    hx-get="/api/media/users/options" hx-include="closest form" hx-vals='{"type":"<%= targetKey %>"}'
+                    hx-trigger="load" hx-target="this" hx-swap="innerHTML">
+              <option value="<%= t.playlistScope ?? 'shared' %>|<%= t.playlistScopeName ?? '' %>" selected><%= t.playlistScopeName || '共享（所有人可见）' %></option>
+            </select>
+          </label>
+          <% } %>
           <label class="flex items-center gap-2 cursor-pointer py-0.5"><input type="checkbox" id="to-existing-<%= t.id %>" onchange="toggleExistingId(this, '-<%= t.id %>')" <%= t.embyTargetPlaylistIdsParsed.length ? 'checked' : '' %> class="checkbox checkbox-sm"><span class="text-sm">同步到已有播放列表/歌单</span></label>
           <div class="existing-box" id="existing-box-<%= t.id %>" style="display:<%= t.embyTargetPlaylistIdsParsed.length ? '' : 'none' %>">
-            <div class="rounded-lg border border-base-300 p-2 overflow-y-auto" style="max-height:9rem;width:24rem;max-width:100%">
-              <% if (embyPlaylists.length) { %>
-                <% for (const p of embyPlaylists) { %>
-                <label class="flex items-center gap-2 cursor-pointer py-0.5">
-                  <input type="checkbox" name="embyTarget" value="<%= p.id %>" <%= t.embyTargetPlaylistIdsParsed.includes(p.id) ? 'checked' : '' %> class="checkbox checkbox-xs">
-                  <span class="text-sm"><%= p.name %></span>
-                </label>
+            <div class="rounded-lg border border-base-300 p-2 overflow-y-auto" style="max-height:9rem;width:24rem;max-width:100%"
+                 hx-get="/api/emby/playlists/checkboxes" hx-include="closest form" hx-target="this"
+                 hx-trigger="load<% if (scopeUI) { %>, change from:#scope-<%= t.id %><% } %>" hx-swap="innerHTML">
+              <% if (t.embyTargetPlaylistIdsParsed.length) { %>
+                <% for (const p of embyPlaylists) { if (!t.embyTargetPlaylistIdsParsed.includes(p.id)) continue; %>
+                <label style="display:flex;align-items:center;gap:.3rem;margin:.15rem 0"><input type="checkbox" name="embyTarget" value="<%= p.id %>" checked> <%= p.name %></label>
                 <% } %>
-              <% } else { %>
-                <span class="text-xs c-sub">连接 <%= targetName %> 后可选择</span>
-              <% } %>
+              <% } else { %><span class="text-xs c-sub">加载中…</span><% } %>
             </div>
           </div>
         </div>

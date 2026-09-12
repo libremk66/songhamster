@@ -173,6 +173,17 @@
 
           <div class="rounded-lg border border-base-300 p-3">
             <h4 class="text-sm font-bold mb-2">同步到 <%= targetName %> 的目标播放列表/歌单</h4>
+            <% if (scopeUI) { %>
+            <label class="form-control w-full mb-1">
+              <span class="label-text mb-1">目标歌单归属</span>
+              <select name="playlistScope" id="scope-mk" class="select select-bordered select-sm w-full"
+                      hx-get="/api/media/users/options" hx-include="closest form" hx-vals='{"type":"<%= targetKey %>"}'
+                      hx-trigger="load" hx-target="this" hx-swap="innerHTML">
+                <option value="shared">共享（所有人可见）</option>
+              </select>
+              <span class="text-xs c-sub mt-1">歌单在 <%= targetName %> 里<b>按用户</b>存：选「共享」= 只找/建所有人可见的歌单；选某个账号 = 在该账号的歌单里找（能对上你自己的老歌单）</span>
+            </label>
+            <% } %>
             <label class="flex items-center gap-2 cursor-pointer py-0.5">
               <input type="checkbox" name="createSameNamePlaylist" value="1" checked class="checkbox checkbox-sm">
               <span class="text-sm">同名播放列表/歌单(<b>同步时自动生成</b>)</span>
@@ -182,17 +193,10 @@
               <span class="text-sm">同步到<b>已有</b>播放列表/歌单</span>
             </label>
   <div id="mk_existbox" style="display:none" class="ml-6 mt-1">
-    <div class="rounded-lg border border-base-300 p-2 overflow-y-auto" style="max-height:11rem;width:24rem;max-width:100%">
-      <% if (embyPlaylists.length) { %>
-        <% for (const p of embyPlaylists) { %>
-        <label class="flex items-center gap-2 cursor-pointer py-0.5">
-          <input type="checkbox" name="embyTarget" value="<%= p.id %>" class="checkbox checkbox-xs">
-          <span class="text-sm"><%= p.name %></span>
-        </label>
-        <% } %>
-      <% } else { %>
-        <span class="text-xs c-sub">连接 <%= targetName %> 后可选择</span>
-      <% } %>
+    <div class="rounded-lg border border-base-300 p-2 overflow-y-auto" style="max-height:11rem;width:24rem;max-width:100%"
+         hx-get="/api/emby/playlists/checkboxes" hx-include="closest form" hx-target="this"
+         hx-trigger="load<% if (scopeUI) { %>, change from:#scope-mk<% } %>" hx-swap="innerHTML">
+      <span class="text-xs c-sub">加载中…</span>
     </div>
   </div>
             <div id="mk_note" class="d-note mt-2" style="display:none">🔒 镜像 + 已有歌单:只移除/加入<b>本任务产生的歌曲</b>;你手动加的与接管前已存在的歌曲不动(所有权追踪)。</div>

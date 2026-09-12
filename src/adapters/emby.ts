@@ -50,17 +50,24 @@ export class EmbyAdapter implements MediaServerAdapter {
   }
 
   /** 现有播放列表（映射表"加入已有歌单"数据源） */
-  async listPlaylists(): Promise<MediaPlaylist[]> {
-    // 设了"归属用户"就只看该账号的歌单（Emby 歌单按用户存；不加限定会看到所有人的）
-    const seg = this.segment === 'jellyfin' ? this.cfg().jellyfin : this.cfg().emby
-    const uid = seg.playlistUserId
-    const scope = uid ? `/Users/${encodeURIComponent(uid)}/Items` : '/Items'
-    const data = await this.request(`${scope}?IncludeItemTypes=Playlist&Recursive=true&Fields=ChildCount`)
-    return (data?.Items ?? []).map((it: any) => ({
-      id: String(it.Id),
-      name: String(it.Name),
-      itemCount: it.ChildCount,
-    }))
+  /**
+   * 列播放列表。scope：'shared' 只列共享歌单（/config/data/playlists/，所有账号可见）；
+   * '<userId>' 列该账号可见的（含其私有老式歌单）；不传 = 服务器全部（管理员视角）。
+   * ⚠️ 默认**不要**用"全部"——同名歌单可能属于别人，加进去用户在自己客户端看不到。
+   */
+  async listPlaylists(scope?: string): Promise<MediaPlaylist[]> {
+    const map = (items: any[]) => items.map((it: any) => ({ id: String(it.Id), name: String(it.Name), itemCount: it.ChildCount }))
+    if (scope && scope !== 'shared') {
+      const d = await this.request(`/Users/${encodeURIComponent(scope)}/Items?IncludeItemTypes=Playlist&Recursive=true&Fields=ChildCount`)
+      return map(d?.Items ?? [])
+    }
+    const d = await this.request('/Items?IncludeItemTypes=Playlist&Recursive=true&Fields=ChildCount,Path')
+    const items: any[] = d?.Items ?? []
+    if (scope === 'shared') {
+      // 老式私有歌单存在 /config/data/userplaylists/ 下 —— 共享歌单一律不含这段路径
+      return map(items.filter((it) => !String(it.Path ?? '').includes('/userplaylists/')))
+    }
+    return map(items)
   }
 
   /**
