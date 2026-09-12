@@ -51,7 +51,8 @@ export const LAYOUT = `<!doctype html>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>SongHamster - LX 歌单自动同步入库</title>
-  <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+  <link rel="icon" href="/static/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
   <link rel="stylesheet" href="/static/daisy.css">
   <!-- TODO(迁移期): 内容页仍为 Pico 标记（裸 button/input/table），daisy 的 preflight 会重置其样式；
         pico 置于 daisy 之后兜底老页面元素样式，Step2 逐页换成 daisy 类后删除本行 -->
@@ -346,7 +347,7 @@ ${ICON_SPRITE}
 
   <aside class="sidebar">
     <div>
-      <div class="brand"><img src="/static/logo.svg" alt="logo">SongHamster</div>
+      <div class="brand"><img src="/static/icon.png" alt="logo">SongHamster</div>
       <div class="brand-sub">LX 歌单自动同步入库</div>
       <nav>
         <ul>
@@ -387,7 +388,7 @@ ${ICON_SPRITE}
 
   <!-- 移动端菜单面板(桌面端 display:none 不渲染影响) -->
   <nav class="mob-panel" aria-label="移动端导航">
-    <div class="mob-head"><img src="/static/logo.svg" alt="logo" class="mob-logo">SongHamster</div>
+    <div class="mob-head"><img src="/static/icon.png" alt="logo" class="mob-logo">SongHamster</div>
     <div class="mob-sub">LX 歌单自动同步入库</div>
     <ul>
       <% for (const item of it.nav) { %>

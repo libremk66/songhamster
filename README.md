@@ -1,3 +1,5 @@
+<img src="docs/icon/icon-rounded-256.png" alt="SongHamster" width="128" align="right">
+
 # SongHamster — LX 歌单同步入库音乐媒体库
 
 [![Docker Hub](https://img.shields.io/docker/v/libremk66/songhamster?label=docker%20hub&logo=docker&logoColor=white)](https://hub.docker.com/r/libremk66/songhamster)
