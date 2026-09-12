@@ -773,12 +773,26 @@ export class SyncEngine {
     for (const t of targets) {
       const ids = songs.filter((s) => s.ok && s.itemId).map((s) => s.itemId!)
       if (!ids.length) continue
+      // ⚠️ 加入前先看歌单里有没有它：Emby 允许同一条重复加入，不查就会越加越多
+      // （实测：同一首歌被重复处理几次后，歌单里出现 5 条一模一样的条目）
+      let present = new Set<string>()
       try {
-        await this.emby.addItems(t.pid, ids)
-        for (const s of songs) if (s.ok) s.trace.push(`加入歌单${t.label}`)
+        present = new Set((await this.emby.listPlaylistItems(t.pid)).map((x) => x.itemId))
+      } catch { /* 读不到就按老办法加，交给服务端 */ }
+      const toAdd = ids.filter((id) => !present.has(id))
+      if (!toAdd.length) {
+        for (const s of songs) if (s.ok) s.trace.push(`已在歌单${t.label}（无需重复加入）`)
+        continue
+      }
+      try {
+        await this.emby.addItems(t.pid, toAdd)
+        for (const s of songs) {
+          if (!s.ok || !s.itemId) continue
+          s.trace.push(toAdd.includes(s.itemId) ? `加入歌单${t.label}` : `已在歌单${t.label}（无需重复加入）`)
+        }
       } catch (e) {
         logger.warn(`[emby] 批量加入歌单失败: ${(e as Error).message}`)
-        for (const s of songs) if (s.ok) { s.ok = false; s.reason = `加入歌单失败：${(e as Error).message}` }
+        for (const s of songs) if (s.ok && toAdd.includes(s.itemId!)) { s.ok = false; s.reason = `加入歌单失败：${(e as Error).message}` }
       }
     }
   }
@@ -850,7 +864,7 @@ export class SyncEngine {
           // 同名列表即本任务自动管理的同步目标 → 追加。
           // （旧"行为B不追加"会导致单次多首新歌的任务只加第一首——已修复；不需要自动管理时取消勾选"创建同名歌单"即可）
           playlistIds.push(same.id)
-          this.traceAdd(`加入歌单「${task.lxPlaylistName}」（已存在，直接追加）`)
+          this.traceAdd(`目标歌单「${task.lxPlaylistName}」已存在`)
         } else {
           const np = await this.emby.createPlaylist(task.lxPlaylistName)
           this.traceAdd(`新建歌单「${task.lxPlaylistName}」并加入`)
@@ -864,6 +878,12 @@ export class SyncEngine {
       if (picked) this.traceAdd(`加入已有歌单 ${picked} 个`)
       for (const pid of new Set(playlistIds)) {
         try {
+          // 同上：已在歌单里就不重复加（Emby 允许重复加入，不查会越加越多）
+          const present = new Set((await this.emby.listPlaylistItems(pid)).map((x) => x.itemId))
+          if (present.has(embySong.embySongId)) {
+            this.traceAdd('已在目标歌单（无需重复加入）')
+            continue
+          }
           await this.emby.addItems(pid, [embySong.embySongId])
         } catch (e) {
           if (!fromCache) throw e
