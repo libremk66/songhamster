@@ -1,6 +1,6 @@
-<p align="center"><img src="docs/icon/icon-rounded-256.png" alt="SongHamster" width="140"></p>
+<p align="center"><img src="docs/icon/icon-rounded-256.png" alt="SongHamster 音乐仓鼠" width="140"></p>
 
-# SongHamster — LX 歌单同步入库音乐媒体库
+# SongHamster（音乐仓鼠）— LX 歌单同步入库音乐媒体库
 
 [![Docker Hub](https://img.shields.io/docker/v/libremk66/songhamster?label=docker%20hub&logo=docker&logoColor=white)](https://hub.docker.com/r/libremk66/songhamster)
 [![Docker Pulls](https://img.shields.io/docker/pulls/libremk66/songhamster)](https://hub.docker.com/r/libremk66/songhamster)
@@ -12,7 +12,7 @@
 
 > ⚠️ 本项目只用于同步**你已持有/自有的音乐**。请确保使用合法来源的音乐资源，使用者自行承担相关责任。
 
-> 💡 **这是什么**：SongHamster 是在用上 [lxserver](https://github.com/XCQ0607/lxserver) 之后，为了把歌单**落进 Emby 等媒体库**这个需求、和 AI 一起搓出来的**自用小工具**——只管"下载完成后怎么整理入库"，不做音源解析、不做播放器。
+> 💡 **这是什么**：SongHamster（音乐仓鼠）是在用上 [lxserver](https://github.com/XCQ0607/lxserver) 之后，为了把歌单**落进 Emby 等媒体库**这个需求、和 AI 一起搓出来的**自用小工具**——只管"下载完成后怎么整理入库"，不做音源解析、不做播放器。
 > 期待 lxserver 将来推出相应的入库功能；在那之前，这个小工具够我自己用，也放出来给有同样需求的人。
 
 ## 使用场景
