@@ -14,6 +14,7 @@
         <% } else if (it.status === 'removed') { %><span class="st-skip">🗑 移除</span>
         <% } else if (it.status === 'skipped_dup') { %><span class="st-skip">⏭ 已下载跳过</span>
         <% } else if (it.status === 'dedup') { %><span class="st-skip">🔍 查重跳过</span>
+        <% } else if (it.status === 'skipped') { %><span class="st-skip">⏭ 跳过（本次未动）</span>
         <% } else { %><span class="st-bad">❌ 失败</span><% } %>
       </td>
       <td><%= it.quality ?? '—' %></td>

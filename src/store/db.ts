@@ -5,7 +5,7 @@ import { DB_PATH } from '../config.js'
 import type { DelPolicy, TaskMode } from '../config.js'
 
 export type SyncMode = 'incremental' | 'full' // 旧列(兼容);新语义见 mode/taskSemantics
-export type SongStatus = 'success' | 'failed' | 'unsatisfied' | 'removed' | 'skipped_dup' | 'dedup'
+export type SongStatus = 'success' | 'failed' | 'unsatisfied' | 'removed' | 'skipped_dup' | 'dedup' | 'skipped'
 export type BatchResult = 'success' | 'partial' | 'failed'
 
 /** 旧 full 在新语义下的映射(mirror+keep)——读取任务时统一走这里 */

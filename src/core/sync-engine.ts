@@ -310,11 +310,13 @@ export class SyncEngine {
 
       // 镜像:按删除策略处理已删除的歌
       let archiveDegraded: string | null = null
+      let failedRemovals: string[] = []   // 本次没移除成功的歌：留在快照里下次继续试（见下方 setSnapshot）
       if (toRemove.length > 0) {
         this.liveSet({ phase: '处理移除（镜像删除）', current: null })
         const r = await this.removeSongs(taskId, task, toRemove, sem, batchId)
         removedCount = r.removed
         archiveDegraded = r.archiveDegraded
+        failedRemovals = r.failedRemovals
         this.liveSet({ removed: r.removed })
       }
 
@@ -462,7 +464,8 @@ export class SyncEngine {
         lastResult: resultTxt,
       })
       // 快照：完全同步语义的删除检测依据 = 本次源歌单全集
-      repo.setSnapshot(taskId, songs.map((s) => s.songKey))
+      // ⚠️ 本次**没移除成功**的歌要留在快照里 —— 否则它们从此不再出现在"待移除"里，静默漏掉
+      repo.setSnapshot(taskId, [...new Set([...songs.map((s) => s.songKey), ...failedRemovals])])
       logger.info(`[engine] task#${taskId} 完成: result=${result} ok=${okCount} fail=${failCount} unsatisfied=${unsatisfiedCount} dup=${dupCount} dedup=${dedupCount} removed=${removedCount}`)
       this.liveSet({ phase: '完成' })
       this.liveEnd(resultTxt)
@@ -703,6 +706,7 @@ export class SyncEngine {
         r.itemId = id
         r.ok = true
         if (!r.knownId) r.trace.push(r.byPath ? '媒体库：按完整路径精确查到条目' : '媒体库：按歌名搜到条目（路径匹配）')
+        repo.setEmbyMap(r.song.songKey, id)   // 记进条目缓存：镜像移除 / 手动删除都要靠它定位
       } else unresolved.push(r)
     }
 
@@ -724,6 +728,7 @@ export class SyncEngine {
               r.itemId = id
               r.ok = true
               r.trace.push('媒体库：扫描索引后找到条目')
+              repo.setEmbyMap(r.song.songKey, id)
             }
           }
         }
@@ -1073,9 +1078,10 @@ export class SyncEngine {
     songKeys: string[],
     sem: { taskMode: 'incremental' | 'mirror'; delPolicy: DelPolicy },
     batchId: number,
-  ): Promise<{ removed: number; archiveDegraded: string | null }> {
+  ): Promise<{ removed: number; archiveDegraded: string | null; failedRemovals: string[] }> {
     let removed = 0
     let movedFiles = 0
+    const failedRemovals: string[] = []   // 本次没移除成功的歌：留在快照里，下次继续试
     const cfg = this.cfg()
     const strictOwned = task.mode != null // 新语义任务启用所有权;旧 full 保持旧行为
     const delFile = sem.delPolicy === 'delete' && supportsFileDelete(cfg.target)
@@ -1114,32 +1120,70 @@ export class SyncEngine {
     }
 
     for (const songKey of songKeys) {
-      const map = repo.getEmbyMap(songKey)
-      if (!map) continue
+      // 歌名（历史明细用；从最近一条记录里取，取不到就退回 songKey）
+      const prevRow = getDb()
+        .prepare('SELECT songName, singer FROM history_item WHERE songKey = ? ORDER BY id DESC LIMIT 1')
+        .get(songKey) as { songName: string; singer: string } | undefined
+      const songName = prevRow?.songName ?? songKey
+      const singer = prevRow?.singer ?? ''
+      const steps: string[] = ['镜像：该歌已从 LX 歌单移除']
+      const record = (status: 'removed' | 'skipped' | 'failed', reason?: string) => {
+        repo.insertHistoryItem({ batchId, taskId, songKey, songName, singer, status, errorReason: reason, detail: steps })
+      }
+
+      // 解析媒体库条目：优先条目缓存；缓存里没有（换过同步目标会被清空）就**按文件路径精确查**
+      // ⚠️ 旧实现"缓存里没有就静默 continue"，于是"待移除 1 首、实际未移除、且没有任何明细"——用户完全看不出发生了什么
+      let itemId = repo.getEmbyMap(songKey)?.embySongId ?? null
+      if (!itemId) {
+        for (const f of repo.listFilesForSong(songKey)) {
+          const sp = toServerPath(cfg, f.filePath)
+          if (!sp || !this.emby.findItemByPath) continue
+          try {
+            const hit = await this.emby.findItemByPath(sp)
+            if (hit) { itemId = hit.id; repo.setEmbyMap(songKey, hit.id); steps.push('媒体库：按文件路径定位到条目'); break }
+          } catch { /* 换下一个文件试 */ }
+        }
+      }
+      if (!itemId) {
+        steps.push('媒体库：未能定位到该歌的条目（可能未入库）→ 未动歌单')
+        logger.warn(`[engine] ${songKey} 待移除但定位不到媒体库条目 → 未动歌单（下次同步继续尝试）`)
+        record('failed', '未能定位媒体库条目')
+        failedRemovals.push(songKey)
+        continue
+      }
+
       const owned = strictOwned ? repo.hasTaskSongRef(taskId, songKey) : true
       if (!owned) {
         logger.info(`[engine] ${songKey} 非本任务加入(所有权保护) → 不动其歌单成员`)
+        steps.push('该歌不是本任务加入的（所有权保护）→ 未动歌单')
+        record('skipped')
         continue
       }
       let removedHere = false
       for (const e of entries) {
         if (!e.managed && !strictOwned) continue // 旧任务:managed 语义 = 全部
         const items = await this.emby.listPlaylistItems(e.pid)
-        const entry = items.find((it) => it.itemId === map.embySongId)
+        const entry = items.find((it) => it.itemId === itemId)
         if (entry?.entryId) {
           await this.emby.removeItems(e.pid, [entry.entryId])
           removed++
           removedHere = true
+          steps.push(`已从歌单移除（${e.managed ? '同名歌单' : '已有歌单'}）`)
         }
       }
-      if (!removedHere) continue
+      if (!removedHere) {
+        steps.push('该歌不在本任务的目标歌单里 → 无需移除')
+        record('skipped')
+        continue
+      }
       // archive:曲目进归档歌单(文件不动)
       if (archive) {
         const aid = await ensureArchive()
         if (aid) {
           try {
-            await this.emby.addItems(aid, [map.embySongId])
+            await this.emby.addItems(aid, [itemId])
             logger.info(`[engine] ${songKey} → 归档歌单`)
+            steps.push(`已移入归档歌单「${archiveName}」`)
           } catch (e) {
             logger.warn(`[engine] 归档加曲失败: ${(e as Error).message}`)
           }
@@ -1164,19 +1208,11 @@ export class SyncEngine {
       getDb().prepare('DELETE FROM task_song_ref WHERE taskId = ? AND songKey = ?').run(taskId, songKey)
       getDb().prepare('DELETE FROM current_song_status WHERE taskId = ? AND songKey = ?').run(taskId, songKey)
 
-      // 记一条"移除"历史（原来只加计数、不写明细，用户根本看不到移除了哪首歌）
-      const prev = getDb()
-        .prepare('SELECT songName, singer FROM history_item WHERE songKey = ? ORDER BY id DESC LIMIT 1')
-        .get(songKey) as { songName: string; singer: string } | undefined
-      const steps = [`镜像：该歌已从 LX 歌单移除`]
-      for (const e of entries) steps.push(`从歌单移除（${e.managed ? '同名歌单' : '已有歌单'}）`)
-      if (archive) steps.push(archiveDegraded ? '归档目标不存在 → 降级为保留文件' : '已移入归档歌单')
-      if (delFile) steps.push(movedFiles > 0 ? '文件已移入回收站' : '文件保留（被其它任务引用或无登记）')
+      // 文件侧的结果补进轨迹，然后记一条"移除"历史
+      if (archive && archiveDegraded) steps.push('归档目标不存在 → 降级为保留文件')
+      if (delFile) steps.push(movedFiles > 0 ? '文件已移入回收站（可恢复）' : '文件保留（被其它任务引用或无登记）')
       else steps.push('文件保留')
-      repo.insertHistoryItem({
-        batchId, taskId, songKey, songName: prev?.songName ?? songKey, singer: prev?.singer ?? '',
-        status: 'removed', detail: steps,
-      })
+      record('removed')
     }
     // 物理删除后触发媒体库扫描清理缺失条目(Emby/Jellyfin;Navidrome 文件监听自动处理)
     if (movedFiles > 0 && (cfg.target === 'emby' || cfg.target === 'jellyfin')) {
@@ -1186,7 +1222,7 @@ export class SyncEngine {
       } catch { /* 扫描失败不阻断 */ }
     }
     if (movedFiles > 0) logger.info(`[engine] 删除策略=delete:${movedFiles} 个文件移入回收站(可恢复)`)
-    return { removed, archiveDegraded }
+    return { removed, archiveDegraded, failedRemovals }
   }
 }
 
