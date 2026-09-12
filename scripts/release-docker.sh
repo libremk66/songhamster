@@ -51,6 +51,20 @@ echo "==> 目标镜像：${IMAGE}:latest 与 ${IMAGE}:${VERSION}"
 CURRENT_STEP="初始化"
 trap 'rc=$?; if [ "$rc" -ne 0 ]; then echo ""; echo "❌ 失败于：${CURRENT_STEP}（退出码 ${rc}）" >&2; echo "   把这段输出发给 AI 即可定位" >&2; fi' EXIT
 
+# 客户端侧代理（manifest 合并 / login 这类 docker CLI 自己发请求的命令）：
+# ⚠️ 又踩一次——dockerd 的代理只覆盖它自己干的活（pull/push），而
+#    `docker manifest create/push` 是 docker CLI **自己**直连 registry-1.docker.io 的，
+#    加上 sudo 会剥掉环境变量 → 直连被墙（实测 "error pinging v2 registry: connection reset"）。
+#    这里把 dockerd 配的代理 export 给脚本自身：客户端命令跑在宿主机上，
+#    127.0.0.1 就是宿主机，地址无需换算。
+DAEMON_PROXY_RAW="$(systemctl show docker --property=Environment 2>/dev/null | sed 's/^Environment=//' | tr ' ' '\n' | sed -n 's/^\(HTTPS_PROXY\|https_proxy\)=//p' | head -1 || true)"
+if [ -z "${HTTPS_PROXY:-}" ] && [ -n "${DAEMON_PROXY_RAW}" ]; then
+  export HTTPS_PROXY="${DAEMON_PROXY_RAW}" HTTP_PROXY="${DAEMON_PROXY_RAW}"
+  export NO_PROXY="localhost,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12,::1"
+  export no_proxy="${NO_PROXY}"
+  echo "==> 客户端代理（manifest 合并用）：${DAEMON_PROXY_RAW}"
+fi
+
 # 构建期代理（默认关闭）：
 # ⚠️ 教训——曾经默认注入 dockerd 的代理，结果 npm ci 直接崩（"Exit handler never called!"）：
 #    dockerd 配的是 127.0.0.1:7897，那是**宿主机**的代理，而 RUN 步骤跑在容器网络里，
@@ -150,7 +164,7 @@ else
   build_and_push_arch arm64
 
   for tag in "${VERSION}" latest; do
-    CURRENT_STEP="合并多架构标签 ${tag}"
+    CURRENT_STEP="合并多架构标签 ${tag}（两个架构镜像已在仓库，重跑本脚本即可接续）"
     echo "==> 合并多架构标签 ${tag} …"
     docker manifest rm "${IMAGE}:${tag}" >/dev/null 2>&1 || true
     docker manifest create "${IMAGE}:${tag}" \
