@@ -99,12 +99,12 @@
         <input type="checkbox" name="enabled" value="1" <%= cfg.download.protection.enabled ? 'checked' : '' %> class="checkbox checkbox-sm">
         <span class="text-sm">批量下载保护（推荐开启）</span>
       </label>
-      <p class="text-xs c-sub leading-relaxed">下载保持单任务串行，并在每首歌曲成功或失败后等待一段时间；同时限制直链解析的请求节奏，降低音源限流或封禁 IP 的风险。</p>
+      <p class="text-xs c-sub leading-relaxed">下载保持单任务串行，并在每首歌曲成功或失败后等待一段时间；同时限制直链解析的请求节奏，降低音源限流或封禁 IP 的风险。<b>已下载跳过（复用本地文件）的歌不请求音源，因此不占用这个等待</b>——换过同步目标后的首轮同步不会因为几百首"已下过"的歌而白等。</p>
       <div class="fg">
         <label class="form-control w-full">
           <span class="label-text mb-1">下载间隔（秒）</span>
           <input type="number" name="downloadIntervalSec" value="<%= cfg.download.protection.downloadIntervalSec %>" min="2" max="60" class="input input-bordered w-28">
-          <span class="text-xs c-sub mt-1">范围 2~60 秒，默认 5 秒；成功和失败的任务都会等待</span>
+          <span class="text-xs c-sub mt-1">范围 2~60 秒，默认 5 秒；真正去音源下载的歌都会等待（含失败重试）</span>
         </label>
         <label class="form-control w-full">
           <span class="label-text mb-1">直链解析间隔（秒）</span>

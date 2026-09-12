@@ -78,6 +78,28 @@ export class SyncEngine {
     private emby: MediaServerAdapter,
   ) {}
 
+  /** 本次运行已触发过扫描的媒体库（避免每首歌都触发一次全库刷新） */
+  private scannedLibs = new Set<string>()
+
+  /**
+   * 当前这首歌是否真的请求过音源（解析直链/下载）。
+   * 批量下载保护的节流只为"防音源限流"而存在，所以"已下载跳过"这类
+   * 没碰音源的歌不该跟着睡 —— 否则换过同步目标后每首歌白等一个间隔。
+   */
+  private sourceHit = false
+
+  /** 触发一次媒体库扫描；同一次运行内对同一媒体库只触发一次 */
+  private async scanLibraryOnce(libraryId: string): Promise<void> {
+    if (this.scannedLibs.has(libraryId)) return
+    this.scannedLibs.add(libraryId)
+    try {
+      await this.emby.scanLibrary(libraryId)
+      logger.info('[emby] 已触发媒体库扫描（本次运行仅一次，等待新文件入库）')
+    } catch (e) {
+      logger.warn(`[emby] 媒体库扫描触发失败：${(e as Error).message}`)
+    }
+  }
+
   get isRunning(): boolean {
     return this.runningTaskId !== null
   }
@@ -199,6 +221,8 @@ export class SyncEngine {
     if (!task) return 'task-not-found'
 
     this.runningTaskId = taskId
+    this.scannedLibs.clear() // 每次运行重置：扫描配额与播放列表缓存都按次算，不跨次
+    this.playlistCache = null
     const batchId = repo.createBatch({ taskId, trigger })
     this.emit('batch-start', taskId, batchId)
     this.liveBegin({ taskId, taskName: task.lxPlaylistName, taskType: task.taskType ?? 'playlist', batchId, trigger, total: 0 })
@@ -310,7 +334,8 @@ export class SyncEngine {
         else if (outcome.status === 'dup') dupCount++
         else if (outcome.status === 'unsatisfied') unsatisfiedCount++
         else failCount++
-        if (prot?.enabled && prot.downloadIntervalSec > 0 && idx < toDownload.length - 1) {
+        // 只有真请求过音源的歌才节流（防音源限流）；"已下载跳过"没碰音源，不睡
+        if (prot?.enabled && prot.downloadIntervalSec > 0 && this.sourceHit && idx < toDownload.length - 1) {
           await sleep(prot.downloadIntervalSec * 1000)
         }
         repo.insertHistoryItem({
@@ -397,6 +422,7 @@ export class SyncEngine {
     song: LxSong,
     opts?: { dirName?: string; absoluteDir?: string; skipIngest?: boolean },
   ): Promise<{ status: 'success' | 'failed' | 'unsatisfied' | 'dup'; quality?: string; reason?: string }> {
+    this.sourceHit = false // 本首歌是否请求过音源（节流判定用）
     const cfg = this.cfg()
     // 尝试链 = 勾选档 ∩ 该歌实际可用档（types 未声明的不白试）；裁剪为空则退回全勾选
     let qualities = cfg.download.qualities
@@ -433,6 +459,7 @@ export class SyncEngine {
 
       try {
         this.liveSet({ phase: '解析直链', current: { name: song.name, singer: song.singer, quality } })
+        this.sourceHit = true // 到这里才算真的碰了音源
         const { url } = await this.lx.resolveUrl(song, quality)
         this.liveSet({ phase: '下载中', current: { name: song.name, singer: song.singer, quality } })
         await this.lx.requestDownload(song, url, quality, {
@@ -544,25 +571,30 @@ export class SyncEngine {
       let embySong = knownId ? { embySongId: knownId, lastVerifiedAt: new Date().toISOString() } : null
       let fromCache = false
       if (!embySong) {
-        // 媒体库 id 始终由当前适配器解析（各服务器配置段不同——Emby/Jellyfin/其他）
-        const libraryId = (await this.emby.resolveLibraryId()) ?? undefined
-        if (!libraryId) {
-          logger.warn('[emby] 未找到匹配媒体库，跳过入库')
-          return false
-        }
-        // 精确扫描媒体库
-        await this.emby.scanLibrary(libraryId)
-        // 等待入库并查找（scan 异步，重试几次）
-        embySong = repo.getEmbyMap(song.songKey)
-        if (embySong) fromCache = true
-        if (!embySong) {
-          for (let i = 0; i < 6; i++) {
+        // ① 先直接搜一次。绝大多数情况（文件早已入库、只是本任务还没记账，
+        //    或换过同步目标导致条目 Id 缓存被清空）这里就能秒中。
+        //    ⚠️ 原来是无条件"先全库扫描 + 先睡 5 秒再搜"，每首歌白等 5~30 秒：
+        //    实测 7 首歌 92 秒里 65 秒耗在这上面（每首歌还顺带触发一次全库刷新）。
+        const first = await this.emby.findSong(song.name, song.singer)
+        if (first) {
+          embySong = { embySongId: first.id, lastVerifiedAt: new Date().toISOString() }
+          repo.setEmbyMap(song.songKey, first.id)
+          logger.info(`[emby] ${song.name} 直接搜到（跳过扫描与等待）`)
+        } else {
+          // ② 搜不到才解析媒体库 + 触发扫描（新下载的文件 Emby 还没索引到）
+          //    ——扫描每次运行最多一次，不按歌重复扫；resolveLibraryId 也一并挪进来（省掉每首歌一次 HTTP）
+          const libraryId = (await this.emby.resolveLibraryId()) ?? undefined
+          if (!libraryId) {
+            logger.warn('[emby] 未找到匹配媒体库，跳过入库')
+            return false
+          }
+          await this.scanLibraryOnce(libraryId)
+          for (let i = 0; i < 6 && !embySong; i++) {
             await sleep(5000)
             const found = await this.emby.findSong(song.name, song.singer)
             if (found) {
               embySong = { embySongId: found.id, lastVerifiedAt: new Date().toISOString() }
               repo.setEmbyMap(song.songKey, found.id)
-              break
             }
           }
           if (!embySong) {
@@ -581,6 +613,8 @@ export class SyncEngine {
           playlistIds.push(same.id)
         } else {
           const np = await this.emby.createPlaylist(task.lxPlaylistName)
+          // 同步进缓存：否则本任务后面的每首歌都以为它还不存在，会反复创建
+          this.playlistCache?.push({ id: np.id, name: task.lxPlaylistName })
           playlistIds.push(np.id)
         }
       }
@@ -603,8 +637,16 @@ export class SyncEngine {
     }
   }
 
+  /** 本次运行的播放列表缓存（不然每首歌都要拉一次全量列表，纯浪费往返） */
+  private playlistCache: Awaited<ReturnType<MediaServerAdapter['listPlaylists']>> | null = null
+
+  private async listPlaylistsCached() {
+    if (!this.playlistCache) this.playlistCache = await this.emby.listPlaylists()
+    return this.playlistCache
+  }
+
   private async findPlaylistByName(name: string) {
-    const list = await this.emby.listPlaylists()
+    const list = await this.listPlaylistsCached()
     return list.find((p) => p.name === name) ?? null
   }
 
@@ -641,7 +683,7 @@ export class SyncEngine {
         else if (outcome.status === 'dup') dup++
         else if (outcome.status === 'unsatisfied') unsatisfied++
         else fail++
-        if (prot?.enabled && prot.downloadIntervalSec > 0 && idx < songs.length - 1) {
+        if (prot?.enabled && prot.downloadIntervalSec > 0 && this.sourceHit && idx < songs.length - 1) {
           await sleep(prot.downloadIntervalSec * 1000)
         }
         repo.insertHistoryItem({
