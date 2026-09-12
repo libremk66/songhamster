@@ -45,11 +45,12 @@ LX Sync Server（歌单数据同步服务 · 下载引擎）
 <table align="center"><tr>
 <td><img src="docs/screenshots/lx-android-favorites.jpg" width="264" alt="落雪安卓端：我收藏的歌单"></td>
 <td><img src="docs/screenshots/sync-arrow.png" width="56" alt="→"></td>
-<td><img src="docs/screenshots/library-favorites.jpg" width="264" alt="音乐库：同步过去的「我喜欢的」"></td>
+<td><img src="docs/screenshots/arrow-music-favorites.jpg" width="264" alt="箭头音乐客户端：同步过去的「我喜欢的」"></td>
 </tr></table>
 
-<p align="center"><sub>左边：落雪安卓端「我的收藏」的 7 首　→　右边：全部自动下载并同步进音乐库的「我喜欢的」<br>
-（歌曲一首不少，封面 / 歌手 / 专辑 / 歌词等标签齐全，文件是无损 FLAC；两边的排序方式不同，故顺序不一致）</sub></p>
+<p align="center"><sub>左边：落雪音乐安卓端「我的收藏」的 7 首　→　右边：全部自动下载并同步进音乐库的「我喜欢的」<br>
+（右边是「<b>箭头音乐</b>」客户端连上媒体服务器后的样子——能连 Emby / 飞牛等的播放器都行；<br>
+歌曲一首不少，封面 / 歌手 / 专辑 / 歌词等标签齐全，文件是无损 FLAC；两边排序方式不同，故顺序不一致）</sub></p>
 
 ## 功能一览
 
