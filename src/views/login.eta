@@ -12,9 +12,11 @@
     :root { --pico-form-element-spacing-vertical: .2rem; --pico-form-element-spacing-horizontal: .4rem; }
     body { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; }
     .login-card { width: 100%; max-width: 360px; }
-    .brand-row { display: flex; align-items: center; gap: .6rem; justify-content: center; margin-bottom: 1rem; }
-    .brand-row img { width: 44px; height: 44px; border-radius: 8px; }
-    .brand-row .t { font-weight: 800; font-size: 1.5rem; }
+    /* 品牌区：图标（放大）→ 标题 → 注释，整块居中（登录卡片的视觉中心） */
+    .brand-stack { display: flex; flex-direction: column; align-items: center; gap: .5rem; margin-bottom: 1.25rem; }
+    .brand-stack img { width: 76px; height: 76px; border-radius: 12px; }
+    .brand-stack .t { font-weight: 800; font-size: 1.65rem; line-height: 1.1; }
+    .brand-stack .s { color: #6b7280; font-size: .95rem; }
     label { margin-bottom: .15rem; }
     input {
       height: 1.45rem !important;
@@ -37,7 +39,11 @@
 </head>
 <body>
   <div class="login-card">
-    <div class="brand-row"><img src="/static/icon.png" alt="logo"><span class="t">SongHamster</span></div>
+    <div class="brand-stack">
+      <img src="/static/icon.png" alt="SongHamster 音乐仓鼠">
+      <div class="t">SongHamster</div>
+      <div class="s">LX 歌单自动同步入库</div>
+    </div>
     <% if (!authEnabled) { %>
       <article style="text-align:center">
         <p>当前未启用账号认证，无需登录即可访问。</p>

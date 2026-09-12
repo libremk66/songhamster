@@ -72,9 +72,11 @@ export const LAYOUT = `<!doctype html>
     aside.sidebar > div:first-child { display: flex; flex-direction: column; flex: 1; min-height: 0; }
     aside.sidebar nav { flex: 1; overflow-y: auto; min-height: 0; }
     @media (min-width: 1024px) { aside.sidebar { display: flex; flex-direction: column; } }
-    aside.sidebar .brand { font-weight: 800; font-size: 1.75rem; line-height: 1.1; margin-bottom: .3rem; display: flex; align-items: center; gap: .5rem; }
-    aside.sidebar .brand img { width: 2.1rem; height: 2.1rem; border-radius: .35em; flex-shrink: 0; }
-    aside.sidebar .brand-sub { font-size: 1.35rem; color: oklch(var(--bc) / 0.6); margin-bottom: 2rem; }
+    /* 品牌区：图标（放大）独占一行 → 标题 → 注释，整块居中 */
+    aside.sidebar .brand { display: flex; flex-direction: column; align-items: center; text-align: center; gap: .4rem; margin-bottom: .4rem; }
+    aside.sidebar .brand img { width: 3.4rem; height: 3.4rem; border-radius: .5em; flex-shrink: 0; }
+    aside.sidebar .brand-title { font-weight: 800; font-size: 1.75rem; line-height: 1.1; }
+    aside.sidebar .brand-sub { font-size: 1.35rem; color: oklch(var(--bc) / 0.6); margin-bottom: 1.6rem; }
     aside.sidebar nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; }
     /* 菜单项=圆角框:悬停浅绿底、选中绿底深字 */
     aside.sidebar nav a {
@@ -316,9 +318,11 @@ export const LAYOUT = `<!doctype html>
       }
       #nav-toggle:checked ~ .mob-backdrop { opacity: 1; pointer-events: auto; }
       #nav-toggle:checked ~ .mob-panel { transform: translateX(0); }
-      .mob-panel .mob-head { display: flex; align-items: center; gap: .5rem; font-weight: 800; font-size: 1.5rem; }
-      .mob-panel .mob-logo { width: 2rem; height: 2rem; border-radius: .35em; }
-      .mob-panel .mob-sub { color: oklch(var(--bc) / .6); font-size: .95rem; margin: .15rem 0 1.4rem; }
+      /* 品牌区：图标（放大）→ 标题 → 注释，整块居中（与侧栏同一套结构） */
+      .mob-panel .mob-head { display: flex; flex-direction: column; align-items: center; text-align: center; gap: .3rem; }
+      .mob-panel .mob-logo { width: 2.6rem; height: 2.6rem; border-radius: .5em; }
+      .mob-panel .mob-title { font-weight: 800; font-size: 1.5rem; line-height: 1.1; }
+      .mob-panel .mob-sub { color: oklch(var(--bc) / .6); font-size: .95rem; margin: 0 0 1.4rem; }
       .mob-panel ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .2rem; overflow-y: auto; }
       .mob-panel ul { gap: .2rem; }
       .mob-panel li a { display: flex; align-items: center; gap: .55rem; padding: .7rem .9rem; font-size: 1.1em; border-radius: .55rem; color: oklch(var(--bc));
@@ -347,8 +351,11 @@ ${ICON_SPRITE}
 
   <aside class="sidebar">
     <div>
-      <div class="brand"><img src="/static/icon.png" alt="logo">SongHamster</div>
-      <div class="brand-sub">LX 歌单自动同步入库</div>
+      <div class="brand">
+        <img src="/static/icon.png" alt="SongHamster 音乐仓鼠">
+        <div class="brand-title">SongHamster</div>
+        <div class="brand-sub">LX 歌单自动同步入库</div>
+      </div>
       <nav>
         <ul>
           <% for (const item of it.nav) { %>
@@ -388,8 +395,11 @@ ${ICON_SPRITE}
 
   <!-- 移动端菜单面板(桌面端 display:none 不渲染影响) -->
   <nav class="mob-panel" aria-label="移动端导航">
-    <div class="mob-head"><img src="/static/icon.png" alt="logo" class="mob-logo">SongHamster</div>
-    <div class="mob-sub">LX 歌单自动同步入库</div>
+    <div class="mob-head">
+      <img src="/static/icon.png" alt="SongHamster 音乐仓鼠" class="mob-logo">
+      <div class="mob-title">SongHamster</div>
+      <div class="mob-sub">LX 歌单自动同步入库</div>
+    </div>
     <ul>
       <% for (const item of it.nav) { %>
         <li><a href="/<%= item.id %>" class="<%= item.id === it.active ? 'active' : '' %>"><% if (NAV_ICON[item.id]) { %><svg aria-hidden="true"><use href="#i-<%= NAV_ICON[item.id] %>"/></svg><% } %><%= item.label %></a></li>
