@@ -6,6 +6,7 @@
 #   sudo bash scripts/release-docker.sh                      # 多架构 linux/amd64 + linux/arm64（默认）
 #   sudo bash scripts/release-docker.sh --single             # 只构建当前机器架构（快，1-2 分钟）
 #   sudo bash scripts/release-docker.sh <dockerhub用户名>     # 换命名空间
+#   sudo bash scripts/release-docker.sh --arch=arm64          # 只重建/重推 arm64（另加 --with-proxy 可注入构建期代理）
 #
 # 首次使用请先登录（密码用 Docker Hub 的 Access Token，不是账号密码）：
 #   sudo docker login -u libremk66
@@ -26,11 +27,13 @@ cd "$(dirname "$0")/.."
 
 SINGLE=""
 ONLY_ARCH=""
+WITH_PROXY=""
 ARGS=()
 for a in "$@"; do
   case "$a" in
     --single) SINGLE=1 ;;
     --arch=*) ONLY_ARCH="${a#--arch=}" ;;
+    --with-proxy) WITH_PROXY=1 ;;
     *) ARGS+=("$a") ;;
   esac
 done
@@ -48,19 +51,28 @@ echo "==> 目标镜像：${IMAGE}:latest 与 ${IMAGE}:${VERSION}"
 CURRENT_STEP="初始化"
 trap 'rc=$?; if [ "$rc" -ne 0 ]; then echo ""; echo "❌ 失败于：${CURRENT_STEP}（退出码 ${rc}）" >&2; echo "   把这段输出发给 AI 即可定位" >&2; fi' EXIT
 
-# 构建期代理：优先取 dockerd 自己配的那个（docker pull 就是靠它通的），
-# 其次取环境变量（sudo 默认会剥掉环境变量，所以 dockerd 那份更可靠）。
-# 注入给 RUN 步骤里的 npm/apt 用；BuildKit 不会把它写进镜像层。
-DAEMON_ENV="$(systemctl show docker --property=Environment 2>/dev/null | sed 's/^Environment=//' || true)"
-PROXY="$(printf '%s\n' "${DAEMON_ENV}" | tr ' ' '\n' | sed -n 's/^\(HTTPS_PROXY\|https_proxy\)=//p' | head -1)"
-[ -z "${PROXY}" ] && PROXY="${HTTPS_PROXY:-${https_proxy:-}}"
+# 构建期代理（默认关闭）：
+# ⚠️ 教训——曾经默认注入 dockerd 的代理，结果 npm ci 直接崩（"Exit handler never called!"）：
+#    dockerd 配的是 127.0.0.1:7897，那是**宿主机**的代理，而 RUN 步骤跑在容器网络里，
+#    容器里的 127.0.0.1 是它自己 → 所有请求指向死地址，重试到崩。
+# npm 直连 registry.npmjs.org 本来就是通的（本地/CI 多次验证），所以默认不注入。
+# 确实需要时加 --with-proxy：把 127.0.0.1 换算成容器可达的网桥网关（如 172.17.0.1）。
 BUILD_PROXY_ARGS=()
-if [ -n "${PROXY}" ]; then
-  BUILD_PROXY_ARGS=(--build-arg "HTTP_PROXY=${PROXY}" --build-arg "HTTPS_PROXY=${PROXY}"
-                    --build-arg "NO_PROXY=localhost,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12")
-  echo "==> 构建期代理：${PROXY}（仅注入 RUN 步骤，不写进镜像）"
-else
-  echo "==> 未检测到代理：构建期直连（apt 走镜像站，通常可行）"
+if [ -n "${WITH_PROXY}" ]; then
+  DAEMON_ENV="$(systemctl show docker --property=Environment 2>/dev/null | sed 's/^Environment=//' || true)"
+  RAW_PROXY="$(printf '%s\n' "${DAEMON_ENV}" | tr ' ' '\n' | sed -n 's/^\(HTTPS_PROXY\|https_proxy\)=//p' | head -1)"
+  [ -z "${RAW_PROXY}" ] && RAW_PROXY="${HTTPS_PROXY:-${https_proxy:-}}"
+  if [ -z "${RAW_PROXY}" ]; then
+    echo "⚠️  --with-proxy：没检测到代理，按直连构建"
+  else
+    GW="$(docker network inspect bridge -f '{{range .IPAM.Config}}{{.Gateway}}{{end}}' 2>/dev/null || echo 172.17.0.1)"
+    PORT="$(printf '%s' "${RAW_PROXY}" | sed -n 's#.*:\([0-9]\+\)/*$#\1#p')"
+    CONTAINER_PROXY="$(printf '%s' "${RAW_PROXY}" | sed "s#127.0.0.1#${GW}#; s#localhost#${GW}#")"
+    [ -z "${PORT}" ] && CONTAINER_PROXY="${RAW_PROXY}"
+    BUILD_PROXY_ARGS=(--build-arg "HTTP_PROXY=${CONTAINER_PROXY}" --build-arg "HTTPS_PROXY=${CONTAINER_PROXY}"
+                      --build-arg "NO_PROXY=localhost,127.0.0.1,${GW},192.168.0.0/16,10.0.0.0/8,172.16.0.0/12")
+    echo "==> 构建期代理：${CONTAINER_PROXY}（宿主机 ${RAW_PROXY} 换算成容器可达地址；仅注入 RUN 步骤，不写进镜像）"
+  fi
 fi
 
 # 1) docker 可用性
