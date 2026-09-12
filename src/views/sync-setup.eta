@@ -529,4 +529,31 @@ function sfPollLive() {
     .catch(function () { /* 网络抖动，下次再试 */ })
 }
 setInterval(sfPollLive, 2500)
+
+// ===== 点「同步」之后盯梢：任务可能不到 1 秒就跑完，2.5 秒的常驻轮询会整个错过 =====
+// 跑起来 → 刷新出「正在运行 + 进度条」；跑完 → 再刷新一次出结果；没赶上运行中 → 1.6 秒后直接刷结果
+var sfWatch = { timer: 0 }
+function sfWatchRun() {
+  clearInterval(sfWatch.timer)
+  var sawRunning = false, n = 0, shown = false
+  var refresh = function () {
+    if (document.querySelector('#task-table .edit-row')) return // 正在编辑时别冲掉表单
+    htmx.ajax('GET', '/api/tasks/table?scope=playlist', { target: '#task-table' })
+  }
+  sfWatch.timer = setInterval(function () {
+    n++
+    if (n > 80) { clearInterval(sfWatch.timer); return } // 兜底约 64 秒
+    fetch('/api/progress/json')
+      .then(function (r) { return r.json() })
+      .then(function (d) {
+        if (d.running) {
+          if (!shown) { shown = true; sawRunning = true; refresh() }
+        } else if (sawRunning || n >= 2) {
+          clearInterval(sfWatch.timer)
+          refresh()
+        }
+      })
+      .catch(function () { /* 网络抖动，下次再试 */ })
+  }, 800)
+}
 </script>

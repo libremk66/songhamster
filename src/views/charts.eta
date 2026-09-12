@@ -344,4 +344,26 @@ function chPollLive() {
     .catch(function () { /* 网络抖动，下次再试 */ })
 }
 setInterval(chPollLive, 2500)
+
+// ===== 点「同步」后盯梢（与歌单同步页同一套）：任务可能不到 1 秒就跑完，2.5 秒轮询会整个错过 =====
+var chWatch = { timer: 0 }
+function chWatchRun() {
+  clearInterval(chWatch.timer)
+  var sawRunning = false, n = 0, shown = false
+  var refresh = function () {
+    if (document.querySelector('#ch-subs-rows .edit-row')) return
+    htmx.ajax('GET', '/api/charts/subs', { target: '#ch-subs-rows' })
+  }
+  chWatch.timer = setInterval(function () {
+    n++
+    if (n > 80) { clearInterval(chWatch.timer); return }
+    fetch('/api/progress/json')
+      .then(function (r) { return r.json() })
+      .then(function (d) {
+        if (d.running) { if (!shown) { shown = true; sawRunning = true; refresh() } }
+        else if (sawRunning || n >= 2) { clearInterval(chWatch.timer); refresh() }
+      })
+      .catch(function () {})
+  }, 800)
+}
 </script>

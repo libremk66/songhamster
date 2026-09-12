@@ -41,7 +41,7 @@
         </td>
         <td class="act">
           <!-- 结果提示直接落在标题旁：引擎的拦截原因（全部暂停/有任务在跑）也会如实显示，不再"一律说已开始" -->
-          <button type="button" class="btn btn-primary btn-xs" hx-post="/api/task/<%= t.id %>/run" hx-target="#ch-list-msg" hx-swap="innerHTML" hx-disabled-elt="this"><svg aria-hidden="true"><use href="#i-play"/></svg>同步</button>
+          <button type="button" class="btn btn-primary btn-xs" hx-post="/api/task/<%= t.id %>/run" hx-target="#ch-list-msg" hx-swap="innerHTML" hx-disabled-elt="this" hx-on::after-request="chWatchRun()"><svg aria-hidden="true"><use href="#i-play"/></svg>同步</button>
           <button type="button" class="btn btn-ghost btn-xs" hx-get="/api/charts/subs/<%= t.id %>/edit" hx-target="closest tr" hx-swap="outerHTML"><svg aria-hidden="true"><use href="#i-pencil"/></svg>编辑</button>
           <button type="button" class="btn btn-ghost btn-xs" hx-post="/api/task/<%= t.id %>/toggle" hx-swap="none" hx-disabled-elt="this" hx-on::after-request="htmx.ajax('GET','/api/charts/subs',{target:'#ch-subs-rows'})"><% if (t.enabled) { %><svg aria-hidden="true"><use href="#i-pause"/></svg>停用<% } else { %><svg aria-hidden="true"><use href="#i-play"/></svg>启用<% } %></button>
           <button type="button" class="btn btn-ghost btn-xs text-error" data-del-task="<%= t.id %>" data-del-name="<%= t.lxPlaylistName %>" data-del-scope="chart" data-del-fdel="<%= fdelOk ? 1 : 0 %>" data-del-ignore="0" onclick="sfOpenDel(this)"><svg aria-hidden="true"><use href="#i-trash"/></svg>删除</button>
