@@ -221,6 +221,9 @@ function chToggleForm() {
   if (f.style.display !== 'none') chfLoadBoards()
 }
 function chFormDone(ev) {
+  // ⚠️ htmx 事件会冒泡：表单里子元素自己发的请求（如"归属用户"下拉加载）也会走到这里。
+  //    不判断 elt 就会被当成"保存成功"，弹出假的"订阅已创建"并刷新列表。
+  if (ev.detail.elt !== ev.currentTarget) return
   var f = document.getElementById('ch-form')
   if (ev.detail.successful) {
     f.style.display = 'none'
@@ -250,6 +253,9 @@ function chMode(suffix) {
   })
 }
 function chEditDone(ev) {
+  // ⚠️ 同上：表单内子元素的请求会冒泡上来。少了这行判断，点「编辑」展开表单时，
+  //    归属用户下拉的加载请求会被当成"保存成功"→ 立刻刷新列表 → 编辑行被冲掉（实测踩到）
+  if (ev.detail.elt !== ev.currentTarget) return
   if (ev.detail.successful) htmx.ajax('GET', '/api/charts/subs', { target: '#ch-subs-rows' })
 }
 // 浏览区"订阅"按钮：滚动到订阅区、展开新建表单并预填该榜单
