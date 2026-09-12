@@ -42,6 +42,15 @@ LX Sync Server（歌单数据同步服务 · 下载引擎）
 
 一句话：**在落雪里"喜欢"的每首歌，最终都会以无损 + 完整标签的形式出现在你的音乐库里。**
 
+<table align="center"><tr>
+<td><img src="docs/screenshots/lx-android-favorites.jpg" width="264" alt="落雪安卓端：我收藏的歌单"></td>
+<td><img src="docs/screenshots/sync-arrow.png" width="56" alt="→"></td>
+<td><img src="docs/screenshots/library-favorites.jpg" width="264" alt="音乐库：同步过去的「我喜欢的」"></td>
+</tr></table>
+
+<p align="center"><sub>左边：落雪安卓端「我的收藏」的 7 首　→　右边：全部自动下载并同步进音乐库的「我喜欢的」<br>
+（歌曲一首不少，封面 / 歌手 / 专辑 / 歌词等标签齐全，文件是无损 FLAC；两边的排序方式不同，故顺序不一致）</sub></p>
+
 ## 功能一览
 
 - **歌单同步**：增量（只增不减）/ 镜像（增删同步、向 LX 看齐）两种模式；每歌单独立 cron 定时；全局单飞 + 批量下载保护（请求节流）防音源限流
