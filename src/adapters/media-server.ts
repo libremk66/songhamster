@@ -63,6 +63,12 @@ export interface MediaServerAdapter {
    * 其他服务器（歌单本就按用户隔离）可忽略该参数。
    */
   listPlaylists(scope?: string): Promise<MediaPlaylist[]>
+  /**
+   * 按**服务器视角的完整路径**精确查条目（Emby/Jellyfin 支持 /Items?Path=）。
+   * 入库定位首选：不受"同名歌太多、搜索结果被截断"影响。不支持则返回 null，调用方回退按歌名搜。
+   */
+  findItemByPath?(serverPath: string): Promise<{ id: string; name: string } | null>
+
   /** 列出服务器用户（Emby/Jellyfin：歌单按用户存，用于"播放列表归属用户"选择器；其他服务器无此概念 → 不实现） */
   listUsers?(): Promise<{ id: string; name: string }[]>
   createPlaylist(name: string, itemIds?: string[]): Promise<{ id: string }>

@@ -35,6 +35,24 @@ export function localizeEmbyPath(cfg: AppConfig, embyPath: string): string | nul
 }
 
 /**
+ * `localizeEmbyPath` 的逆运算：本地路径 → **媒体服务器视角**的路径。
+ * 用途：入库时用「按路径精确查」定位条目（Emby 支持 /Items?Path= ），
+ * 比按歌名搜再过滤可靠得多——常见歌名（如「此刻」）能搜出 55 条同名/含此词的歌，
+ * 目标可能排在几十位之后，按歌名搜的小 limit 根本取不到（实测踩到）。
+ * 不在 downloadRoot 下 / 未配置库根 → null（调用方回退到按歌名搜）。
+ */
+export function toServerPath(cfg: AppConfig, localPath: string): string | null {
+  if (!localPath || !cfg.lxserver.downloadRoot) return null
+  const dl = cfg.lxserver.downloadRoot.replace(/\/+$/, '')
+  const lib = cfg.emby.libraryRoot?.replace(/\/+$/, '')
+  if (!lib) return null
+  if (!localPath.startsWith(dl + '/')) return null
+  let rest = localPath.slice(dl.length) // 形如 /歌单同步/我喜欢的/x.flac
+  if (rest.startsWith('/歌单同步')) rest = rest.slice('/歌单同步'.length)
+  return lib + rest
+}
+
+/**
  * 回收站根目录。改名（SongFerry → SongHamster）兼容：
  * 新目录不存在而老的 `.songferry-trash` 在 → 继续用老目录，绝不会出现"两个回收站各存一半"。
  * 想迁到新名字：把老目录改名成新名字即可（程序下次就用新的）。

@@ -968,9 +968,16 @@ export function apiRouter(
     const item = dbGet('SELECT * FROM history_item WHERE id = ?', [Number(req.params.id)])
     if (!item) return res.status(404).send(err('记录不存在'))
     if (engine.isRunning) return res.send(err('已有任务在运行，稍后再试'))
-    const r = await engine.retrySong(item.taskId, item.songKey)
-    const msg = r === 'success' ? ok('重试成功，已补入库+入歌单') : err(`重试未成功（${r}）`)
-    res.send(`<td colspan="5">${msg}</td>`)
+    // ⚠️ 必须兜住异常：抛 500 时 htmx 不会替换内容，用户点了按钮"毫无反馈"（实测踩到）
+    let msg: string
+    try {
+      const r = await engine.retrySong(item.taskId, item.songKey)
+      msg = r === 'success' ? ok('重试成功，已补入库+入歌单') : err(`重试未成功（${r === 'song-not-in-source' ? '这首歌已不在源歌单/榜单里' : r}）`)
+    } catch (e) {
+      logger.warn(`[retry] 重试失败: ${(e as Error).message}`)
+      msg = err(`重试出错：${escapeHtml((e as Error).message)}`)
+    }
+    res.send(`<td colspan="7">${msg}</td>`)
   })
 
   // ===== 洗版历史（历史页标签） =====

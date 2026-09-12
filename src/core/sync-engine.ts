@@ -10,7 +10,7 @@ import { moveToPlaylistDir, renderFilename } from './file-manager.js'
 import { validateFile, sniffFlacBits } from './validator.js'
 import * as repo from '../store/repo.js'
 import { getDb, taskSemantics } from '../store/db.js'
-import { moveToTrash } from './trash.js'
+import { moveToTrash, toServerPath } from './trash.js'
 import { logger } from './logger.js'
 
 /** checkRun 拦截原因 → 给用户看的话（路由回复 / 日志共用一份，避免两处走样） */
@@ -48,6 +48,8 @@ interface IngestResult extends PendingIngest {
   ok: boolean
   reason?: string
   itemId?: string
+  /** 是否通过"按完整路径精确查"命中（用于轨迹展示） */
+  byPath?: boolean
 }
 
 /** 本次运行里已处理完的一首歌（实时面板的"最近"列表用） */
@@ -515,7 +517,7 @@ export class SyncEngine {
         // 旧实现无条件记 success，会让这类问题永远不被发现
         const embyOk = opts?.skipIngest
           ? true
-          : await this.ensureInEmby(taskId, task, song, undefined, { expectPath: path.basename(existing.filePath) })
+          : await this.ensureInEmby(taskId, task, song, undefined, { expectPath: path.basename(existing.filePath), expectPathFull: existing.filePath })
         // 登记归属：这首歌经本任务加入了目标歌单 → 记 task_song_ref。
         // ⚠️ 缺了它会有两个后果：① 处理2 删文件时 fileRefCount 少算，把别的任务还在用的文件移进回收站；
         //    ② 镜像删除时 hasTaskSongRef 为 false，被当成"非本任务加入"而永远不移除。
@@ -635,7 +637,7 @@ export class SyncEngine {
         // Emby 入库 + 入歌单（手动下载 skipIngest：仅落盘，媒体库扫描自然入库）
         const embyOk = opts?.skipIngest
           ? true
-          : await this.ensureInEmby(taskId, task, song, undefined, { expectPath: path.basename(moved.filePath) })
+          : await this.ensureInEmby(taskId, task, song, undefined, { expectPath: path.basename(moved.filePath), expectPathFull: moved.filePath })
         repo.upsertSongStatus({
           taskId, songKey: song.songKey, songName: song.name, singer: song.singer,
           status: embyOk ? 'success' : 'failed', quality: effectiveQuality,
@@ -674,6 +676,20 @@ export class SyncEngine {
 
     const resolve = async (r: IngestResult): Promise<string | null> => {
       if (r.knownId) return r.knownId
+      // ① 首选：按完整路径精确查（Emby 支持 /Items?Path=）
+      //    按歌名搜不可靠——常见歌名能搜出几十条，目标可能排在 limit 之外（实测：「此刻」55 条、目标第 35 位）
+      if (r.filePath && this.emby.findItemByPath) {
+        const serverPath = toServerPath(this.cfg(), r.filePath)
+        if (serverPath) {
+          try {
+            const hit = await this.emby.findItemByPath(serverPath)
+            if (hit) { r.byPath = true; return hit.id }
+          } catch (e) {
+            logger.warn(`[emby] 按路径查条目失败（回退按歌名搜）: ${(e as Error).message}`)
+          }
+        }
+      }
+      // ② 回退：按歌名搜 + 路径后缀过滤（其他服务器 / 路径映射不可用时）
       const want = r.filePath ? path.basename(r.filePath) : undefined
       const found = await this.emby.findSongWithQuality(r.song.name, r.song.singer, want ? { pathEndsWith: want } : undefined)
       return found ? found.id : null
@@ -686,7 +702,7 @@ export class SyncEngine {
       if (id) {
         r.itemId = id
         r.ok = true
-        if (!r.knownId) r.trace.push('媒体库：按文件路径精确匹配到条目')
+        if (!r.knownId) r.trace.push(r.byPath ? '媒体库：按完整路径精确查到条目' : '媒体库：按歌名搜到条目（路径匹配）')
       } else unresolved.push(r)
     }
 
@@ -772,7 +788,7 @@ export class SyncEngine {
     task: ReturnType<typeof repo.getTask> & {},
     song: LxSong,
     knownId?: string,
-    opts?: { expectPath?: string },
+    opts?: { expectPath?: string; expectPathFull?: string },
   ): Promise<boolean> {
     try {
       const cfg = this.cfg()
@@ -788,7 +804,18 @@ export class SyncEngine {
         //    导致条目 Id 缓存被清空）这里就能秒中。
         //    ⚠️ 原来是无条件"先全库扫描 + 先睡 5 秒再搜"，每首歌白等 5~30 秒：
         //    实测 7 首歌 92 秒里 65 秒耗在这上面（每首歌还顺带触发一次全库刷新）。
-        let found = await this.emby.findSongWithQuality(song.name, song.singer, q)
+        // 先按完整路径精确查（常见歌名按名字搜会搜出一堆、目标可能排在 limit 之外）
+        let found: { id: string } | null = null
+        if (want && this.emby.findItemByPath) {
+          const serverPath = toServerPath(this.cfg(), opts?.expectPathFull ?? '')
+          if (serverPath) {
+            try {
+              const hit = await this.emby.findItemByPath(serverPath)
+              if (hit) found = { id: hit.id }
+            } catch { /* 回退按歌名搜 */ }
+          }
+        }
+        if (!found) found = await this.emby.findSongWithQuality(song.name, song.singer, q)
         if (found) {
           logger.info(`[emby] ${song.name} 直接搜到${want ? '（路径匹配到本任务的文件）' : ''}`)
           this.traceAdd(want ? '媒体库：按文件路径精确匹配到条目' : '媒体库：搜索命中已有条目')
@@ -963,7 +990,11 @@ export class SyncEngine {
     if (this.runningTaskId !== null) return 'skipped-busy'
     const task = repo.getTask(taskId)
     if (!task) return 'task-not-found'
-    const songs = await this.lx.getSongs(task.lxPlaylistKey)
+    // ⚠️ 榜单任务的 key 是 chart:<平台>:<榜单id>，不是歌单 key —— 一律用 getSongs 会抛
+    //    "未知歌单 key"（实测：榜单订阅的歌点重试必然 500）
+    const songs = task.taskType === 'chart'
+      ? await this.lx.getChartSongs(task.chartSource ?? '', task.chartId ?? '')
+      : await this.lx.getSongs(task.lxPlaylistKey)
     const song = songs.find((s) => s.songKey === songKey)
     if (!song) return 'song-not-in-source'
 
@@ -972,14 +1003,19 @@ export class SyncEngine {
     try {
       logger.info(`[engine] 重试 ${song.name} (${songKey})`)
       const outcome = await this.downloadOne(taskId, task, song)
-      const status = outcome.status === 'success' || outcome.status === 'dup' ? 'success' : outcome.status
+      // ⚠️ dup 不等于成功：文件在但入库失败时 reason 会带上原因（旧写法一律当成功 → 假成功提示）
+      const status = outcome.status === 'success'
+        ? 'success'
+        : outcome.status === 'dup'
+          ? (outcome.reason ? 'failed' : 'success')
+          : outcome.status
       repo.insertHistoryItem({
         batchId,
         taskId,
         songKey: song.songKey,
         songName: song.name,
         singer: song.singer,
-        status: outcome.status === 'dup' ? 'skipped_dup' : outcome.status,
+        status: outcome.status === 'dup' ? (outcome.reason ? 'failed' : 'skipped_dup') : outcome.status,
         quality: outcome.quality,
         errorReason: outcome.reason,
         detail: this.trace,
