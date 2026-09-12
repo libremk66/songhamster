@@ -17,7 +17,11 @@ export const VERSION: string = (() => {
 import { fmtLocal } from './fmt.js'
 import { ICON_SPRITE } from './icons-sprite.js'
 
-const eta = new Eta({ views: VIEWS_DIR, cache: true, useWith: true })
+// 模板缓存：生产开（省编译），开发关。
+// ⚠️ 开发时必须关：tsx watch 只监听被 import 的 .ts/.js，**改 .eta 不会触发重启**，
+//    开着缓存的话改了模板页面纹丝不动，看着像"改了没生效"。
+//    生产（Dockerfile 里 ENV NODE_ENV=production）保持缓存。
+const eta = new Eta({ views: VIEWS_DIR, cache: process.env.NODE_ENV === 'production', useWith: true })
 // eta v4：resolvePath/readFile 是实例属性（配置后 render('file.eta') 按文件名读模板）
 eta.resolvePath = (tpl: string) => (path.isAbsolute(tpl) ? tpl : path.join(VIEWS_DIR, tpl))
 eta.readFile = (p: string) => readFileSync(p, 'utf8')
