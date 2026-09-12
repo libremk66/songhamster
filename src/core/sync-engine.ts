@@ -27,6 +27,29 @@ export interface EngineEvents {
   'batch-finish': (taskId: number, batchId: number, result: string) => void
 }
 
+/** 下载/复用完成、待统一入库的一首歌 */
+interface PendingIngest {
+  song: LxSong
+  /** 下载阶段的结果（入库后可能降级为 failed） */
+  status: 'success' | 'dup' | 'dedup'
+  quality?: string
+  /** 文件路径（用于"只认我们自己那份"的路径匹配） */
+  filePath?: string
+  /** 查重命中：媒体库里已知的条目 id */
+  knownId?: string
+  /** 复用文件的登记 id（入库成功后补记任务归属） */
+  fileId?: number
+  /** 处理轨迹（下载阶段） */
+  trace: string[]
+}
+
+/** 入库阶段的结果 */
+interface IngestResult extends PendingIngest {
+  ok: boolean
+  reason?: string
+  itemId?: string
+}
+
 /** 本次运行里已处理完的一首歌（实时面板的"最近"列表用） */
 export interface LiveSong {
   songKey: string
@@ -293,8 +316,9 @@ export class SyncEngine {
         this.liveSet({ removed: r.removed })
       }
 
-      // 逐歌下载（批量下载保护：每首结束后等待间隔，防音源限流）
+      // ── 阶段1：逐歌下载（**不碰媒体库**，只把文件备好；批量下载保护：每首结束后等待间隔）──
       const prot = this.cfg().download.protection
+      const pending: PendingIngest[] = []
       for (let idx = 0; idx < toDownload.length; idx++) {
         const song = toDownload[idx]
         this.liveSet({ index: idx + 1, total: toDownload.length, phase: '解析直链', current: { name: song.name, singer: song.singer } })
@@ -317,55 +341,73 @@ export class SyncEngine {
         }
         if (dedupHit) {
           dedupCount++
-          const okAdd = await this.ensureInEmby(taskId, task, song, dedupHit.id)
-          repo.upsertSongStatus({
-            taskId, songKey: song.songKey, songName: song.name, singer: song.singer,
-            status: okAdd ? 'dedup' : 'failed', quality: dedupHit.quality ?? undefined,
-            errorReason: okAdd ? undefined : '查重命中但加入歌单失败',
+          pending.push({
+            song, status: 'dedup', knownId: dedupHit.id, quality: dedupHit.quality ?? undefined,
+            trace: [`查重：库里已有《${dedupHit.quality ?? '同曲'}》→ 不重复下载`],
           })
-          repo.insertHistoryItem({
-            batchId, taskId, songKey: song.songKey, songName: song.name, singer: song.singer,
-            status: okAdd ? 'dedup' : 'failed', quality: dedupHit.quality ?? undefined,
-            errorReason: okAdd ? undefined : '查重命中但加入歌单失败',
-            detail: [`查重：库里已有《${dedupHit.quality ?? '同曲'}》→ 不重复下载`, okAdd ? '已加入歌单' : '加入歌单失败'],
-          })
-          this.emit('song-status', taskId, {
-            songKey: song.songKey, songName: song.name, status: okAdd ? 'dedup' : 'failed',
-            quality: dedupHit.quality ?? undefined, errorReason: okAdd ? undefined : '查重命中但加入歌单失败',
-          })
-          this.liveCount(okAdd ? 'dedup' : 'failed')
-          this.livePush({ songKey: song.songKey, name: song.name, singer: song.singer, status: okAdd ? 'dedup' : 'failed', quality: dedupHit.quality ?? undefined, reason: okAdd ? undefined : '查重命中但加入歌单失败' })
+          this.liveCount('dedup')
+          this.livePush({ songKey: song.songKey, name: song.name, singer: song.singer, status: 'dedup', quality: dedupHit.quality ?? undefined })
           continue
         }
-        const outcome = await this.downloadOne(taskId, task, song)
+        const outcome = await this.downloadOne(taskId, task, song, { deferIngest: true })
         this.liveCount(outcome.status)
         this.livePush({ songKey: song.songKey, name: song.name, singer: song.singer, status: outcome.status, quality: outcome.quality, reason: outcome.reason })
-        if (outcome.status === 'success') okCount++
-        else if (outcome.status === 'dup') dupCount++
-        else if (outcome.status === 'unsatisfied') unsatisfiedCount++
-        else failCount++
+        if (outcome.status === 'success' || outcome.status === 'dup') {
+          if (outcome.status === 'success') okCount++
+          else dupCount++
+          pending.push({
+            song, status: outcome.status, quality: outcome.quality,
+            filePath: outcome.filePath, fileId: outcome.fileId, trace: this.trace,
+          })
+        } else {
+          // 下载失败/各档位都不满足：不需要入库，直接落历史
+          if (outcome.status === 'unsatisfied') unsatisfiedCount++
+          else failCount++
+          repo.insertHistoryItem({
+            batchId, taskId, songKey: song.songKey, songName: song.name, singer: song.singer,
+            status: outcome.status, quality: outcome.quality, detail: this.trace, errorReason: outcome.reason,
+          })
+          this.emit('song-status', taskId, {
+            songKey: song.songKey, songName: song.name, status: outcome.status,
+            quality: outcome.quality, errorReason: outcome.reason,
+          })
+        }
         // 只有真请求过音源的歌才节流（防音源限流）；"已下载跳过"没碰音源，不睡
         if (prot?.enabled && prot.downloadIntervalSec > 0 && this.sourceHit && idx < toDownload.length - 1) {
           await sleep(prot.downloadIntervalSec * 1000)
         }
-        repo.insertHistoryItem({
-          batchId,
-          taskId,
-          songKey: song.songKey,
-          songName: song.name,
-          singer: song.singer,
-          status: outcome.status === 'dup' ? 'skipped_dup' : outcome.status,
-          quality: outcome.quality,
-          detail: this.trace,
-          errorReason: outcome.reason,
-        })
-        this.emit('song-status', taskId, {
-          songKey: song.songKey,
-          songName: song.name,
-          status: outcome.status,
-          quality: outcome.quality,
-          errorReason: outcome.reason,
-        })
+      }
+
+      // ── 阶段2：批量入库（此时本次所有文件都已落盘 → 一次扫描即可全部索引到）──
+      if (pending.length) {
+        const ingested = await this.ingestPending(taskId, task, pending)
+        for (const r of ingested) {
+          if (!r.ok) {
+            // 入库失败的，从原计数挪到失败
+            if (r.status === 'dedup') dedupCount--
+            else if (r.status === 'dup') dupCount--
+            else okCount--
+            failCount++
+          }
+          const histStatus = !r.ok ? 'failed' : r.status === 'dup' ? 'skipped_dup' : r.status
+          const taskStatus = !r.ok ? 'failed' : r.status === 'dedup' ? 'dedup' : 'success'
+          repo.upsertSongStatus({
+            taskId, songKey: r.song.songKey, songName: r.song.name, singer: r.song.singer,
+            status: taskStatus, quality: r.quality, errorReason: r.ok ? undefined : (r.reason ?? 'Emby 入库失败'),
+          })
+          repo.insertHistoryItem({
+            batchId, taskId, songKey: r.song.songKey, songName: r.song.name, singer: r.song.singer,
+            status: histStatus, quality: r.quality, detail: r.trace,
+            errorReason: r.ok ? undefined : (r.reason ?? 'Emby 入库失败'),
+          })
+          if (r.ok && r.fileId) repo.refTaskFile(taskId, r.song.songKey, r.fileId)
+          this.emit('song-status', taskId, {
+            songKey: r.song.songKey, songName: r.song.name, status: histStatus,
+            quality: r.quality, errorReason: r.ok ? undefined : (r.reason ?? 'Emby 入库失败'),
+          })
+        }
+        // 实时面板的计数按最终结果校正（下载阶段是乐观计数）
+        this.liveSet({ ok: okCount + dupCount, fail: failCount, unsat: unsatisfiedCount, dedup: dedupCount })
       }
 
       const result = failCount > 0 || unsatisfiedCount > 0 ? (okCount > 0 ? 'partial' : 'failed') : 'success'
@@ -441,8 +483,8 @@ export class SyncEngine {
     taskId: number,
     task: ReturnType<typeof repo.getTask> & {},
     song: LxSong,
-    opts?: { dirName?: string; absoluteDir?: string; skipIngest?: boolean },
-  ): Promise<{ status: 'success' | 'failed' | 'unsatisfied' | 'dup'; quality?: string; reason?: string }> {
+    opts?: { dirName?: string; absoluteDir?: string; skipIngest?: boolean; deferIngest?: boolean },
+  ): Promise<{ status: 'success' | 'failed' | 'unsatisfied' | 'dup'; quality?: string; reason?: string; filePath?: string; fileId?: number }> {
     this.sourceHit = false // 本首歌是否请求过音源（节流判定用）
     this.trace = []        // 本首歌的处理轨迹
     const cfg = this.cfg()
@@ -465,6 +507,10 @@ export class SyncEngine {
       }
       if (existing && existsSync(existing.filePath)) {
         this.traceAdd(`查库：本地已有《${existing.quality}》→ 复用文件（不重新下载）`)
+        if (opts?.deferIngest) {
+          // 批量入库模式：这里只负责"文件已就绪"，入库/入歌单统一放到阶段2
+          return { status: 'dup', quality: existing.quality, filePath: existing.filePath, fileId: existing.id }
+        }
         // 入库结果如实上报：文件在但入不了库（比如媒体库里已无此条目）应记 failed 以便下次重试，
         // 旧实现无条件记 success，会让这类问题永远不被发现
         const embyOk = opts?.skipIngest
@@ -569,6 +615,10 @@ export class SyncEngine {
         repo.refTaskFile(taskId, song.songKey, fileId)
         this.traceAdd(`已下载并收录为《${effectiveQuality}》→ ${path.basename(moved.filePath)}`)
         this.liveSet({ phase: '写入媒体库', current: { name: song.name, singer: song.singer, quality: effectiveQuality } })
+        if (opts?.deferIngest) {
+          // 批量入库模式：入库/入歌单统一放到阶段2（文件刚落盘，此时扫描才能一并索引到）
+          return { status: 'success', quality: effectiveQuality, filePath: moved.filePath, fileId }
+        }
         // Emby 入库 + 入歌单（手动下载 skipIngest：仅落盘，媒体库扫描自然入库）
         const embyOk = opts?.skipIngest
           ? true
@@ -591,6 +641,118 @@ export class SyncEngine {
   }
 
   /** Emby 侧：加入目标歌单（含同名创建）。knownId 提供时（查重命中）跳过扫描直接入歌单 */
+  /**
+   * 批量入库：把「下载/复用完成的歌」集中处理。
+   *
+   * 为什么集中：Emby 的媒体库扫描是**异步**的，扫描开始时还没落盘的文件不在其范围内。
+   * 逐首歌"下载→扫描→等 30 秒"的做法，除了第一首，后面每首都注定等不到（实测：
+   * 9 首歌跑了 9 分钟、6 首白等 30 秒后判失败）。集中之后：
+   *   ① 先逐首解析（已入库的、查重命中的秒中）
+   *   ② 剩下的**此时才触发一次扫描**（所有文件都已落盘）→ 共享轮询等待
+   *   ③ 按目标歌单**批量**加入（原来每首歌都单独调一次 API）
+   */
+  private async ingestPending(
+    taskId: number,
+    task: NonNullable<ReturnType<typeof repo.getTask>>,
+    pending: PendingIngest[],
+  ): Promise<IngestResult[]> {
+    const results: IngestResult[] = pending.map((p) => ({ ...p, ok: false, trace: [...p.trace] }))
+
+    const resolve = async (r: IngestResult): Promise<string | null> => {
+      if (r.knownId) return r.knownId
+      const want = r.filePath ? path.basename(r.filePath) : undefined
+      const found = await this.emby.findSongWithQuality(r.song.name, r.song.singer, want ? { pathEndsWith: want } : undefined)
+      return found ? found.id : null
+    }
+
+    // ① 先逐首解析（dup / 查重命中的通常秒中）
+    const unresolved: IngestResult[] = []
+    for (const r of results) {
+      const id = await resolve(r)
+      if (id) {
+        r.itemId = id
+        r.ok = true
+        if (!r.knownId) r.trace.push('媒体库：按文件路径精确匹配到条目')
+      } else unresolved.push(r)
+    }
+
+    // ② 仍未解析到的（本次新下载的）→ 一次扫描 + 共享轮询
+    if (unresolved.length) {
+      const libraryId = (await this.emby.resolveLibraryId()) ?? undefined
+      if (!libraryId) {
+        logger.warn('[emby] 未找到匹配媒体库，跳过入库')
+      } else {
+        await this.scanLibraryOnce(libraryId)
+        const ROUNDS = 18 // 最多等 3 分钟（每轮 10 秒）
+        for (let round = 0; round < ROUNDS && unresolved.some((r) => !r.ok); round++) {
+          this.liveSet({ phase: `等待媒体库索引（${unresolved.filter((r) => r.ok).length}/${unresolved.length}）`, current: null })
+          await sleep(10000)
+          for (const r of unresolved) {
+            if (r.ok) continue
+            const id = await resolve(r)
+            if (id) {
+              r.itemId = id
+              r.ok = true
+              r.trace.push('媒体库：扫描索引后找到条目')
+            }
+          }
+        }
+        this.liveSet({ phase: `等待媒体库索引（${unresolved.filter((r) => r.ok).length}/${unresolved.length}）`, current: null })
+      }
+    }
+
+    // ③ 按目标歌单批量加入
+    const ready = results.filter((r) => r.ok)
+    if (ready.length) await this.addAllToPlaylists(task, ready)
+
+    // ④ 收尾：把没解析到的标失败
+    for (const r of results) {
+      if (!r.ok) {
+        r.reason = 'Emby 入库失败'
+        r.trace.push('媒体库：等待超时仍未索引到条目 → 入库失败')
+      } else if (!r.itemId) {
+        r.ok = false
+        r.reason = r.reason ?? '加入歌单失败'
+      }
+    }
+    return results
+  }
+
+  /** 把一批已解析到条目的歌，按目标歌单分组批量加入（每首歌记一条轨迹） */
+  private async addAllToPlaylists(task: NonNullable<ReturnType<typeof repo.getTask>>, songs: IngestResult[]): Promise<void> {
+    if (this.emby.kind === 'daoliyu') {
+      for (const s of songs) s.trace.push('入库：目录驱动（落盘即入库，无需加入歌单）')
+      return
+    }
+    const scope = this.scopeOf(task)
+    const targets: { pid: string; label: string }[] = []
+    for (const pid of new Set(task.embyTargetPlaylistIdsParsed)) targets.push({ pid, label: '（已有歌单）' })
+    if (task.createSameNamePlaylist) {
+      const same = await this.findPlaylistByName(task.lxPlaylistName, scope)
+      if (same) targets.push({ pid: same.id, label: `「${task.lxPlaylistName}」` })
+      else {
+        const np = await this.emby.createPlaylist(task.lxPlaylistName)
+        this.playlistCache.get(scope)?.push({ id: np.id, name: task.lxPlaylistName })
+        targets.push({ pid: np.id, label: `「${task.lxPlaylistName}」(新建)` })
+      }
+    }
+    if (!targets.length) {
+      for (const s of songs) s.trace.push('入库：未启用任何目标歌单')
+      return
+    }
+    for (const t of targets) {
+      const ids = songs.filter((s) => s.ok && s.itemId).map((s) => s.itemId!)
+      if (!ids.length) continue
+      try {
+        await this.emby.addItems(t.pid, ids)
+        for (const s of songs) if (s.ok) s.trace.push(`加入歌单${t.label}`)
+      } catch (e) {
+        logger.warn(`[emby] 批量加入歌单失败: ${(e as Error).message}`)
+        for (const s of songs) if (s.ok) { s.ok = false; s.reason = `加入歌单失败：${(e as Error).message}` }
+      }
+    }
+  }
+
   private async ensureInEmby(
     taskId: number,
     task: ReturnType<typeof repo.getTask> & {},
