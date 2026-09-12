@@ -158,10 +158,20 @@ export class SubsonicAdapter implements MediaServerAdapter {
     return x.normalize('NFKC').replace(/\s+/g, '').toLowerCase()
   }
 
-  private async pickSong(title: string, artist?: string): Promise<MediaSong | null> {
-    const xml = await this.request('search3', { query: title, songCount: 20, artistCount: 0, albumCount: 0 })
-    const list = this.tags(xml, 'song').map((a) => this.toSong(a))
+  private async pickSong(title: string, artist?: string, pathEndsWith?: string): Promise<MediaSong | null> {
+    const xml = await this.request('search3', { query: title, songCount: 100, artistCount: 0, albumCount: 0 })
+    let list = this.tags(xml, 'song').map((a) => this.toSong(a))
     if (!list.length) return null
+    // 只认"我们自己那份文件"（同 Navidrome）——但**仅在服务器确实返回 path 时才过滤**：
+    // Subsonic 协议不保证给 path（本适配器 toSong 就写空），若无脑过滤会把结果全滤空、
+    // 导致入库全失败。所以给不出 path 就退回"按歌名+歌手"的老行为。
+    if (pathEndsWith) {
+      const withPath = list.filter((s) => s.path.length > 0)
+      if (withPath.length) {
+        list = withPath.filter((s) => s.path.endsWith(pathEndsWith))
+        if (!list.length) return null
+      }
+    }
     if (!artist) return list[0]
     const a = this.norm(artist)
     return (
@@ -171,9 +181,8 @@ export class SubsonicAdapter implements MediaServerAdapter {
     )
   }
 
-  async findSongWithQuality(title: string, artist?: string, _opts?: { pathEndsWith?: string }): Promise<FoundSong | null> {
-    // 路径匹配暂未实现（接口约定见 media-server.ts）：忽略 _opts，行为与之前一致
-    const hit = await this.pickSong(title, artist)
+  async findSongWithQuality(title: string, artist?: string, opts?: { pathEndsWith?: string }): Promise<FoundSong | null> {
+    const hit = await this.pickSong(title, artist, opts?.pathEndsWith)
     return hit ? { id: hit.id, name: hit.name, artists: hit.artists, quality: hit.quality } : null
   }
 

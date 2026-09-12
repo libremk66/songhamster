@@ -173,10 +173,16 @@ export class NavidromeAdapter implements MediaServerAdapter {
   }
 
   /** title LIKE 粗查 → artist 归一精确匹配（退化包含匹配）→ 退化第一条 */
-  private async pickSong(title: string, artist?: string): Promise<MediaSong | null> {
+  private async pickSong(title: string, artist?: string, pathEndsWith?: string): Promise<MediaSong | null> {
     const data = await this.request(`/api/song?${new URLSearchParams({ title })}`)
-    const list: any[] = Array.isArray(data) ? data : []
+    let list: any[] = Array.isArray(data) ? data : []
     if (!list.length) return null
+    // 只认"我们自己那份文件"：给了 pathEndsWith 就只留路径匹配的（找不到返回 null，
+    // 绝不退而求其次拿同名副本 —— 否则歌单会挂到别人的文件上）
+    if (pathEndsWith) {
+      list = list.filter((s) => String(s.path ?? '').endsWith(pathEndsWith))
+      if (!list.length) return null
+    }
     if (!artist) return this.toSong(list[0])
     const a = this.norm(artist)
     const hit =
@@ -186,9 +192,23 @@ export class NavidromeAdapter implements MediaServerAdapter {
     return this.toSong(hit)
   }
 
-  async findSongWithQuality(title: string, artist?: string, _opts?: { pathEndsWith?: string }): Promise<FoundSong | null> {
-    // 路径匹配暂未实现（接口约定见 media-server.ts）：忽略 _opts，行为与之前一致
-    const hit = await this.pickSong(title, artist)
+  /**
+   * 按本地路径精确查条目。Navidrome 的 path 是**相对媒体库根**的写法
+   * （如 `歌单同步/华语/x.flac`），所以用 downloadRoot 求相对路径即可。
+   * 实测 `/api/song?path=` 精确返回 1 条 —— 比按歌名搜可靠（同名歌多时搜不到目标）。
+   */
+  async findItemByPath(localPath: string): Promise<{ id: string; name: string } | null> {
+    const dl = this.cfg().lxserver.downloadRoot?.replace(/\/+$/, '')
+    if (!dl || !localPath.startsWith(dl + '/')) return null
+    const rel = localPath.slice(dl.length + 1)
+    const d = await this.request(`/api/song?path=${encodeURIComponent(rel)}`)
+    // 同样校验路径（防御：宁可不匹配，也不能认错歌）
+    const hit = (Array.isArray(d) ? d : []).find((x: { path?: string }) => String(x.path ?? '').endsWith(rel))
+    return hit ? { id: String(hit.id), name: String(hit.title ?? hit.name ?? '') } : null
+  }
+
+  async findSongWithQuality(title: string, artist?: string, opts?: { pathEndsWith?: string }): Promise<FoundSong | null> {
+    const hit = await this.pickSong(title, artist, opts?.pathEndsWith)
     return hit ? { id: hit.id, name: hit.name, artists: hit.artists, quality: hit.quality } : null
   }
 

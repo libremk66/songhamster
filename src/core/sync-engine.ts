@@ -10,7 +10,7 @@ import { moveToPlaylistDir, renderFilename } from './file-manager.js'
 import { validateFile, sniffFlacBits } from './validator.js'
 import * as repo from '../store/repo.js'
 import { getDb, taskSemantics } from '../store/db.js'
-import { moveToTrash, toServerPath } from './trash.js'
+import { moveToTrash } from './trash.js'
 import { logger } from './logger.js'
 
 /** checkRun 拦截原因 → 给用户看的话（路由回复 / 日志共用一份，避免两处走样） */
@@ -682,14 +682,11 @@ export class SyncEngine {
       // ① 首选：按完整路径精确查（Emby 支持 /Items?Path=）
       //    按歌名搜不可靠——常见歌名能搜出几十条，目标可能排在 limit 之外（实测：「此刻」55 条、目标第 35 位）
       if (r.filePath && this.emby.findItemByPath) {
-        const serverPath = toServerPath(this.cfg(), r.filePath)
-        if (serverPath) {
-          try {
-            const hit = await this.emby.findItemByPath(serverPath)
-            if (hit) { r.byPath = true; return hit.id }
-          } catch (e) {
-            logger.warn(`[emby] 按路径查条目失败（回退按歌名搜）: ${(e as Error).message}`)
-          }
+        try {
+          const hit = await this.emby.findItemByPath(r.filePath)   // 传本地路径，适配器自己换算成服务器视角
+          if (hit) { r.byPath = true; return hit.id }
+        } catch (e) {
+          logger.warn(`[media] 按路径查条目失败（回退按歌名搜）: ${(e as Error).message}`)
         }
       }
       // ② 回退：按歌名搜 + 路径后缀过滤（其他服务器 / 路径映射不可用时）
@@ -825,14 +822,11 @@ export class SyncEngine {
         //    实测 7 首歌 92 秒里 65 秒耗在这上面（每首歌还顺带触发一次全库刷新）。
         // 先按完整路径精确查（常见歌名按名字搜会搜出一堆、目标可能排在 limit 之外）
         let found: { id: string } | null = null
-        if (want && this.emby.findItemByPath) {
-          const serverPath = toServerPath(this.cfg(), opts?.expectPathFull ?? '')
-          if (serverPath) {
-            try {
-              const hit = await this.emby.findItemByPath(serverPath)
-              if (hit) found = { id: hit.id }
-            } catch { /* 回退按歌名搜 */ }
-          }
+        if (want && this.emby.findItemByPath && opts?.expectPathFull) {
+          try {
+            const hit = await this.emby.findItemByPath(opts.expectPathFull)
+            if (hit) found = { id: hit.id }
+          } catch { /* 回退按歌名搜 */ }
         }
         if (!found) found = await this.emby.findSongWithQuality(song.name, song.singer, q)
         if (found) {
@@ -1136,10 +1130,9 @@ export class SyncEngine {
       let itemId = repo.getEmbyMap(songKey)?.embySongId ?? null
       if (!itemId) {
         for (const f of repo.listFilesForSong(songKey)) {
-          const sp = toServerPath(cfg, f.filePath)
-          if (!sp || !this.emby.findItemByPath) continue
+          if (!this.emby.findItemByPath) break
           try {
-            const hit = await this.emby.findItemByPath(sp)
+            const hit = await this.emby.findItemByPath(f.filePath)
             if (hit) { itemId = hit.id; repo.setEmbyMap(songKey, hit.id); steps.push('媒体库：按文件路径定位到条目'); break }
           } catch { /* 换下一个文件试 */ }
         }

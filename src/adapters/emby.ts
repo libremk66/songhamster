@@ -1,4 +1,6 @@
+import path from 'node:path'
 import type { AppConfig } from '../config.js'
+import { toServerPath } from '../core/paths.js'
 import type {
   FoundSong,
   MediaLibrary,
@@ -125,11 +127,19 @@ export class EmbyAdapter implements MediaServerAdapter {
    * 按完整路径精确查条目。实测：/Items?Path=<完整路径> 精确返回 1 条，
    * 而按歌名搜「此刻」会返回 55 条、目标排第 35 位（limit 10 根本取不到）。
    */
-  async findItemByPath(serverPath: string): Promise<{ id: string; name: string } | null> {
-    const qs = new URLSearchParams({ IncludeItemTypes: 'Audio', Recursive: 'true', Limit: '5', Fields: 'Path', Path: serverPath })
+  async findItemByPath(localPath: string): Promise<{ id: string; name: string } | null> {
+    const serverPath = toServerPath(this.cfg(), localPath)
+    if (!serverPath) return null
+    const qs = new URLSearchParams({ IncludeItemTypes: 'Audio', Recursive: 'true', Limit: '20', Fields: 'Path', Path: serverPath })
     const d = await this.request(`/Items?${qs}`)
-    const it = (d?.Items ?? [])[0]
-    return it ? { id: String(it.Id), name: String(it.Name) } : null
+    // ⚠️ 必须校验返回条目的路径真的是它：Jellyfin 对 Path 参数**不是精确匹配**
+    //    （实测：查 "终于明白" 却返回了别的歌）—— 盲取第 0 条会把错误歌曲加进歌单
+    const want = path.basename(serverPath)
+    for (const it of (d?.Items ?? []) as { Id: string; Name: string; Path?: string }[]) {
+      const got = String(it.Path ?? '')
+      if (got === serverPath || got.endsWith('/' + want)) return { id: String(it.Id), name: String(it.Name) }
+    }
+    return null
   }
 
   /** 服务器用户列表（"播放列表归属用户"选择器用） */
@@ -190,7 +200,7 @@ export class EmbyAdapter implements MediaServerAdapter {
       SearchTerm: title,
       IncludeItemTypes: 'Audio',
       Recursive: 'true',
-      Limit: '10',
+      Limit: '100',   // 调大：兜底按歌名搜时，常见歌名（如「此刻」）能搜出几十条，10 条取不到目标
       Fields: 'MediaSources',
     })
     const data = await this.request(`/Items?${qs}`)
