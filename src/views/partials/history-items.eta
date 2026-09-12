@@ -1,7 +1,7 @@
 <div class="overflow-x-auto mt-1">
 <table class="table table-sm w-full text-sm">
   <thead>
-    <tr class="c-sub"><th class="w-8"></th><th>歌曲</th><th>状态</th><th>音质</th><th>原因</th><th></th></tr>
+    <tr class="c-sub"><th class="w-8"></th><th>歌曲</th><th>状态</th><th>音质</th><th>处理过程</th><th>原因</th><th></th></tr>
   </thead>
   <tbody>
     <% for (const it of items) { %>
@@ -17,6 +17,20 @@
         <% } else { %><span class="st-bad">❌ 失败</span><% } %>
       </td>
       <td><%= it.quality ?? '—' %></td>
+      <td>
+        <%
+          // 处理轨迹（查库/尝试档位/下载/入库/入歌单…）：JSON 数组，逐条列出
+          let steps = []
+          try { steps = it.detail ? JSON.parse(it.detail) : [] } catch { steps = [] }
+        %>
+        <% if (steps.length) { %>
+        <div class="space-y-0.5">
+          <% for (const st of steps) { %>
+          <div class="text-xs" style="white-space:normal"><span class="c-sub">·</span> <%= st %></div>
+          <% } %>
+        </div>
+        <% } else { %><small class="c-sub">—</small><% } %>
+      </td>
       <td><small class="c-sub"><%= it.errorReason ?? '' %></small></td>
       <td>
         <% if (it.status === 'failed' || it.status === 'unsatisfied') { %>

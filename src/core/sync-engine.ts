@@ -82,6 +82,15 @@ export class SyncEngine {
   private scannedLibs = new Set<string>()
 
   /**
+   * 当前这首歌的处理轨迹（查库 / 尝试档位 / 下载 / 校验 / 入库 / 入歌单…）。
+   * 写进 history_item.detail —— 只记"成功/跳过"时用户根本看不出歌是怎么处理的。
+   */
+  private trace: string[] = []
+  private traceAdd(step: string): void {
+    if (this.trace.length < 12) this.trace.push(step)
+  }
+
+  /**
    * 当前这首歌是否真的请求过音源（解析直链/下载）。
    * 批量下载保护的节流只为"防音源限流"而存在，所以"已下载跳过"这类
    * 没碰音源的歌不该跟着睡 —— 否则换过同步目标后每首歌白等一个间隔。
@@ -278,7 +287,7 @@ export class SyncEngine {
       let archiveDegraded: string | null = null
       if (toRemove.length > 0) {
         this.liveSet({ phase: '处理移除（镜像删除）', current: null })
-        const r = await this.removeSongs(taskId, task, toRemove, sem)
+        const r = await this.removeSongs(taskId, task, toRemove, sem, batchId)
         removedCount = r.removed
         archiveDegraded = r.archiveDegraded
         this.liveSet({ removed: r.removed })
@@ -318,6 +327,7 @@ export class SyncEngine {
             batchId, taskId, songKey: song.songKey, songName: song.name, singer: song.singer,
             status: okAdd ? 'dedup' : 'failed', quality: dedupHit.quality ?? undefined,
             errorReason: okAdd ? undefined : '查重命中但加入歌单失败',
+            detail: [`查重：库里已有《${dedupHit.quality ?? '同曲'}》→ 不重复下载`, okAdd ? '已加入歌单' : '加入歌单失败'],
           })
           this.emit('song-status', taskId, {
             songKey: song.songKey, songName: song.name, status: okAdd ? 'dedup' : 'failed',
@@ -346,6 +356,7 @@ export class SyncEngine {
           singer: song.singer,
           status: outcome.status === 'dup' ? 'skipped_dup' : outcome.status,
           quality: outcome.quality,
+          detail: this.trace,
           errorReason: outcome.reason,
         })
         this.emit('song-status', taskId, {
@@ -369,7 +380,14 @@ export class SyncEngine {
         removedCount,
         dupCount,
         dedupCount,
-        ...(archiveDegraded ? { detail: `归档歌单「${archiveDegraded}」不存在 → 已降级为保留文件(未重建)` } : {}),
+        detail: [
+          // 批次级摘要：让"什么都没做"的运行也有话可说（原来 detail 为 null → 历史里是条空记录）
+          archiveDegraded ? `归档歌单「${archiveDegraded}」不存在 → 已降级为保留文件(未重建)` : '',
+          toDownload.length === 0 && toRemove.length === 0
+            ? `${isChart ? '榜单' : '源歌单'} ${songs.length} 首 · 本次无待处理（均已同步过，无需下载也无需移除）`
+            : '',
+          toRemove.length && removedCount === 0 ? `待移除 ${toRemove.length} 首，实际未移除（见下方明细）` : '',
+        ].filter(Boolean).join(' ｜ ') || null,
       })
       repo.updateTask(taskId, {
         lastRunAt: new Date().toISOString(),
@@ -423,6 +441,7 @@ export class SyncEngine {
     opts?: { dirName?: string; absoluteDir?: string; skipIngest?: boolean },
   ): Promise<{ status: 'success' | 'failed' | 'unsatisfied' | 'dup'; quality?: string; reason?: string }> {
     this.sourceHit = false // 本首歌是否请求过音源（节流判定用）
+    this.trace = []        // 本首歌的处理轨迹
     const cfg = this.cfg()
     // 尝试链 = 勾选档 ∩ 该歌实际可用档（types 未声明的不白试）；裁剪为空则退回全勾选
     let qualities = cfg.download.qualities
@@ -439,8 +458,10 @@ export class SyncEngine {
       const existing = repo.findSongFile(song.songKey, quality)
       if (existing && !existsSync(existing.filePath)) {
         logger.warn(`[engine] ${song.name} [${quality}] 有登记但文件已不在磁盘（${existing.filePath}）→ 按需重新下载`)
+        this.traceAdd(`查库：登记有《${quality}》但文件已不在磁盘 → 重新下载`)
       }
       if (existing && existsSync(existing.filePath)) {
+        this.traceAdd(`查库：本地已有《${existing.quality}》→ 复用文件（不重新下载）`)
         // 入库结果如实上报：文件在但入不了库（比如媒体库里已无此条目）应记 failed 以便下次重试，
         // 旧实现无条件记 success，会让这类问题永远不被发现
         const embyOk = opts?.skipIngest
@@ -458,6 +479,7 @@ export class SyncEngine {
         return { status: 'dup', quality: existing.quality, reason: embyOk ? undefined : '文件已在库但入库失败' }
       }
       logger.info(`[engine] 下载 ${song.name} [${quality}]`)
+      this.traceAdd(`解析直链：${quality}`)
 
       try {
         this.liveSet({ phase: '解析直链', current: { name: song.name, singer: song.singer, quality } })
@@ -496,6 +518,7 @@ export class SyncEngine {
           if (sniff.isFlac && sniff.bits > 0) {
             if (sniff.bits < 24) {
               logger.warn(`[engine] ${song.name} 请求 ${quality} 实得 ${sniff.bits}bit，降级为 flac 收录`)
+              this.traceAdd(`校验：请求 ${quality} 实得 ${sniff.bits}bit → 降档收录为 flac`)
               effectiveQuality = 'flac'
             } else if (quality !== 'flac24bit' && sniff.sampleRate > 0 && sniff.sampleRate < 96000) {
               // master/hires 通常要求 ≥96kHz；不足则按 flac24bit 收
@@ -541,6 +564,7 @@ export class SyncEngine {
           size: file.size,
         })
         repo.refTaskFile(taskId, song.songKey, fileId)
+        this.traceAdd(`已下载并收录为《${effectiveQuality}》→ ${path.basename(moved.filePath)}`)
         this.liveSet({ phase: '写入媒体库', current: { name: song.name, singer: song.singer, quality: effectiveQuality } })
         // Emby 入库 + 入歌单（手动下载 skipIngest：仅落盘，媒体库扫描自然入库）
         const embyOk = opts?.skipIngest
@@ -588,6 +612,7 @@ export class SyncEngine {
         let found = await this.emby.findSongWithQuality(song.name, song.singer, q)
         if (found) {
           logger.info(`[emby] ${song.name} 直接搜到${want ? '（路径匹配到本任务的文件）' : ''}`)
+          this.traceAdd(want ? '媒体库：按文件路径精确匹配到条目' : '媒体库：搜索命中已有条目')
         } else {
           // ② 搜不到才解析媒体库 + 触发扫描（新下载的文件 Emby 还没索引到）
           //    ——扫描每次运行最多一次，不按歌重复扫；resolveLibraryId 也一并挪进来（省掉每首歌一次 HTTP）
@@ -603,8 +628,10 @@ export class SyncEngine {
           }
           if (!found) {
             logger.warn(`[emby] 未找到入库的歌曲: ${song.name}（扫描可能需要更久）`)
+            this.traceAdd('媒体库：扫描后仍未找到条目 → 入库失败')
             return false
           }
+          this.traceAdd('媒体库：触发扫描后找到条目')
         }
         embySong = { embySongId: found.id, lastVerifiedAt: new Date().toISOString() }
         repo.setEmbyMap(song.songKey, found.id)
@@ -617,14 +644,18 @@ export class SyncEngine {
           // 同名列表即本任务自动管理的同步目标 → 追加。
           // （旧"行为B不追加"会导致单次多首新歌的任务只加第一首——已修复；不需要自动管理时取消勾选"创建同名歌单"即可）
           playlistIds.push(same.id)
+          this.traceAdd(`加入歌单「${task.lxPlaylistName}」（已存在，直接追加）`)
         } else {
           const np = await this.emby.createPlaylist(task.lxPlaylistName)
+          this.traceAdd(`新建歌单「${task.lxPlaylistName}」并加入`)
           // 同步进缓存：否则本任务后面的每首歌都以为它还不存在，会反复创建
           const sc = this.scopeOf(task)
           this.playlistCache.get(sc)?.push({ id: np.id, name: task.lxPlaylistName })
           playlistIds.push(np.id)
         }
       }
+      const picked = task.embyTargetPlaylistIdsParsed.length
+      if (picked) this.traceAdd(`加入已有歌单 ${picked} 个`)
       for (const pid of new Set(playlistIds)) {
         try {
           await this.emby.addItems(pid, [embySong.embySongId])
@@ -708,6 +739,7 @@ export class SyncEngine {
           status: outcome.status === 'dup' ? 'skipped_dup' : outcome.status,
           quality: outcome.quality,
           errorReason: outcome.reason,
+          detail: this.trace,
         })
         this.emit('song-status', taskId, {
           songKey: song.songKey, songName: song.name, status: outcome.status,
@@ -771,6 +803,7 @@ export class SyncEngine {
         status: outcome.status === 'dup' ? 'skipped_dup' : outcome.status,
         quality: outcome.quality,
         errorReason: outcome.reason,
+        detail: this.trace,
       })
       repo.finishBatch(batchId, {
         finishedAt: new Date().toISOString(),
@@ -804,6 +837,7 @@ export class SyncEngine {
     task: ReturnType<typeof repo.getTask> & {},
     songKeys: string[],
     sem: { taskMode: 'incremental' | 'mirror'; delPolicy: DelPolicy },
+    batchId: number,
   ): Promise<{ removed: number; archiveDegraded: string | null }> {
     let removed = 0
     let movedFiles = 0
@@ -894,6 +928,20 @@ export class SyncEngine {
       // 清理引用与状态(允许 LX 日后重新加入时能再次入列/入歌单)
       getDb().prepare('DELETE FROM task_song_ref WHERE taskId = ? AND songKey = ?').run(taskId, songKey)
       getDb().prepare('DELETE FROM current_song_status WHERE taskId = ? AND songKey = ?').run(taskId, songKey)
+
+      // 记一条"移除"历史（原来只加计数、不写明细，用户根本看不到移除了哪首歌）
+      const prev = getDb()
+        .prepare('SELECT songName, singer FROM history_item WHERE songKey = ? ORDER BY id DESC LIMIT 1')
+        .get(songKey) as { songName: string; singer: string } | undefined
+      const steps = [`镜像：该歌已从 LX 歌单移除`]
+      for (const e of entries) steps.push(`从歌单移除（${e.managed ? '同名歌单' : '已有歌单'}）`)
+      if (archive) steps.push(archiveDegraded ? '归档目标不存在 → 降级为保留文件' : '已移入归档歌单')
+      if (delFile) steps.push(movedFiles > 0 ? '文件已移入回收站' : '文件保留（被其它任务引用或无登记）')
+      else steps.push('文件保留')
+      repo.insertHistoryItem({
+        batchId, taskId, songKey, songName: prev?.songName ?? songKey, singer: prev?.singer ?? '',
+        status: 'removed', detail: steps,
+      })
     }
     // 物理删除后触发媒体库扫描清理缺失条目(Emby/Jellyfin;Navidrome 文件监听自动处理)
     if (movedFiles > 0 && (cfg.target === 'emby' || cfg.target === 'jellyfin')) {

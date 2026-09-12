@@ -229,11 +229,13 @@ export function insertHistoryItem(item: {
   quality?: string
   filePath?: string
   errorReason?: string
+  /** 处理轨迹（查库/尝试档位/下载/入库/入歌单…），历史明细据此展示"到底做了什么" */
+  detail?: string[]
 }): void {
   getDb()
     .prepare(
-      `INSERT INTO history_item (batchId, taskId, songKey, songName, singer, status, quality, filePath, errorReason)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO history_item (batchId, taskId, songKey, songName, singer, status, quality, filePath, errorReason, detail)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       item.batchId,
@@ -245,6 +247,7 @@ export function insertHistoryItem(item: {
       item.quality ?? null,
       item.filePath ?? null,
       item.errorReason ?? null,
+      item.detail?.length ? JSON.stringify(item.detail) : null,
     )
 }
 
