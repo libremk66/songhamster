@@ -539,7 +539,11 @@ export class SyncEngine {
           embedLyric: cfg.download.embedLyric,
           cacheLyric: cfg.download.cacheLyric,
         })
-        const file = await this.lx.waitForFile(song, quality)
+        // 阶梯超时：成功的下载实测 4 秒就落盘，而失败档位要死等 60 秒 —— 那是成功耗时的 15 倍。
+        // 非最后一档只探 20 秒（没戏就赶紧换下一档），**最后一档**才给满 60 秒
+        // （它是最后的希望，宁可多等也别把本来能成的档位判死）
+        const isLastQuality = quality === qualities[qualities.length - 1]
+        const file = await this.lx.waitForFile(song, quality, isLastQuality ? 60000 : 20000)
         if (!file) {
           logger.warn(`[engine] ${song.name} [${quality}] 文件未出现(超时)`)
           continue // 尝试下一档

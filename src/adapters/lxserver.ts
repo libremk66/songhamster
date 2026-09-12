@@ -347,7 +347,7 @@ export class LxServerAdapter {
     song: LxSong,
     quality: Quality,
     timeoutMs = 60000,
-    intervalMs = 2000,
+    intervalMs = 2500,
   ): Promise<NonNullable<Awaited<ReturnType<LxServerAdapter['listFiles']>>>[number] | null> {
     const prefix = `${song.name} - ${song.singer}`
     const deadline = Date.now() + timeoutMs
