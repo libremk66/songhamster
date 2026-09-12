@@ -214,6 +214,19 @@ export function getBatch(id: number): BatchRow | null {
   return (getDb().prepare('SELECT * FROM history_batch WHERE id = ?').get(id) as BatchRow | undefined) ?? null
 }
 
+/**
+ * 启动时收尾"没跑完"的批次：finishedAt IS NULL 说明上次运行时进程被中断
+ * （崩溃 / 重启 / 部署）。不收尾的话它们在界面上会永远显示成 `null`。
+ * 返回收尾条数。
+ */
+export function finalizeStaleBatches(): number {
+  const r = getDb()
+    .prepare(`UPDATE history_batch SET finishedAt = ?, result = 'failed', detail = ?
+              WHERE finishedAt IS NULL`)
+    .run(new Date().toISOString(), '本次运行被中断（程序重启或崩溃）——未完成，下次同步会重新处理')
+  return r.changes
+}
+
 export function listBatches(taskId?: number, limit = 30): BatchRow[] {
   const sql = taskId
     ? 'SELECT * FROM history_batch WHERE taskId = ? ORDER BY id DESC LIMIT ?'

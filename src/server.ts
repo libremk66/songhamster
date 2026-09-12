@@ -3,6 +3,7 @@ import cookieParser from 'cookie-parser'
 import path from 'node:path'
 import { loadConfig, saveConfig, DB_PATH } from './config.js'
 import { getDb } from './store/db.js'
+import * as repo from './store/repo.js'
 import { LxServerAdapter } from './adapters/lxserver.js'
 import { EmbyAdapter } from './adapters/emby.js'
 import { NavidromeAdapter } from './adapters/navidrome.js'
@@ -23,6 +24,10 @@ if (DB_PATH.endsWith('songferry.db')) {
   logger.info('[config] 仍在使用改名前的数据库 songferry.db（数据完整，无需处理）；想换成新名字，把 songferry.db / songferry.db-wal / songferry.db-shm 三个文件一起改名为 songhamster.db* 即可，程序下次启动会自动改用新文件')
 }
 getDb() // 初始化 SQLite（含迁移）
+// 上次进程被中断（崩溃/重启）留下的"没跑完"批次，启动时收尾成"中断"，
+// 否则它们在进度历史里会一直显示 result=null
+const stale = repo.finalizeStaleBatches()
+if (stale) logger.info(`[history] 已收尾 ${stale} 条上次中断的批次记录（标记为"被中断"）`)
 initAuthFromEnv(config) // docker env 注入初始账号（SONGHAMSTER_AUTH_USER/PASSWORD）
 
 /** 按 cfg.target 实例化媒体服务器适配器 */

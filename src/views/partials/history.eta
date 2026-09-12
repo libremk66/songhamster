@@ -35,7 +35,8 @@
     <% } %>
     <span class="text-xs">
       结果：
-      <% if (b.result === 'success') { %><b class="st-ok">成功</b>
+      <% if (!b.result) { %><b class="st-warn">进行中…</b>
+      <% } else if (b.result === 'success') { %><b class="st-ok">成功</b>
       <% } else if (b.result === 'partial') { %><b class="st-warn">部分成功</b>
       <% } else if (b.result === 'failed') { %><b class="st-bad">失败</b>
       <% } else { %><%= b.result %><% } %>
@@ -43,12 +44,16 @@
     <button class="btn btn-outline btn-xs" onclick="histToggle('<%= b.id %>', this)"><svg aria-hidden="true"><use href="#i-chevronDown"/></svg><span class="h-txt">查看明细</span></button>
   </div>
   <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs">
+    <% if (!b.result) { %>
+    <span class="c-sub">正在处理，明细与计数会在跑完后写入…</span>
+    <% } else { %>
     <span class="st-ok">✅ 成功 <%= b.okCount %></span>
     <span class="st-bad">❌ 失败 <%= b.failCount %></span>
     <span class="st-warn">⏭ 未满足 <%= b.unsatisfiedCount %></span>
     <span class="st-skip">已下载跳过 <%= b.dupCount %></span>
     <span class="st-skip">🔍 查重跳过 <%= b.dedupCount %></span>
     <span class="st-skip">🗑 移除 <%= b.removedCount %></span>
+    <% } %>
   </div>
   <% if (b.detail) { %><p class="st-bad text-xs mt-1"><%= b.detail %></p><% } %>
   <div id="batch-<%= b.id %>"></div>
