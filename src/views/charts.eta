@@ -149,6 +149,13 @@
     </div>
   </section>
 
+  <!-- 删除订阅确认（与歌单同步页同一份组件，含 文件/歌单/历史 三个复选框） -->
+  <style>
+    /* 不用 daisy 的 .modal-backdrop 表单兜底：pico 桥会把其中的 button 涂成蓝色大块 */
+    #del-dlg::backdrop { background: oklch(0 0 0 / .45); }
+  </style>
+  <%~ delDialog %>
+
 </div>
 
 <script>

@@ -12,7 +12,7 @@
   <table class="table table-sm w-full text-sm">
     <thead>
       <tr class="c-sub">
-        <th>榜单</th><th>范围</th><th>同名新建</th><th>模式</th><th>cron</th><th>启用</th><th>运行历史</th><th class="text-right">操作</th>
+        <th>榜单</th><th>范围</th><th>同名新建</th><th>模式</th><th>cron</th><th>启用</th><th>进度历史</th><th class="text-right">操作</th>
       </tr>
     </thead>
     <tbody>
@@ -21,7 +21,7 @@
         <td>🏆 <%= t.lxPlaylistName %><br><small class="c-sub"><%= t.chartSource %> · <%= t.chartName || '' %></small></td>
         <td><small><%= t.maxCount === 0 ? '全榜' : '前 ' + t.maxCount + ' 首' %></small></td>
         <td><% if (t.createSameNamePlaylist) { %><span class="icv icv-on" title="是"><svg aria-hidden="true"><use href="#i-check"/></svg></span><% } else { %><span class="icv icv-off" title="否"><svg aria-hidden="true"><use href="#i-x"/></svg></span><% } %></td>
-        <td><small><%= t.mode === 'mirror' ? '镜像' : '增量' %><% if (t.mode === 'mirror') { %><br><span class="c-sub"><%= t.delPolicy === 'delete' ? '跌出删文件' : t.delPolicy === 'archive' ? '跌出入归档' : '跌出保留' %></span><% } %></small></td>
+        <td><small><%= t.sem.taskMode === 'mirror' ? '镜像' : '增量' %><% if (t.sem.taskMode === 'mirror') { %><br><span class="c-sub"><%= t.sem.delPolicy === 'delete' ? '跌出删文件' : t.sem.delPolicy === 'archive' ? '跌出入归档' : '跌出保留' %></span><% } %></small></td>
         <td><small><%= t.cronExpr || '仅手动' %></small></td>
         <td><% if (t.enabled) { %><span class="icv icv-on" title="是"><svg aria-hidden="true"><use href="#i-check"/></svg></span><% } else { %><span class="icv icv-off" title="否"><svg aria-hidden="true"><use href="#i-x"/></svg></span><% } %></td>
         <td>
@@ -30,17 +30,21 @@
           <span class="flex items-center gap-2" data-live-task="<%= t.id %>">
             <span class="run-dot"></span><span class="text-xs">正在运行</span>
             <span class="mini-bar" title="第 <%= live.done %>/<%= live.total %> 首 · <%= live.phase %>"><i id="live-bar-<%= t.id %>" style="width: <%= live.total > 0 ? Math.min(100, Math.round((live.done / live.total) * 100)) : 0 %>%"></i></span>
-            <a href="/history" class="text-xs" style="color: var(--sfg-deep); text-decoration: none" title="到「进度历史」看本次批次明细">详情</a>
+            <a href="/history?tab=chart" class="text-xs" style="color: var(--sfg-deep); text-decoration: none" title="到「进度历史」看本次批次明细">详情</a>
           </span>
           <% } else { %>
-          <%= t.lastResult ?? '—' %><br><small class="c-sub"><%= t.lastRunAt ? fmtLocal(t.lastRunAt, true) : '未跑过' %><% if (t.lastSnap) { %> ｜ 本期 <%= t.lastSnap.totalCount %> 首 · 新 <%= t.lastSnap.newCount %> · 跌出 <%= t.lastSnap.removedCount %><% } %></small>
+          <span class="<%= t.lastResult === 'success' ? 'st-ok' : t.lastResult === 'partial' ? 'st-warn' : t.lastResult === 'failed' ? 'st-bad' : '' %>"><%= t.lastResult ?? '未跑过' %></span><br>
+          <small class="c-sub"><%= t.lastRunAt ? fmtLocal(t.lastRunAt, true) : '—' %><% if (t.lastSnap) { %> ｜ 本期 <%= t.lastSnap.totalCount %> 首 · 新 <%= t.lastSnap.newCount %><% if (t.lastSnap.removedCount) { %> · 跌出 <%= t.lastSnap.removedCount %><% } %><% } %> ｜
+            <a href="/history?tab=chart" class="text-xs" style="color: var(--sfg-deep); text-decoration: none" title="到「进度历史」看历史批次">详情</a>
+          </small>
           <% } %>
         </td>
         <td class="act">
-          <button type="button" class="btn btn-primary btn-xs" hx-post="/api/task/<%= t.id %>/run" hx-swap="none" hx-confirm="立即同步该订阅？将拉取当前榜单并下载范围内新上榜的歌曲。" hx-on::after-request="chSubMsg('<%= t.lxPlaylistName %> 同步已开始，请稍后在任务进度页查看…')"><svg aria-hidden="true"><use href="#i-play"/></svg>同步</button>
+          <!-- 结果提示直接落在标题旁：引擎的拦截原因（全部暂停/有任务在跑）也会如实显示，不再"一律说已开始" -->
+          <button type="button" class="btn btn-primary btn-xs" hx-post="/api/task/<%= t.id %>/run" hx-target="#ch-list-msg" hx-swap="innerHTML" hx-disabled-elt="this"><svg aria-hidden="true"><use href="#i-play"/></svg>同步</button>
           <button type="button" class="btn btn-ghost btn-xs" hx-get="/api/charts/subs/<%= t.id %>/edit" hx-target="closest tr" hx-swap="outerHTML"><svg aria-hidden="true"><use href="#i-pencil"/></svg>编辑</button>
-          <button type="button" class="btn btn-ghost btn-xs" hx-post="/api/task/<%= t.id %>/toggle" hx-swap="none" hx-on::after-request="htmx.ajax('GET','/api/charts/subs',{target:'#ch-subs-rows'})"><% if (t.enabled) { %><svg aria-hidden="true"><use href="#i-pause"/></svg>停用<% } else { %><svg aria-hidden="true"><use href="#i-play"/></svg>启用<% } %></button>
-          <button type="button" class="btn btn-ghost btn-xs text-error" hx-post="/api/task/<%= t.id %>/delete" hx-swap="none" hx-confirm="删除订阅「<%= t.lxPlaylistName %>」？&#10;&#10;· 已下载的文件与播放列表内容保留&#10;· 仅停止后续订阅&#10;· 该订阅的历史记录一并删除" hx-on::after-request="htmx.ajax('GET','/api/charts/subs',{target:'#ch-subs-rows'})"><svg aria-hidden="true"><use href="#i-trash"/></svg>删除</button>
+          <button type="button" class="btn btn-ghost btn-xs" hx-post="/api/task/<%= t.id %>/toggle" hx-swap="none" hx-disabled-elt="this" hx-on::after-request="htmx.ajax('GET','/api/charts/subs',{target:'#ch-subs-rows'})"><% if (t.enabled) { %><svg aria-hidden="true"><use href="#i-pause"/></svg>停用<% } else { %><svg aria-hidden="true"><use href="#i-play"/></svg>启用<% } %></button>
+          <button type="button" class="btn btn-ghost btn-xs text-error" data-del-task="<%= t.id %>" data-del-name="<%= t.lxPlaylistName %>" data-del-scope="chart" data-del-fdel="<%= fdelOk ? 1 : 0 %>" data-del-ignore="0" onclick="sfOpenDel(this)"><svg aria-hidden="true"><use href="#i-trash"/></svg>删除</button>
         </td>
       </tr>
       <% } %>

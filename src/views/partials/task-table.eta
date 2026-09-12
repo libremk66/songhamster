@@ -1,8 +1,15 @@
+<style>
+  /* 微缩进度条：40×4px 品牌绿；运行中状态点呼吸（与榜单订阅页同一套） */
+  .mini-bar { width: 40px; height: 4px; border-radius: 999px; background: oklch(var(--bc) / .15); overflow: hidden; flex-shrink: 0; }
+  .mini-bar > i { display: block; height: 100%; border-radius: 999px; background: var(--sfg); transition: width .4s ease; }
+  .run-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--sfg); display: inline-block; animation: sfrun 1.2s ease-in-out infinite; flex-shrink: 0; }
+  @keyframes sfrun { 0%,100% { opacity: 1 } 50% { opacity: .3 } }
+</style>
 <table class="table table-sm w-full text-sm">
   <thead>
     <tr class="c-sub">
       <th>LX 歌单</th><th>加入已有 <%= targetName %> 歌单</th><th>同名新建</th><th>模式</th>
-      <th>cron</th><th>启用</th><th>上次结果</th><th class="text-right">操作</th>
+      <th>cron</th><th>启用</th><th>进度历史</th><th class="text-right">操作</th>
     </tr>
   </thead>
   <tbody>
@@ -10,7 +17,7 @@
     <tr><td colspan="8" class="hint">暂无任务 —— 在上方"手动新增同步任务"中添加</td></tr>
     <% } %>
     <% for (const t of tasks) { %>
-    <tr>
+    <tr data-task-id="<%= t.id %>">
       <td><% if (t.taskType === 'chart') { %>🏆 <% } %><%= t.lxPlaylistName %><% if (t.taskType === 'chart') { %> <small class="hint">（榜单订阅，管理见「榜单订阅」页）</small><% } %></td>
       <td>
         <% if (t.embyTargetPlaylistIdsParsed.length) { %>
@@ -18,15 +25,34 @@
         <% } else { %><span class="icv icv-off" title="否"><svg aria-hidden="true"><use href="#i-x"/></svg></span><% } %>
       </td>
       <td><% if (t.createSameNamePlaylist) { %><span class="icv icv-on" title="是"><svg aria-hidden="true"><use href="#i-check"/></svg></span><% } else { %><span class="icv icv-off" title="否"><svg aria-hidden="true"><use href="#i-x"/></svg></span><% } %></td>
-      <td><%= t.syncMode === 'full' ? '完全' : '增量' %></td>
+      <td><small><%= t.sem.taskMode === 'mirror' ? '镜像' : '增量' %><% if (t.sem.taskMode === 'mirror') { %><br><span class="c-sub"><%= t.sem.delPolicy === 'delete' ? '跌出删文件' : t.sem.delPolicy === 'archive' ? '跌出入归档' : '跌出保留' %></span><% } %></small></td>
       <td><small><%= t.cronExpr || '仅手动' %></small></td>
       <td><% if (t.enabled) { %><span class="icv icv-on" title="是"><svg aria-hidden="true"><use href="#i-check"/></svg></span><% } else { %><span class="icv icv-off" title="否"><svg aria-hidden="true"><use href="#i-x"/></svg></span><% } %></td>
-      <td><%= t.lastResult ?? '—' %></td>
+      <td>
+        <% if (live && live.finishedAt === null && live.taskId === t.id) { %>
+        <!-- 运行中：状态圆点 + 微缩进度条 + 详情（条宽由 sync-setup 页轮询 /api/progress/json 刷新） -->
+        <span class="flex items-center gap-2" data-live-task="<%= t.id %>">
+          <span class="run-dot"></span><span class="text-xs">正在运行</span>
+          <span class="mini-bar" title="第 <%= live.done %>/<%= live.total %> 首 · <%= live.phase %>"><i style="width: <%= live.total > 0 ? Math.min(100, Math.round((live.done / live.total) * 100)) : 0 %>%"></i></span>
+          <a href="/history" class="text-xs" style="color: var(--sfg-deep); text-decoration: none" title="到「进度历史」看本次批次明细">详情</a>
+        </span>
+        <% } else { %>
+        <%
+          const lb = lastBatch[t.id]
+          const okAll = t.lastResult === 'success'
+        %>
+        <span class="<%= okAll ? 'st-ok' : t.lastResult === 'partial' ? 'st-warn' : t.lastResult === 'failed' ? 'st-bad' : '' %>"><%= t.lastResult ?? '未跑过' %></span><br>
+        <small class="c-sub">
+          <%= t.lastRunAt ? fmtLocal(t.lastRunAt, true) : '—' %><% if (lb) { %> ｜ ✅<%= lb.okCount %> ❌<%= lb.failCount %><% if (lb.unsatisfiedCount) { %> ⏭<%= lb.unsatisfiedCount %><% } %><% if (lb.dupCount) { %> 跳过<%= lb.dupCount %><% } %><% if (lb.removedCount) { %> 🗑<%= lb.removedCount %><% } %><% } %> ｜
+          <a href="/history" class="text-xs" style="color: var(--sfg-deep); text-decoration: none" title="到「进度历史」看历史批次">详情</a>
+        </small>
+        <% } %>
+      </td>
       <td class="act">
-        <button class="btn btn-primary btn-xs" hx-post="/api/task/<%= t.id %>/run" hx-target="closest td" hx-swap="outerHTML"><svg aria-hidden="true"><use href="#i-play"/></svg>同步</button>
+        <button class="btn btn-primary btn-xs" hx-post="/api/task/<%= t.id %>/run" hx-target="closest td" hx-swap="outerHTML" hx-disabled-elt="this"><svg aria-hidden="true"><use href="#i-play"/></svg>同步</button>
         <button class="btn btn-ghost btn-xs" hx-get="/api/task/<%= t.id %>/edit" hx-target="closest tr" hx-swap="outerHTML"><svg aria-hidden="true"><use href="#i-pencil"/></svg>编辑</button>
-        <button class="btn btn-ghost btn-xs" hx-post="/api/task/<%= t.id %>/toggle" hx-target="#task-table" hx-swap="innerHTML"><% if (t.enabled) { %><svg aria-hidden="true"><use href="#i-pause"/></svg>停用<% } else { %><svg aria-hidden="true"><use href="#i-play"/></svg>启用<% } %></button>
-        <button type="button" class="btn btn-ghost btn-xs text-error" data-del-task="<%= t.id %>" data-del-name="<%= t.lxPlaylistName %>" data-del-ignore="<%= watchOn && String(t.lxPlaylistKey || '').startsWith('user:') ? 1 : 0 %>" onclick="sfOpenDel(this)"><svg aria-hidden="true"><use href="#i-trash"/></svg>删除</button>
+        <button class="btn btn-ghost btn-xs" hx-post="/api/task/<%= t.id %>/toggle" hx-target="#task-table" hx-swap="innerHTML" hx-disabled-elt="this"><% if (t.enabled) { %><svg aria-hidden="true"><use href="#i-pause"/></svg>停用<% } else { %><svg aria-hidden="true"><use href="#i-play"/></svg>启用<% } %></button>
+        <button type="button" class="btn btn-ghost btn-xs text-error" data-del-task="<%= t.id %>" data-del-name="<%= t.lxPlaylistName %>" data-del-scope="playlist" data-del-fdel="<%= fdelOk ? 1 : 0 %>" data-del-ignore="<%= watchOn && String(t.lxPlaylistKey || '').startsWith('user:') ? 1 : 0 %>" onclick="sfOpenDel(this)"><svg aria-hidden="true"><use href="#i-trash"/></svg>删除</button>
       </td>
     </tr>
     <% } %>

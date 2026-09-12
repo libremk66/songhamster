@@ -13,6 +13,14 @@ import { getDb, taskSemantics } from '../store/db.js'
 import { moveToTrash } from './trash.js'
 import { logger } from './logger.js'
 
+/** checkRun 拦截原因 → 给用户看的话（路由回复 / 日志共用一份，避免两处走样） */
+export const RUN_BLOCKED: Record<'paused' | 'busy' | 'not-found' | 'disabled', string> = {
+  paused: '已开启「全部暂停」（下载选项里），先关掉再同步',
+  busy: '已有任务在运行（全局单飞），等它跑完再试',
+  'not-found': '任务不存在（可能已被删除）',
+  disabled: '任务已停用（定时已停），需先启用',
+}
+
 export interface EngineEvents {
   'batch-start': (taskId: number, batchId: number) => void
   'song-status': (taskId: number, payload: { songKey: string; songName: string; status: string; quality?: string; errorReason?: string }) => void
@@ -162,13 +170,33 @@ export class SyncEngine {
     }
   }
 
+  /**
+   * 运行前检查（同步、无副作用）。返回 null = 可以跑，否则是拦截原因码。
+   *
+   * ⚠️ 存在的理由：这些拦截原本散在 runTask 内部且**静默 return**，
+   * 而路由在执行前就已经回了"已开始同步"——于是"停用的任务点同步"表现为
+   * 界面说开始了、引擎一个字不说就退出（用户看到的"点了没反应"）。
+   * 现在路由先用它拿到准确原因再回复。
+   */
+  checkRun(taskId: number, trigger: 'cron' | 'manual'): 'paused' | 'busy' | 'not-found' | 'disabled' | null {
+    if (this.cfg().general.pauseAll) return 'paused'
+    if (this.runningTaskId !== null) return 'busy'
+    const task = repo.getTask(taskId)
+    if (!task) return 'not-found'
+    // 「停用」只停定时：手动运行是用户的明确指令，照跑（历史重试同理）
+    if (!task.enabled && trigger === 'cron') return 'disabled'
+    return null
+  }
+
   /** 主入口：执行一个任务（全局单飞：一次只跑一个任务） */
   async runTask(taskId: number, trigger: 'cron' | 'manual'): Promise<string> {
-    if (this.cfg().general.pauseAll) return 'skipped-paused'
-    if (this.runningTaskId !== null) return 'skipped-busy'
+    const blocked = this.checkRun(taskId, trigger)
+    if (blocked) {
+      logger.info(`[engine] task#${taskId} 本次未执行（${RUN_BLOCKED[blocked]}）`)
+      return blocked === 'disabled' ? 'task-disabled' : blocked === 'paused' ? 'skipped-paused' : blocked === 'busy' ? 'skipped-busy' : 'task-not-found'
+    }
     const task = repo.getTask(taskId)
     if (!task) return 'task-not-found'
-    if (!task.enabled) return 'task-disabled'
 
     this.runningTaskId = taskId
     const batchId = repo.createBatch({ taskId, trigger })

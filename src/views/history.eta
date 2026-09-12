@@ -39,11 +39,28 @@
           hx-get="/api/trash/partial" hx-target="#hist-content" hx-swap="innerHTML"
           onclick="switchHistTab('tab-trash')"><svg aria-hidden="true"><use href="#i-trash"/></svg>回收站</button>
       </div>
+      <div id="hist-msg" class="text-sm"></div>
       <div id="hist-content" class="trash-host" hx-get="/api/history/partial?type=playlist" hx-trigger="load">
         <p class="c-sub text-xs py-10 text-center">加载中…</p>
       </div>
     </div>
   </section>
+
+  <!-- 批量删除确认：勾选态在这里复述一遍，避免"手滑点了删除" -->
+  <dialog id="hist-del-dlg" class="modal">
+    <div class="modal-box max-w-md">
+      <h3 class="text-base font-bold">删除所选记录</h3>
+      <p id="hist-del-sum" class="text-sm mt-2"></p>
+      <p class="text-xs c-sub mt-2 leading-relaxed">
+        删除历史记录只是清掉这份流水账——<b>不影响以后的同步，也不会重新下载</b>。
+        要让这些歌以后重新下载，请勾选「文件」。
+      </p>
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('hist-del-dlg').close()">取消</button>
+        <button type="button" class="btn btn-error btn-sm" onclick="histDoDelete()"><svg aria-hidden="true"><use href="#i-trash"/></svg>确认删除</button>
+      </div>
+    </div>
+  </dialog>
 
   <!-- 排查用：各歌单每首歌的当前状态（DB 累计，非本次进度）；默认收起、展开才加载 -->
   <details class="rounded-lg border border-base-300 bg-base-100" hx-get="/api/progress/table" hx-trigger="toggle once" hx-target="#progress-area" hx-swap="innerHTML">
@@ -57,6 +74,99 @@
 function switchHistTab(id) {
   document.querySelectorAll('.hist-tab').forEach(function (b) { b.classList.remove('active') })
   document.getElementById(id).classList.add('active')
+}
+// 支持 /history?tab=chart|trash 直接落到对应标签（任务表里的「详情」链接要跳到对的标签）
+;(function () {
+  var tab = new URLSearchParams(location.search).get('tab')
+  var map = { chart: 'tab-chart', trash: 'tab-trash', playlist: 'tab-playlist' }
+  var id = map[tab]
+  if (!id) return
+  var btn = document.getElementById(id)
+  if (!btn) return
+  switchHistTab(id)
+  var url = btn.getAttribute('hx-get')
+  if (url) htmx.ajax('GET', url, { target: '#hist-content', swap: 'innerHTML' })
+})()
+// ===== 批量删除：两级勾选（批次 / 单曲）+ 三个删除选项 =====
+// 勾选态直接读 DOM，不额外维护一份状态机：批次框 → 它已加载的单曲框；单曲框 → 批次框的半选态
+// 批次 → 它的单曲（已加载的那部分）：整批勾选时单曲跟着勾上并禁用（取消整批即可改）
+function histApplyBatch(bk) {
+  document.querySelectorAll('.hi-ck[data-batch="' + bk.value + '"]').forEach(function (k) {
+    k.checked = bk.checked
+    k.disabled = bk.checked
+  })
+}
+function histPickBatch(bk) {
+  histApplyBatch(bk)
+  if (!bk.checked) bk.indeterminate = false
+  histSync()
+}
+function histSync() {
+  document.querySelectorAll('.hist-bk').forEach(function (bk) {
+    // 批次已勾选 → 带上后来才展开加载进来的单曲（否则新加载的单曲会被判成"没勾"→批次被反判为未选）
+    if (bk.checked) histApplyBatch(bk)
+    var kids = document.querySelectorAll('.hi-ck[data-batch="' + bk.value + '"]')
+    if (!kids.length) return
+    var on = 0
+    kids.forEach(function (k) { if (k.checked) on++ })
+    bk.indeterminate = on > 0 && on < kids.length
+    if (on === kids.length) bk.checked = true
+    else if (on === 0) bk.checked = false
+  })
+  var n = 0
+  document.querySelectorAll('.hist-bk:checked').forEach(function (bk) { n += Number(bk.getAttribute('data-n') || 0) })
+  document.querySelectorAll('.hi-ck:checked').forEach(function (k) { if (!k.disabled) n++ })
+  document.getElementById('hist-sel-n').textContent = n
+  var bar = document.getElementById('hist-selbar')
+  bar.classList.toggle('hidden', n === 0)
+  bar.classList.toggle('flex', n > 0)
+}
+function histSel() {
+  var out = []
+  document.querySelectorAll('.hist-bk:checked').forEach(function (bk) { out.push('b:' + bk.value) })
+  document.querySelectorAll('.hi-ck:checked').forEach(function (k) { if (!k.disabled) out.push('i:' + k.value) })
+  return out
+}
+function histOpts() {
+  return {
+    file: document.getElementById('hist-ck-file').checked,
+    playlist: document.getElementById('hist-ck-pl').checked,
+    history: document.getElementById('hist-ck-hist').checked
+  }
+}
+function histAskDelete() {
+  var o = histOpts()
+  if (!o.file && !o.playlist && !o.history) { document.getElementById('hist-msg').innerHTML = '<span class="bad">❌ 请至少勾选一项要删除的内容</span>'; return }
+  var what = []
+  if (o.file) what.push('把相关文件移入回收站（可恢复，仍被其它任务引用的会保留）')
+  if (o.playlist) what.push('从歌单中移除本任务加入过的歌（歌单本身保留）')
+  if (o.history) what.push('删除这些历史记录')
+  document.getElementById('hist-del-sum').innerHTML = '已选 <b>' + document.getElementById('hist-sel-n').textContent + '</b> 项，将：' + what.join('；') + '。'
+  var d = document.getElementById('hist-del-dlg')
+  if (d.showModal) d.showModal()
+}
+function histDoDelete() {
+  var o = histOpts()
+  var d = document.getElementById('hist-del-dlg')
+  if (d.open) d.close()
+  var body = new URLSearchParams()
+  body.set('sel', histSel().join(','))
+  body.set('file', o.file ? '1' : '0')
+  body.set('playlist', o.playlist ? '1' : '0')
+  body.set('history', o.history ? '1' : '0')
+  fetch('/api/history/delete', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
+    .then(function (r) { return r.text() })
+    .then(function (html) {
+      document.getElementById('hist-msg').innerHTML = html
+      histRefresh()
+    })
+    .catch(function () { document.getElementById('hist-msg').innerHTML = '<span class="bad">❌ 删除请求失败，请重试</span>' })
+}
+// 删完刷新当前标签（回收站标签也在内）
+function histRefresh() {
+  var t = document.querySelector('.hist-tab.active')
+  var url = t && t.getAttribute('hx-get')
+  if (url) htmx.ajax('GET', url, { target: '#hist-content', swap: 'innerHTML' })
 }
 // 批次明细:点展开加载、再点收起(避免重复拉取);图标与文案随状态切换
 function histSetState(btn, open) {
@@ -81,6 +191,7 @@ function histToggle(id, btn) {
     .then(function (html) {
       box.innerHTML = html
       box.dataset.loaded = '1'
+      histSync() // 新加载的单曲框要与已勾选的批次框对齐（整批已选 → 单曲跟着勾上并禁用）
     })
     .catch(function () {
       box.innerHTML = '<span class="st-bad text-xs">加载失败，请重试</span>'

@@ -9,7 +9,7 @@ import { NavidromeAdapter } from '../adapters/navidrome.js'
 import { DaoliyuAdapter } from '../adapters/daoliyu.js'
 import { SubsonicAdapter } from '../adapters/subsonic.js'
 import * as repo from '../store/repo.js'
-import { SyncEngine } from '../core/sync-engine.js'
+import { SyncEngine, RUN_BLOCKED } from '../core/sync-engine.js'
 import { Scheduler } from '../scheduler/index.js'
 import { autoaddScan, initBaselineIfNeeded, autoaddStatus } from '../core/autoadd.js'
 import { listenScan, listenStatus, originOfMode } from '../core/listen.js'
@@ -17,10 +17,11 @@ import { hashPassword, verifyPassword } from '../auth.js'
 import { scanLowQuality, findBestCandidate, upgradeOne, recordUpgrade } from '../core/upgrade.js'
 import { scanDuplicates, planCleanup, type DupeGroup, type DupeItem } from '../core/dupe.js'
 import { localizeEmbyPath, moveToTrash, listTrash, restoreFromTrash, purgePath } from '../core/trash.js'
+import { applyDeletion, reportLine } from '../core/delete.js'
 import { probeAudio } from '../core/probe.js'
 import { SERVER_SPECS, specOf } from '../core/server-spec.js'
 import { logger } from '../core/logger.js'
-import { getDb } from '../store/db.js'
+import { getDb, taskSemantics } from '../store/db.js'
 import { renderBody } from '../views/render.js'
 import { fmtLocal } from '../views/fmt.js'
 
@@ -476,12 +477,16 @@ export function apiRouter(
   })
 
   /** 我的订阅列表片段 */
-  r.get('/charts/subs', (_req, res) => {
+  const chartSubsRows = (): string => {
     const tasks = repo
       .listTasks()
       .filter((t) => t.taskType === 'chart')
-      .map((t) => ({ ...t, lastSnap: repo.getLatestChartSnapshot(t.id) }))
-    res.send(renderBody('partials/chart-subs', { tasks, targetName: cfg.target === 'navidrome' ? 'Navidrome' : 'Emby', live: engine.live }))
+      .map((t) => ({ ...t, lastSnap: repo.getLatestChartSnapshot(t.id), sem: taskSemantics(t) }))
+    return renderBody('partials/chart-subs', { tasks, targetName: cfg.target === 'navidrome' ? 'Navidrome' : 'Emby', live: engine.live, fdelOk: supportsFileDelete(cfg.target) })
+  }
+
+  r.get('/charts/subs', (_req, res) => {
+    res.send(chartSubsRows())
   })
 
   r.get('/lx/playlists/options', async (_req, res) => {
@@ -526,6 +531,9 @@ export function apiRouter(
     try {
       for (const p of await emby.listPlaylists()) idToName[p.id] = p.name
     } catch { /* Emby 未连接时显示 id */ }
+    // 「进度历史」列：跑着的显示实时进度，没跑的显示上次结果 + 那天批次的关键计数
+    const lastBatch: Record<number, repo.BatchRow> = {}
+    for (const b of repo.listBatches(undefined, 300)) if (!(b.taskId in lastBatch)) lastBatch[b.taskId] = b // 已按 id DESC，首条即最新
     // 兜底：任务名缺失或仍是 key（旧数据/创建时未解析）→ 用 LX 歌单真实名称
     const tasks = repo
       .listTasks()
@@ -533,9 +541,21 @@ export function apiRouter(
       .filter((t) => scope !== 'playlist' || t.taskType === 'playlist')
       .map((t) => {
       const looksKey = !t.lxPlaylistName || t.lxPlaylistName === t.lxPlaylistKey || t.lxPlaylistName.startsWith('user:') || t.lxPlaylistName === 'loveList'
-      return { ...t, lxPlaylistName: looksKey ? keyToName[t.lxPlaylistKey] ?? t.lxPlaylistKey : t.lxPlaylistName }
+      return {
+        ...t,
+        lxPlaylistName: looksKey ? keyToName[t.lxPlaylistKey] ?? t.lxPlaylistKey : t.lxPlaylistName,
+        sem: taskSemantics(t), // 模式列按新语义显示（旧 full 任务 → 镜像+keep）
+      }
     })
-    return renderBody('partials/task-table', { tasks, idToName, targetName: TARGET_LABEL[cfg.target] ?? 'Emby', watchOn: autoWatchOn() })
+    return renderBody('partials/task-table', {
+      tasks,
+      idToName,
+      targetName: TARGET_LABEL[cfg.target] ?? 'Emby',
+      watchOn: autoWatchOn(),
+      fdelOk: supportsFileDelete(cfg.target),
+      live: engine.live,
+      lastBatch,
+    })
   }
 
   /** 是否存在"自动纳入"机制（决定删除任务时是否提示「永久忽略」） */
@@ -546,13 +566,7 @@ export function apiRouter(
   r.get('/tasks/table', async (req, res) => {
     // scope=playlist（歌单同步页）只显示歌单任务；榜单订阅在榜单页、手动下载为内部任务
     const scope = String(req.query.scope ?? 'playlist')
-    if (scope === 'all') return res.send(await taskTableHtml())
-    const base = await taskTableHtml()
-    if (scope === 'playlist') {
-      const tasks = repo.listTasks().filter((t) => t.taskType === 'playlist')
-      return res.send(renderBody('partials/task-table', { tasks, idToName: {}, targetName: TARGET_LABEL[cfg.target] ?? 'Emby', watchOn: autoWatchOn() }))
-    }
-    return res.send(base)
+    res.send(await taskTableHtml(scope === 'all' ? 'all' : 'playlist'))
   })
 
   // 批量创建(选择歌单多选):一次为多个 LX 歌单建同步任务(同默认设置)
@@ -671,14 +685,29 @@ export function apiRouter(
     res.send(await taskTableHtml('playlist'))
   })
 
+  /**
+   * 删除任务（三个复选框：文件 / 歌单 / 历史记录）。
+   * 顺序要紧：先 applyDeletion（读得到本任务的归属与引用），再 deleteTask（把任务行收掉）。
+   */
   r.post('/task/:id/delete', async (req, res) => {
     const id = Number(req.params.id)
     const t = repo.getTask(id)
-    repo.deleteTask(id)
+    if (!t) return res.status(404).send(err('任务不存在'))
+    if (engine.isRunning) return res.send(err('有任务正在运行，稍后再删除（避免和同步过程抢同一批文件）'))
+    const body = (req.body ?? {}) as Record<string, unknown>
+    const opts = { file: bool(body.file), playlist: bool(body.playlist), history: bool(body.history) }
+    const rep = await applyDeletion({
+      cfg,
+      emby,
+      targets: repo.listTaskSongKeys(id).map((songKey) => ({ taskId: id, songKey })),
+      itemIds: repo.listHistoryItemIds(id),
+      opts,
+    })
+    repo.deleteTask(id, { keepHistory: !opts.history })
     // 删除任务 = "不要这个歌单"：确认框勾选「永久忽略」时写入忽略列表，防止下次扫描重建。
     // ⚠️ listenScan 读的是 listen.ignoredKeys（旧代码只写 autoadd → 监听模式下删了又被重建）
-    if (t) logger.info(`[task] 删除任务 #${id}「${t.lxPlaylistName}」${bool((req.body ?? {}).ignore) ? '（永久忽略该歌单）' : ''}`)
-    if (t && t.lxPlaylistKey.startsWith('user:') && bool((req.body ?? {}).ignore)) {
+    logger.info(`[task] 删除任务 #${id}「${t.lxPlaylistName}」（文件=${opts.file ? '删' : '留'} 歌单=${opts.playlist ? '移除' : '留'} 历史=${opts.history ? '删' : '留'}${bool(body.ignore) ? ' ·永久忽略' : ''}）｜${reportLine(rep)}`)
+    if (t.lxPlaylistKey.startsWith('user:') && bool(body.ignore)) {
       const key = t.lxPlaylistKey
       const lists = [cfg.general.listen.ignoredKeys]
       if (cfg.general.autoadd.enabled) lists.push(cfg.general.autoadd.ignoredKeys)
@@ -688,7 +717,16 @@ export function apiRouter(
       }
     }
     scheduler.reload()
-    res.send(await taskTableHtml('playlist'))
+    const gone = String(body.scope) === 'chart' ? '订阅已删除' : '任务已删除'
+    const line = !opts.file && !opts.playlist && !opts.history
+      ? `${gone}（未勾选连带清理项：文件 / 歌单内容 / 历史均保留）`
+      : `${gone}。${reportLine(rep)}`
+    const msgHtml = rep.errors.length ? err(line) : ok(line)
+    if (String(body.scope) === 'chart') {
+      // 榜单页：行表在 #ch-subs-rows，提示在 #ch-list-msg（两处都换掉）
+      return res.send(chartSubsRows() + `<div id="ch-list-msg" hx-swap-oob="innerHTML">${msgHtml}</div>`)
+    }
+    res.send((await taskTableHtml('playlist')) + `<div id="task-msg" hx-swap-oob="innerHTML">${msgHtml}</div>`)
   })
 
   // 行内编辑：渲染编辑表单（替换该行）
@@ -767,9 +805,12 @@ export function apiRouter(
     const id = Number(req.params.id)
     const t = repo.getTask(id)
     if (!t) return res.status(404).send(err('任务不存在'))
-    if (engine.isRunning) return res.send(err('已有任务在运行（全局单飞），稍后再试'))
+    // 先用引擎的预检拿准确原因再回复：不能"先答应已开始、引擎再静默退出"
+    const blocked = engine.checkRun(id, 'manual')
+    if (blocked) return res.send(err(RUN_BLOCKED[blocked]))
+    const wasDisabled = !t.enabled
     void engine.runTask(id, 'manual')
-    res.send(ok('已开始同步，请到「任务进度」页查看'))
+    res.send(ok(`已开始同步${wasDisabled ? '（该任务处于停用状态，本次为手动单次运行，不影响定时）' : ''}——进度见「进度历史」页`))
   })
 
   // ===== 任务进度 =====
@@ -818,15 +859,61 @@ export function apiRouter(
   // type=playlist 歌单同步任务 | type=chart 榜单订阅任务（含手动下载） | 缺省 all
   r.get('/history/partial', (req, res) => {
     const type = String(req.query.type ?? 'all')
+    const counts = repo.historyItemCounts()
     const batches = repo
       .listBatches(undefined, 80)
       .map((b) => {
         const t = repo.getTask(b.taskId)
-        return { ...b, taskName: t?.lxPlaylistName ?? `#${b.taskId}`, taskType: t?.taskType ?? 'playlist' }
+        // 任务可能已被删（删除任务时选择"保留历史"）→ 用批次里的快照名/类型兜底
+        return {
+          ...b,
+          taskName: t?.lxPlaylistName ?? b.taskName ?? `已删除的任务 #${b.taskId}`,
+          taskType: t?.taskType ?? b.taskType ?? 'playlist',
+          itemCount: counts[b.id] ?? 0,
+        }
       })
       .filter((b) => type === 'all' || (type === 'chart' ? b.taskType === 'chart' || b.taskType === 'adhoc' : b.taskType === type))
       .slice(0, 20)
     res.send(renderBody('partials/history', { batches }))
+  })
+
+  /**
+   * 历史页批量删除（勾选若干条记录 + 三个复选框）。
+   * 选择以 token 传：`b:<批次id>`（整批）/ `i:<明细id>`（单曲）；整批由服务端展开成明细。
+   */
+  r.post('/history/delete', async (req, res) => {
+    const body = (req.body ?? {}) as Record<string, unknown>
+    const tokens = String(body.sel ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+    if (!tokens.length) return res.send(err('未勾选任何记录'))
+    if (engine.isRunning) return res.send(err('有任务正在运行，稍后再删除（避免和同步过程抢同一批文件）'))
+    const opts = { file: bool(body.file), playlist: bool(body.playlist), history: bool(body.history) }
+    if (!opts.file && !opts.playlist && !opts.history) return res.send(err('请至少勾选一项要删除的内容'))
+
+    const itemIds = new Set<number>()
+    const batchIds: number[] = []
+    const targets = new Map<string, { taskId: number; songKey: string }>()
+    const addItem = (it: { id: number; taskId: number; songKey: string } | undefined) => {
+      if (!it) return
+      itemIds.add(it.id)
+      targets.set(`${it.taskId} ${it.songKey}`, { taskId: it.taskId, songKey: it.songKey })
+    }
+    for (const tok of tokens) {
+      const [kind, idRaw] = tok.split(':')
+      const id = Number(idRaw)
+      if (!id) continue
+      if (kind === 'b') {
+        batchIds.push(id)
+        for (const it of dbAll('SELECT id, taskId, songKey FROM history_item WHERE batchId = ?', [id])) addItem(it)
+      } else {
+        addItem(dbGet('SELECT id, taskId, songKey FROM history_item WHERE id = ?', [id]))
+      }
+    }
+    const rep = await applyDeletion({ cfg, emby, targets: [...targets.values()], itemIds: [...itemIds], batchIds, opts })
+    const line = reportLine(rep)
+    res.send(rep.errors.length ? err(line) : ok(line))
   })
 
   r.get('/history/batch/:id', (req, res) => {

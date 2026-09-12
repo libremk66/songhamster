@@ -169,6 +169,12 @@ export const LAYOUT = `<!doctype html>
        否则 type="button" 的 ghost 会被 pico 桥涂成蓝色描边（type="submit" 的则是透明，两套不一致） */
     .btn-ghost { background-color: transparent; color: var(--sfg-deep); border-color: oklch(var(--bc) / .22); }
     .btn-ghost:hover { background-color: color-mix(in oklab, var(--sfg) 20%, transparent); color: var(--sfg-deep); }
+    /* 危险操作按钮（删除类）：主题红，与"主题绿=主操作"明确区分。
+       同样必须显式接管，否则会被 pico 桥涂成蓝色（同 .btn-outline 的坑） */
+    .btn-error { background-color: oklch(0.58 0.19 25); border-color: oklch(0.58 0.19 25); color: #fff; }
+    .btn-error:hover, .btn-error:focus-visible { background-color: oklch(0.52 0.19 25); border-color: oklch(0.52 0.19 25); color: #fff; }
+    .btn-error:active { background-color: oklch(0.47 0.19 25); border-color: oklch(0.47 0.19 25); color: #fff; }
+    .btn-error:disabled { background-color: oklch(0.58 0.19 25); border-color: oklch(0.58 0.19 25); color: #fff; opacity: .45; }
     /* pico 桥对 button[type=submit] 强制 width:100%(特异性更高),钉回自适应宽度 */
     button.btn[type="submit"] { width: auto; }
     /* pico 桥的 line-height:1.5+上下内边距会把文字挤偏;去上下内边距 + line-height:1,交还 flex 居中 */

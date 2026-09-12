@@ -1,11 +1,12 @@
 <div class="overflow-x-auto mt-1">
 <table class="table table-sm w-full text-sm">
   <thead>
-    <tr class="c-sub"><th>歌曲</th><th>状态</th><th>音质</th><th>原因</th><th></th></tr>
+    <tr class="c-sub"><th class="w-8"></th><th>歌曲</th><th>状态</th><th>音质</th><th>原因</th><th></th></tr>
   </thead>
   <tbody>
     <% for (const it of items) { %>
     <tr>
+      <td><input type="checkbox" class="checkbox checkbox-xs hi-ck" value="<%= it.id %>" data-batch="<%= it.batchId %>" onchange="histSync()"></td>
       <td><%= it.songName %><br><small class="c-sub"><%= it.singer %></small></td>
       <td>
         <% if (it.status === 'success') { %><span class="st-ok">✅ 成功</span>

@@ -1,10 +1,29 @@
 <% if (!batches.length) { %><p class="c-sub text-xs py-8 text-center">暂无同步历史</p><% } %>
+<!-- 批量操作栏：勾中任意一条才出现（在 history.eta 页面脚本里控制显隐） -->
+<div id="hist-selbar" class="hidden flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-3 py-2 mb-2 text-sm"
+     style="border-color: var(--sfg-fill); background: oklch(var(--b1))">
+  <span>已选 <b id="hist-sel-n">0</b> 项</span>
+  <span class="flex items-center gap-3 flex-wrap">
+    <label class="flex items-center gap-1.5 cursor-pointer" title="移入回收站（可恢复）；仍被其它任务引用的会保留">
+      <input type="checkbox" id="hist-ck-file" class="checkbox checkbox-xs">文件
+    </label>
+    <label class="flex items-center gap-1.5 cursor-pointer" title="从歌单中移除本任务加入过的歌（歌单本身保留）">
+      <input type="checkbox" id="hist-ck-pl" class="checkbox checkbox-xs">歌单
+    </label>
+    <label class="flex items-center gap-1.5 cursor-pointer">
+      <input type="checkbox" id="hist-ck-hist" class="checkbox checkbox-xs" checked>历史记录
+      <span class="text-xs c-sub">（只清流水账，不影响以后同步）</span>
+    </label>
+  </span>
+  <button type="button" class="btn btn-error btn-xs ml-auto" onclick="histAskDelete()"><svg aria-hidden="true"><use href="#i-trash"/></svg>删除所选</button>
+</div>
 <div class="space-y-2">
 <% for (const b of batches) { %>
 <div class="rounded-lg border border-base-300 bg-base-100 p-2.5">
   <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+    <input type="checkbox" class="checkbox checkbox-sm hist-bk" value="<%= b.id %>" data-n="<%= b.itemCount %>" onchange="histPickBatch(this)" title="整批选中（含未展开的明细）">
     <strong class="text-sm"><%= fmtLocal(b.startedAt, true) %></strong>
-    <span class="text-xs c-sub">歌单：<%= b.taskName %> · 触发：<%= b.trigger === 'cron' ? '定时' : b.trigger === 'retry' ? '重试' : '手动' %></span>
+    <span class="text-xs c-sub">歌单：<%= b.taskName %><% if (!b.taskType) { %> · 任务已删除<% } %> · 触发：<%= b.trigger === 'cron' ? '定时' : b.trigger === 'retry' ? '重试' : '手动' %></span>
     <span class="flex-1"></span>
     <span class="text-xs">
       结果：

@@ -106,18 +106,23 @@ export function updateTask(id: number, patch: Partial<SyncTaskRow>): void {
 }
 
 /**
- * 删除任务：连带清理它的全部关联数据（历史批次+明细 / 快照 / 文件引用 / 歌曲状态）。
+ * 删除任务：清理它的关联数据（快照 / 文件引用 / 歌曲状态），历史批次可选保留。
  *
- * ⚠️ 必须先删子表再删主表：这些表都声明了 `REFERENCES sync_task(id)`，而连接开了
+ * ⚠️ 必须先删子表再删主表：在别处这些表声明了 `REFERENCES sync_task(id)`，而连接开了
  * `foreign_keys = ON`，直接删 sync_task 会抛 `FOREIGN KEY constraint failed`
  * （旧实现就是这个 bug：界面弹了确认框，删完任务还在列表里）。
  * 整个过程包在事务里——中途失败不会留下半删状态。
+ *
+ * keepHistory=true：保留历史批次与明细（history_batch 已去掉外键 + 自带任务名/类型快照），
+ * 用于「删除任务」时用户不勾「历史记录」的情况。
  */
-export function deleteTask(id: number): void {
+export function deleteTask(id: number, opts: { keepHistory?: boolean } = {}): void {
   const db = getDb()
   db.transaction((tid: number) => {
-    db.prepare('DELETE FROM history_item WHERE batchId IN (SELECT id FROM history_batch WHERE taskId = ?)').run(tid)
-    db.prepare('DELETE FROM history_batch WHERE taskId = ?').run(tid)
+    if (!opts.keepHistory) {
+      db.prepare('DELETE FROM history_item WHERE batchId IN (SELECT id FROM history_batch WHERE taskId = ?)').run(tid)
+      db.prepare('DELETE FROM history_batch WHERE taskId = ?').run(tid)
+    }
     db.prepare('DELETE FROM playlist_snapshot WHERE taskId = ?').run(tid)
     db.prepare('DELETE FROM chart_snapshot WHERE taskId = ?').run(tid)
     db.prepare('DELETE FROM current_song_status WHERE taskId = ?').run(tid)
@@ -159,6 +164,10 @@ export function upsertSongStatus(row: Omit<SongStatusRow, 'updatedAt'>): void {
 export interface BatchRow {
   id: number
   taskId: number
+  /** 任务名快照（任务被删、历史保留时仍能显示） */
+  taskName: string | null
+  /** 任务类型快照（"歌单同步/榜单订阅"分标签依据，任务没了也分得清） */
+  taskType: string | null
   trigger: string
   startedAt: string
   finishedAt: string | null
@@ -173,9 +182,11 @@ export interface BatchRow {
 }
 
 export function createBatch(input: { taskId: number; trigger: string }): number {
+  // 名称/类型随批次快照一份：任务可被删而历史保留（删除任务的三个复选框）
+  const t = getTask(input.taskId)
   const info = getDb()
-    .prepare(`INSERT INTO history_batch (taskId, trigger, startedAt) VALUES (?, ?, ?)`)
-    .run(input.taskId, input.trigger, new Date().toISOString())
+    .prepare(`INSERT INTO history_batch (taskId, taskName, taskType, trigger, startedAt) VALUES (?, ?, ?, ?, ?)`)
+    .run(input.taskId, t?.lxPlaylistName ?? null, t?.taskType ?? null, input.trigger, new Date().toISOString())
   return Number(info.lastInsertRowid)
 }
 
@@ -189,6 +200,10 @@ export function finishBatch(batchId: number, patch: Partial<Omit<BatchRow, 'id'>
   if (!sets.length) return
   vals.push(batchId)
   getDb().prepare(`UPDATE history_batch SET ${sets.join(', ')} WHERE id = ?`).run(...vals)
+}
+
+export function getBatch(id: number): BatchRow | null {
+  return (getDb().prepare('SELECT * FROM history_batch WHERE id = ?').get(id) as BatchRow | undefined) ?? null
 }
 
 export function listBatches(taskId?: number, limit = 30): BatchRow[] {
@@ -225,6 +240,40 @@ export function insertHistoryItem(item: {
       item.filePath ?? null,
       item.errorReason ?? null,
     )
+}
+
+/**
+ * 删除历史明细行（勾选「历史记录」时用）。
+ * 批次被删空则批次行一并消失——否则列表上会留一个"0 成功 0 失败"的空壳。
+ * 返回实际删除的 明细数 / 批次壳数。
+ */
+export function deleteHistoryItems(ids: number[]): { items: number; batches: number } {
+  if (!ids.length) return { items: 0, batches: 0 }
+  const db = getDb()
+  return db.transaction((list: number[]) => {
+    const ph = list.map(() => '?').join(',')
+    const batchIds = (db.prepare(`SELECT DISTINCT batchId FROM history_item WHERE id IN (${ph})`).all(...list) as { batchId: number }[]).map((x) => x.batchId)
+    const items = db.prepare(`DELETE FROM history_item WHERE id IN (${ph})`).run(...list).changes
+    let batches = 0
+    for (const b of batchIds) {
+      const left = db.prepare('SELECT COUNT(*) AS n FROM history_item WHERE batchId = ?').get(b) as { n: number }
+      if (left.n === 0) batches += db.prepare('DELETE FROM history_batch WHERE id = ?').run(b).changes
+    }
+    return { items, batches }
+  })(ids)
+}
+
+/** 某批次的历史明细 id（历史页勾"整批"时服务端展开用） */
+export function listHistoryItemIdsByBatch(batchId: number): number[] {
+  return (getDb().prepare('SELECT id FROM history_item WHERE batchId = ?').all(batchId) as { id: number }[]).map((r) => r.id)
+}
+
+/** 删除批次行本身（明细已删光的空壳；明细由 deleteHistoryItems 负责） */
+export function deleteHistoryBatches(ids: number[]): number {
+  if (!ids.length) return 0
+  const db = getDb()
+  const ph = ids.map(() => '?').join(',')
+  return db.prepare(`DELETE FROM history_batch WHERE id IN (${ph})`).run(...ids).changes
 }
 
 // ===== song_files / task_song_ref（引用计数） =====
@@ -267,10 +316,42 @@ export function refTaskFile(taskId: number, songKey: string, fileId: number): vo
     .run(taskId, songKey, fileId)
 }
 
+/** 文件当前被哪些任务引用（手动删文件的引用保护要按"谁在用"判断，不能只看数量） */
+export function fileRefTasks(fileId: number): number[] {
+  const rows = getDb().prepare('SELECT DISTINCT taskId FROM task_song_ref WHERE fileId = ?').all(fileId) as { taskId: number }[]
+  return rows.map((r) => r.taskId)
+}
+
+/** 抹掉一个文件记录：引用 + 登记（手动删文件 → 移入回收站之后调用） */
+export function removeFileRecord(fileId: number): void {
+  getDb().transaction((id: number) => {
+    getDb().prepare('DELETE FROM task_song_ref WHERE fileId = ?').run(id)
+    getDb().prepare('DELETE FROM song_files WHERE id = ?').run(id)
+  })(fileId)
+}
+
 /** 文件当前被哪些任务引用 */
 export function fileRefCount(fileId: number): number {
   const r = getDb().prepare('SELECT COUNT(*) AS n FROM task_song_ref WHERE fileId = ?').get(fileId) as { n: number }
   return r.n
+}
+
+/** 本任务持有文件引用的全部歌曲（"删除任务"时 文件/歌单 两个选项的作用范围） */
+export function listTaskSongKeys(taskId: number): string[] {
+  return (getDb().prepare('SELECT DISTINCT songKey FROM task_song_ref WHERE taskId = ?').all(taskId) as { songKey: string }[]).map((r) => r.songKey)
+}
+
+/** 本任务的全部历史明细 id（"删除任务"勾选历史记录时用） */
+export function listHistoryItemIds(taskId: number): number[] {
+  return (getDb().prepare('SELECT id FROM history_item WHERE taskId = ?').all(taskId) as { id: number }[]).map((r) => r.id)
+}
+
+/** 各批次的历史明细条数（历史页批次勾选框要显示"整批 N 首"） */
+export function historyItemCounts(): Record<number, number> {
+  const rows = getDb().prepare('SELECT batchId, COUNT(*) AS n FROM history_item GROUP BY batchId').all() as { batchId: number; n: number }[]
+  const out: Record<number, number> = {}
+  for (const r of rows) out[r.batchId] = r.n
+  return out
 }
 
 /** 本任务是否加入过该歌(provenance:镜像删除只处理"自己加过的") */
@@ -307,6 +388,43 @@ export function listFilesForSong(songKey: string): { fileId: number; filePath: s
     fileId: number
     filePath: string
   }[]
+}
+
+/**
+ * 把某首歌从「同步基准」里摘掉：删除文件后调用。
+ *
+ * 为什么必须做：增量模式按 current_song_status=success 跳过、镜像模式按快照跳过，
+ * **两条路都不看文件在不在磁盘上**。所以只删文件不清基准的话，这首歌会永远不再下载
+ * （歌单里没有、文件也没了）——与「删掉文件，下次同步会重新下载」的承诺相矛盾。
+ * 摘掉之后它就是个"新歌"，下次同步重新走下载→入库→入歌单。
+ *
+ * 顺带清掉该歌在本任务的状态行（引用/状态重建由下次运行自然完成）。
+ */
+export function dropSongFromBaseline(songKey: string): number {
+  const db = getDb()
+  let n = 0
+  // playlist_snapshot 主键是 taskId；chart_snapshot 是自增 id
+  const strip = (table: 'playlist_snapshot' | 'chart_snapshot', keyCol: 'taskId' | 'id') => {
+    const del = db.prepare(`DELETE FROM ${table} WHERE ${keyCol} = ?`)
+    const upd = db.prepare(`UPDATE ${table} SET songKeys = ? WHERE ${keyCol} = ?`)
+    for (const r of db.prepare(`SELECT ${keyCol} AS k, songKeys FROM ${table}`).all() as { k: number; songKeys: string }[]) {
+      let arr: string[]
+      try {
+        arr = JSON.parse(r.songKeys)
+      } catch {
+        continue
+      }
+      if (!Array.isArray(arr) || !arr.includes(songKey)) continue
+      const next = arr.filter((k) => k !== songKey)
+      if (next.length) upd.run(JSON.stringify(next), r.k)
+      else del.run(r.k) // 快照空了 = 从没同步过 → 下次全量，正是我们要的
+      n++
+    }
+  }
+  strip('playlist_snapshot', 'taskId')
+  strip('chart_snapshot', 'id')
+  db.prepare('DELETE FROM current_song_status WHERE songKey = ?').run(songKey)
+  return n
 }
 
 // ===== emby_song_map =====

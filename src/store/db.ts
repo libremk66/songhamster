@@ -94,7 +94,11 @@ function migrate(d: Database.Database): void {
 
     CREATE TABLE IF NOT EXISTS history_batch (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      taskId INTEGER NOT NULL REFERENCES sync_task(id),
+      -- ⚠️ 故意不加 REFERENCES sync_task(id)：删除任务时可以「保留历史」，
+      -- 任务没了历史还在 → 名称/类型随批次快照一份（见 createBatch）
+      taskId INTEGER NOT NULL,
+      taskName TEXT,
+      taskType TEXT,
       trigger TEXT NOT NULL,             -- 'cron' | 'manual' | 'retry'
       startedAt TEXT NOT NULL,
       finishedAt TEXT,
@@ -220,4 +224,46 @@ function migrate(d: Database.Database): void {
   ensureCol('sync_task', 'chartName', 'chartName TEXT')
   ensureCol('sync_task', 'maxCount', 'maxCount INTEGER NOT NULL DEFAULT 30')
   ensureCol('history_batch', 'dedupCount', 'dedupCount INTEGER NOT NULL DEFAULT 0')
+  rebuildHistoryBatchIfFk(d)
+}
+
+/**
+ * 老库迁移：history_batch.taskId 原本带 `REFERENCES sync_task(id)`。
+ * 有了「删除任务」的三个复选框（可勾可不勾「历史记录」）之后，这个外键就成了拦路虎——
+ * 想保留历史就必须留着任务行，做不到。SQLite 不能原地删外键 → 整表重建（标准 12 步），
+ * 顺便把任务名/类型快照进批次，任务消失后历史页仍能正确显示与分标签。
+ *
+ * 幂等：只有检测到旧外键定义才重建；重建期间关外键（DROP 时才不会因子表 history_item 报错）。
+ */
+function rebuildHistoryBatchIfFk(d: Database.Database): void {
+  const row = d.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='history_batch'").get() as { sql: string } | undefined
+  if (!row || !/REFERENCES\s+sync_task/i.test(row.sql)) return
+  d.pragma('foreign_keys = OFF') // 必须在事务外设置（事务内改 pragma 无效）
+  d.exec(`
+    BEGIN;
+    CREATE TABLE history_batch_new (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      taskId INTEGER NOT NULL,
+      taskName TEXT,
+      taskType TEXT,
+      trigger TEXT NOT NULL,
+      startedAt TEXT NOT NULL,
+      finishedAt TEXT,
+      result TEXT,
+      okCount INTEGER NOT NULL DEFAULT 0,
+      failCount INTEGER NOT NULL DEFAULT 0,
+      unsatisfiedCount INTEGER NOT NULL DEFAULT 0,
+      removedCount INTEGER NOT NULL DEFAULT 0,
+      dupCount INTEGER NOT NULL DEFAULT 0,
+      dedupCount INTEGER NOT NULL DEFAULT 0,
+      detail TEXT
+    );
+    INSERT INTO history_batch_new (id, taskId, taskName, taskType, trigger, startedAt, finishedAt, result, okCount, failCount, unsatisfiedCount, removedCount, dupCount, dedupCount, detail)
+      SELECT b.id, b.taskId, t.lxPlaylistName, t.taskType, b.trigger, b.startedAt, b.finishedAt, b.result, b.okCount, b.failCount, b.unsatisfiedCount, b.removedCount, b.dupCount, b.dedupCount, b.detail
+      FROM history_batch b LEFT JOIN sync_task t ON t.id = b.taskId;
+    DROP TABLE history_batch;
+    ALTER TABLE history_batch_new RENAME TO history_batch;
+    COMMIT;
+  `)
+  d.pragma('foreign_keys = ON')
 }

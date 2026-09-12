@@ -4,6 +4,7 @@ import { QUALITY_ORDER, QUALITY_LABELS, TARGET_LABEL, supportsFileDelete } from 
 import { LxServerAdapter } from '../adapters/lxserver.js'
 import type { MediaServerAdapter } from '../adapters/media-server.js'
 import { renderPage, VERSION } from '../views/render.js'
+import { delTaskDialog } from '../views/partials/del-dialog.js'
 import * as repo from '../store/repo.js'
 import { currentUser } from '../auth.js'
 
@@ -54,6 +55,7 @@ export function pagesRouter(getCfg: () => AppConfig, lx: LxServerAdapter, emby: 
         ...base('charts', _req),
         embyPlaylists,
         fileDeleteOK: supportsFileDelete(getCfg().target),
+        delDialog: delTaskDialog('chart'),
       }),
     )
   })
@@ -84,7 +86,7 @@ export function pagesRouter(getCfg: () => AppConfig, lx: LxServerAdapter, emby: 
     const lis = getCfg().general.listen
     const skip = new Set([...repo.listTasks().map((t) => t.lxPlaylistKey), ...lis.ignoredKeys])
     const existingCount = lxPlaylists.filter((p) => p.key.startsWith('user:') && !skip.has(p.key)).length
-    res.type('html').send(renderPage('sync-setup', { ...base('sync-setup', _req), lxPlaylists, embyPlaylists, lxError, qOrder: QUALITY_ORDER, qLabels: QUALITY_LABELS, listen: lis, existingCount, fileDeleteOK: supportsFileDelete(getCfg().target) }))
+    res.type('html').send(renderPage('sync-setup', { ...base('sync-setup', _req), lxPlaylists, embyPlaylists, lxError, qOrder: QUALITY_ORDER, qLabels: QUALITY_LABELS, listen: lis, existingCount, fileDeleteOK: supportsFileDelete(getCfg().target), delDialog: delTaskDialog('playlist') }))
   })
 
   // 进度历史：实时进度（页顶，原「任务进度」）+ 按类型分标签的历史
