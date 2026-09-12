@@ -55,16 +55,7 @@
             <span class="text-sm">外置歌词 (.lrc)</span>
           </label>
         </div>
-        <p class="text-xs c-sub mt-1.5 leading-relaxed"><b>标题 / 歌手 / 专辑标签和封面没有开关</b>——下载请求里始终带着专辑名和封面地址，由 LX 服务端在下载时<b>一律写入</b>，所以这里不再放那两个勾选框（以前放的是摆设，勾不勾都一样）。</p>
-        <p class="text-xs c-sub mt-1 leading-relaxed"><b>外置歌词只管音乐仓鼠自己那一段</b>：勾上=把 .lrc 和歌曲放一起；不勾=落盘时清掉同名 .lrc。⚠️ 但 <b>LX 网页播放器</b>（127.0.0.1:19527）在播放歌曲、点「补全歌词」时也会往歌曲旁边写 .lrc，那份不受这里控制——要去它的「设置 → 本地缓存与重置 → 缓存歌词文件」里关。</p>
-      </section>
-
-      <div class="divider my-0"></div>
-
-      <!-- 下载行为 -->
-      <section>
-        <h3 class="text-xs font-bold c-sub mb-1.5">下载行为</h3>
-        <p class="text-xs c-sub leading-relaxed">下载<b>始终逐首串行</b>（不并发），请求节奏由下面的「批量下载保护」控制——所以这里没有"并发数"。<br>失败也<b>不会自动重试</b>：失败或「未满足」的歌，下次同步会自动再试；想立刻补，可在<b>历史记录页</b>对单曲点「重试」。</p>
+        <p class="text-xs c-sub mt-1.5 leading-relaxed">标签与封面由 LX 服务端下载时<b>始终写入</b>，无开关。<br>外置歌词只管落盘时留不留 .lrc；<b>LX 网页播放器</b>写的 .lrc 要去它的「设置 → 缓存歌词文件」关。</p>
       </section>
 
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-3">
@@ -84,7 +75,7 @@
         <input type="checkbox" name="enabled" value="1" <%= cfg.download.protection.enabled ? 'checked' : '' %> class="checkbox checkbox-sm">
         <span class="text-sm">批量下载保护（推荐开启）</span>
       </label>
-      <p class="text-xs c-sub leading-relaxed">下载保持单任务串行，并在每首歌曲成功或失败后等待一段时间；同时限制直链解析的请求节奏，降低音源限流或封禁 IP 的风险。<b>已下载跳过（复用本地文件）的歌不请求音源，因此不占用这个等待</b>——换过同步目标后的首轮同步不会因为几百首"已下过"的歌而白等。</p>
+      <p class="text-xs c-sub leading-relaxed">下载始终<b>单任务串行、不并发</b>；失败也<b>不自动重试</b>（失败/「未满足」的歌下次同步会自动再试，急用可在历史记录页点「重试」）。每首成功或失败后会等待一段时间，同时限制直链解析的请求节奏，降低音源限流或封禁 IP 的风险。<b>已下载跳过（复用本地文件）的歌不请求音源，因此不占用这个等待</b>——换过同步目标后的首轮同步不会因为几百首"已下过"的歌而白等。</p>
       <div class="fg">
         <label class="form-control w-full">
           <span class="label-text mb-1">下载间隔（秒）</span>
