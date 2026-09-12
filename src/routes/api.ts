@@ -253,7 +253,10 @@ export function apiRouter(
   // ===== 连接媒体服务器（统一分区：选项卡切类型 + 确定一键"存→测→探测→设为目标"）=====
   const serverVals = (type: string): Record<string, string> => {
     const c = (cfg as unknown as Record<string, Record<string, string>>)[type] ?? {}
-    return { baseUrl: c.baseUrl ?? '', apiKey: c.apiKey ?? '', username: c.username ?? '', password: c.password ?? '', libraryRoot: c.libraryRoot ?? '' }
+    return {
+      baseUrl: c.baseUrl ?? '', apiKey: c.apiKey ?? '', username: c.username ?? '', password: c.password ?? '', libraryRoot: c.libraryRoot ?? '',
+      playlistUserId: c.playlistUserId ?? '', playlistUserName: c.playlistUserName ?? '',
+    }
   }
   const renderConnSection = (type: string, oob = false): string => {
     const spec = specOf(type) ?? SERVER_SPECS[0]
@@ -268,8 +271,14 @@ export function apiRouter(
     const g = (k: string) => String(b[k] ?? '').trim()
     if (type === 'emby') {
       cfg.emby.baseUrl = g('baseUrl'); cfg.emby.apiKey = g('apiKey'); cfg.emby.libraryRoot = g('libraryRoot')
+      const [uid, uname] = g('playlistUserId').split('|')
+      cfg.emby.playlistUserId = uid || undefined
+      cfg.emby.playlistUserName = uname || undefined
     } else if (type === 'jellyfin') {
       cfg.jellyfin.baseUrl = g('baseUrl'); cfg.jellyfin.apiKey = g('apiKey'); cfg.jellyfin.libraryRoot = g('libraryRoot')
+      const [juid, juname] = g('playlistUserId').split('|')
+      cfg.jellyfin.playlistUserId = juid || undefined
+      cfg.jellyfin.playlistUserName = juname || undefined
     } else if (type === 'navidrome') {
       cfg.navidrome.baseUrl = g('baseUrl'); cfg.navidrome.username = g('username'); cfg.navidrome.password = g('password'); cfg.navidrome.libraryRoot = g('libraryRoot')
     } else if (type === 'daoliyu') {
@@ -497,6 +506,27 @@ export function apiRouter(
       res.send(opts.join(''))
     } catch (e) {
       res.send(`<option value="" disabled selected>刷新失败：${escapeHtml((e as Error).message)}</option>`)
+    }
+  })
+
+  /** 「播放列表归属用户」下拉：用表单里当前填的地址/key 拉用户列表（还没保存也能用） */
+  r.get('/media/users/options', async (req, res) => {
+    const type = String(req.query.type ?? 'emby')
+    const cur = String(req.query.playlistUserId ?? '').split('|')[0]  // 选项值是 id|名字
+    const pick = (v: unknown, fb: string) => (v === undefined || v === '' ? fb : String(v))
+    const tmp: AppConfig = type === 'jellyfin'
+      ? { ...cfg, jellyfin: { ...cfg.jellyfin, baseUrl: pick(req.query.baseUrl, cfg.jellyfin.baseUrl), apiKey: pick(req.query.apiKey, cfg.jellyfin.apiKey) } }
+      : { ...cfg, emby: { ...cfg.emby, baseUrl: pick(req.query.baseUrl, cfg.emby.baseUrl), apiKey: pick(req.query.apiKey, cfg.emby.apiKey) } }
+    try {
+      const ad = new EmbyAdapter(() => tmp, type === 'jellyfin' ? 'jellyfin' : 'emby')
+      const users = (await ad.listUsers()) ?? []
+      const opts = ['<option value="">（不限制：匹配所有用户的歌单）</option>']
+      for (const u of users) {
+        opts.push(`<option value="${escapeHtml(u.id)}|${escapeHtml(u.name)}"${u.id === cur ? ' selected' : ''}>${escapeHtml(u.name)}</option>`)
+      }
+      res.send(opts.join(''))
+    } catch (e) {
+      res.send(`<option value="">读取用户列表失败：${escapeHtml((e as Error).message)}</option>`)
     }
   })
 

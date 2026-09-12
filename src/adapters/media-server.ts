@@ -58,6 +58,8 @@ export interface MediaServerAdapter {
   // ===== 播放列表（同步管线） =====
   /** 现有播放列表（映射表"加入已有歌单"数据源 / 同名查重） */
   listPlaylists(): Promise<MediaPlaylist[]>
+  /** 列出服务器用户（Emby/Jellyfin：歌单按用户存，用于"播放列表归属用户"选择器；其他服务器无此概念 → 不实现） */
+  listUsers?(): Promise<{ id: string; name: string }[]>
   createPlaylist(name: string, itemIds?: string[]): Promise<{ id: string }>
   /** 幂等加入歌单（songIds），返回实际新增数 */
   addItems(playlistId: string, songIds: string[]): Promise<{ added: number }>

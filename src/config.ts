@@ -243,6 +243,15 @@ export interface EmbyServerCfg {
   libraryRoot: string
   /** 媒体库 Id（连接后自动探测填入） */
   mediaLibraryId?: string
+  /**
+   * 播放列表归属用户（Emby/Jellyfin 的歌单是**按用户**存的：同名歌单可能分属不同账号，
+   * 管理员 API key 能看到所有人的）。设定后只在该账号的歌单里匹配/选择，
+   * 否则会把歌加进别人账号的同名歌单里——用户在自己的客户端看不到（实测踩到过）。
+   * 留空 = 不限制（老行为）。
+   */
+  playlistUserId?: string
+  /** 归属用户显示名（仅用于界面与日志） */
+  playlistUserName?: string
 }
 
 export interface AppConfig {

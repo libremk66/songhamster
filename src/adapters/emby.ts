@@ -51,7 +51,11 @@ export class EmbyAdapter implements MediaServerAdapter {
 
   /** 现有播放列表（映射表"加入已有歌单"数据源） */
   async listPlaylists(): Promise<MediaPlaylist[]> {
-    const data = await this.request('/Items?IncludeItemTypes=Playlist&Recursive=true&Fields=ChildCount')
+    // 设了"归属用户"就只看该账号的歌单（Emby 歌单按用户存；不加限定会看到所有人的）
+    const seg = this.segment === 'jellyfin' ? this.cfg().jellyfin : this.cfg().emby
+    const uid = seg.playlistUserId
+    const scope = uid ? `/Users/${encodeURIComponent(uid)}/Items` : '/Items'
+    const data = await this.request(`${scope}?IncludeItemTypes=Playlist&Recursive=true&Fields=ChildCount`)
     return (data?.Items ?? []).map((it: any) => ({
       id: String(it.Id),
       name: String(it.Name),
@@ -110,6 +114,12 @@ export class EmbyAdapter implements MediaServerAdapter {
   }
 
   /** Jellyfin 需 UserId + MediaType（Emby 不需要） */
+  /** 服务器用户列表（"播放列表归属用户"选择器用） */
+  async listUsers(): Promise<{ id: string; name: string }[]> {
+    const data = await this.request('/Users')
+    return (data ?? []).map((u: any) => ({ id: String(u.Id), name: String(u.Name) }))
+  }
+
   private async playlistOwner(): Promise<{ userId?: string; mediaType?: string }> {
     if (this.segment !== 'jellyfin') return {}
     return { userId: await this.jellyfinUserId(), mediaType: 'Audio' }

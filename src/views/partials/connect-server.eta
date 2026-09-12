@@ -30,6 +30,21 @@
           <% if (f.hint) { %><span class="text-xs c-sub mt-1"><%= f.hint %></span><% } %>
         </label>
         <% } %>
+        <% if (type === 'emby' || type === 'jellyfin') { %>
+        <label class="form-control w-full" style="grid-column:1/-1">
+          <span class="label-text mb-1">播放列表归属用户</span>
+          <select name="playlistUserId" class="select select-bordered w-full"
+                  hx-get="/api/media/users/options" hx-include="#conn-form" hx-vals='{"type":"<%= type %>"}'
+                  hx-trigger="load" hx-target="this" hx-swap="innerHTML">
+            <% if (vals.playlistUserId) { %>
+            <option value="<%= vals.playlistUserId %>|<%= vals.playlistUserName ?? '' %>" selected><%= vals.playlistUserName || vals.playlistUserId %>（加载中…）</option>
+            <% } else { %>
+            <option value="">（不限制：匹配所有用户的歌单）</option>
+            <% } %>
+          </select>
+          <span class="text-xs c-sub mt-1">歌单在 <%= spec.label %> 里是<b>按用户</b>存的——同名歌单可能分属不同账号。选定后音乐仓鼠只在该账号的歌单里匹配与创建（你的客户端就能看到）；留空 = 不限制</span>
+        </label>
+        <% } %>
       </div>
     </form>
     </div>
