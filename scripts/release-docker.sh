@@ -25,18 +25,43 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 SINGLE=""
+ONLY_ARCH=""
 ARGS=()
 for a in "$@"; do
   case "$a" in
     --single) SINGLE=1 ;;
+    --arch=*) ONLY_ARCH="${a#--arch=}" ;;
     *) ARGS+=("$a") ;;
   esac
 done
+case "${ONLY_ARCH}" in
+  ""|amd64|arm64) ;;
+  *) echo "❌ --arch 只支持 amd64 / arm64（收到：${ONLY_ARCH}）"; exit 1 ;;
+esac
 DOCKERHUB_USER="${ARGS[0]:-libremk66}"
 IMAGE="${DOCKERHUB_USER}/songferry"
 VERSION="$(grep -m1 '"version"' package.json | sed 's/.*: *"\([^"]*\)".*/\1/')"
 
 echo "==> 目标镜像：${IMAGE}:latest 与 ${IMAGE}:${VERSION}"
+
+# 失败时指认卡在哪一步（arm64 那步可能要跑 10~30 分钟，静默退出最难受）
+CURRENT_STEP="初始化"
+trap 'rc=$?; if [ "$rc" -ne 0 ]; then echo ""; echo "❌ 失败于：${CURRENT_STEP}（退出码 ${rc}）" >&2; echo "   把这段输出发给 AI 即可定位" >&2; fi' EXIT
+
+# 构建期代理：优先取 dockerd 自己配的那个（docker pull 就是靠它通的），
+# 其次取环境变量（sudo 默认会剥掉环境变量，所以 dockerd 那份更可靠）。
+# 注入给 RUN 步骤里的 npm/apt 用；BuildKit 不会把它写进镜像层。
+DAEMON_ENV="$(systemctl show docker --property=Environment 2>/dev/null | sed 's/^Environment=//' || true)"
+PROXY="$(printf '%s\n' "${DAEMON_ENV}" | tr ' ' '\n' | sed -n 's/^\(HTTPS_PROXY\|https_proxy\)=//p' | head -1)"
+[ -z "${PROXY}" ] && PROXY="${HTTPS_PROXY:-${https_proxy:-}}"
+BUILD_PROXY_ARGS=()
+if [ -n "${PROXY}" ]; then
+  BUILD_PROXY_ARGS=(--build-arg "HTTP_PROXY=${PROXY}" --build-arg "HTTPS_PROXY=${PROXY}"
+                    --build-arg "NO_PROXY=localhost,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12")
+  echo "==> 构建期代理：${PROXY}（仅注入 RUN 步骤，不写进镜像）"
+else
+  echo "==> 未检测到代理：构建期直连（apt 走镜像站，通常可行）"
+fi
 
 # 1) docker 可用性
 command -v docker >/dev/null || { echo "❌ 找不到 docker 命令"; exit 1; }
@@ -66,12 +91,31 @@ prepull_base() {
 
 build_and_push_arch() {
   local arch="$1"
+  CURRENT_STEP="预拉基础镜像 linux/${arch}"
   prepull_base "${arch}"
+  CURRENT_STEP="构建 linux/${arch}（arm64 是 QEMU 模拟，10~30 分钟属正常）"
   echo "==> 构建 linux/${arch} …"
-  docker build --platform "linux/${arch}" -t "${IMAGE}:${VERSION}-${arch}" .
+  docker build --platform "linux/${arch}" "${BUILD_PROXY_ARGS[@]}" -t "${IMAGE}:${VERSION}-${arch}" .
+  CURRENT_STEP="推送 ${VERSION}-${arch}"
   echo "==> 推送 ${VERSION}-${arch} …"
   docker push "${IMAGE}:${VERSION}-${arch}"
 }
+
+if [ -n "${ONLY_ARCH}" ]; then
+  # ---------- 只重建/重推单个架构（arm64 挂掉后单独重试用；不合并 manifest） ----------
+  echo "==> 单架构模式：只处理 linux/${ONLY_ARCH}"
+  if [ "${ONLY_ARCH}" = "arm64" ] && ! ls /proc/sys/fs/binfmt_misc/qemu-aarch64 >/dev/null 2>&1; then
+    CURRENT_STEP="安装 QEMU binfmt"
+    echo "==> 注册 QEMU binfmt（arm64 模拟）…"
+    docker run --privileged --rm tonistiigi/binfmt --install arm64
+  fi
+  build_and_push_arch "${ONLY_ARCH}"
+  CURRENT_STEP="完成"
+  echo ""
+  echo "✅ linux/${ONLY_ARCH} 已推送：${IMAGE}:${VERSION}-${ONLY_ARCH}"
+  echo "   两个架构都齐了之后，再跑一次不带 --arch 的完整脚本即可合并出多架构 ${VERSION} / latest"
+  exit 0
+fi
 
 if [ -n "${SINGLE}" ]; then
   # ---------- 单架构：经典构建 + push（最快） ----------
@@ -94,6 +138,7 @@ else
   build_and_push_arch arm64
 
   for tag in "${VERSION}" latest; do
+    CURRENT_STEP="合并多架构标签 ${tag}"
     echo "==> 合并多架构标签 ${tag} …"
     docker manifest rm "${IMAGE}:${tag}" >/dev/null 2>&1 || true
     docker manifest create "${IMAGE}:${tag}" \
@@ -103,6 +148,7 @@ else
 fi
 
 # 3) 冒烟验证（拉远端镜像起临时容器，验证推送结果真的可用）
+CURRENT_STEP="冒烟验证"
 echo "==> 冒烟验证…"
 docker rm -f songferry-smoke >/dev/null 2>&1 || true
 docker run -d --name songferry-smoke -p 8936:8935 \
