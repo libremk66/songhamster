@@ -46,6 +46,14 @@
       <section>
         <h3 class="text-xs font-bold c-sub mb-1.5">写入文件信息</h3>
         <div class="flex flex-wrap gap-x-5 gap-y-1.5">
+          <label class="flex items-center gap-2 opacity-60 cursor-not-allowed" title="下载时由 LX 服务端始终写入，无法关闭">
+            <input type="checkbox" checked disabled class="checkbox checkbox-sm">
+            <span class="text-sm">ID3 标签（标题/歌手/专辑）<span class="text-xs c-sub">（始终开启）</span></span>
+          </label>
+          <label class="flex items-center gap-2 opacity-60 cursor-not-allowed" title="下载时由 LX 服务端始终写入，无法关闭">
+            <input type="checkbox" checked disabled class="checkbox checkbox-sm">
+            <span class="text-sm">封面<span class="text-xs c-sub">（始终开启）</span></span>
+          </label>
           <label class="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" name="embedLyric" value="1" <%= cfg.download.embedLyric ? 'checked' : '' %> class="checkbox checkbox-sm">
             <span class="text-sm">内嵌歌词</span>
@@ -55,7 +63,7 @@
             <span class="text-sm">外置歌词 (.lrc)</span>
           </label>
         </div>
-        <p class="text-xs c-sub mt-1.5 leading-relaxed">标签与封面由 LX 服务端下载时<b>始终写入</b>，无开关。<br>外置歌词只管落盘时留不留 .lrc；<b>LX 网页播放器</b>写的 .lrc 要去它的「设置 → 缓存歌词文件」关。</p>
+        <p class="text-xs c-sub mt-1.5 leading-relaxed">前两项由 LX 服务端下载时<b>始终写入</b>，没有开关（置灰仅作说明）。<br>外置歌词只管落盘时留不留 .lrc；<b>LX 网页播放器</b>写的 .lrc 要去它的「设置 → 缓存歌词文件」关。</p>
       </section>
 
       <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-3">
