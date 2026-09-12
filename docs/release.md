@@ -63,7 +63,7 @@ curl -s "https://hub.docker.com/v2/repositories/libremk66/songhamster/tags?page_
 | `npm error Exit handler never called!` | 给构建**注入了宿主机代理**（容器里的 `127.0.0.1` 指向容器自己） | 别注入！脚本默认不注入（需要时用 `--with-proxy`，它会把地址换算成网桥网关） |
 | arm64 构建很慢 | QEMU 模拟执行，`tsc` 也要模拟 | 正常，几分钟到十几分钟；层缓存命中后会快很多 |
 | 只想重试挂掉的架构 | — | `sudo bash scripts/release-docker.sh --arch=arm64`（另加 `--with-proxy` 才注入构建期代理） |
-| 冒烟失败 `/healthz` 无响应 | 容器起不来 | `docker logs songferry-smoke` 看日志；脚本失败时会自动打印尾部日志 |
+| 冒烟失败 `/healthz` 无响应 | 容器起不来 | `docker logs songhamster-smoke` 看日志；脚本失败时会自动打印尾部日志 |
 
 ## 五、首次启动会做数据库迁移
 
