@@ -534,6 +534,15 @@ export class SyncEngine {
         this.liveSet({ phase: '解析直链', current: { name: song.name, singer: song.singer, quality } })
         this.sourceHit = true // 到这里才算真的碰了音源
         const { url } = await this.lx.resolveUrl(song, quality)
+        // 下载前先探一眼：① 取不到 → 7 毫秒就知道（比等 20 秒超时快 3 个数量级）
+        //                ② 源静默降级（要给 MP3 / 16bit）→ 也能当场识破，不必白下白等
+        const probe = await this.lx.probeUrl(url, song.interval)
+        if (!probe.ok) throw new Error(`直链探测取不到（${probe.reason}）`)
+        if (probe.quality && QUALITY_ORDER.indexOf(probe.quality) > QUALITY_ORDER.indexOf(quality)) {
+          // 实测：请求 hires 时源塞来一个 10MB 的 MP3，lxserver 会把它存成 320k，
+          // 而我们按 quality 找文件永远等不到 → 白等 20 秒 + 白下一遍。这里直接换下一档。
+          throw new Error(`源降级：请求 ${quality} 实得 ${probe.quality} → 换下一档`)
+        }
         this.liveSet({ phase: '下载中', current: { name: song.name, singer: song.singer, quality } })
         await this.lx.requestDownload(song, url, quality, {
           embedLyric: cfg.download.embedLyric,
@@ -636,6 +645,7 @@ export class SyncEngine {
       } catch (e) {
         const msg = (e as Error).message
         logger.warn(`[engine] ${song.name} [${quality}] 失败: ${msg}`)
+        this.traceAdd(`${quality}：${msg}`)
         if (quality === qualities[qualities.length - 1]) {
           return { status: qualities.length > 1 ? 'unsatisfied' : 'failed', quality, reason: msg }
         }

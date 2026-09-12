@@ -305,7 +305,77 @@ export class LxServerAdapter {
     )
   }
 
-  /** 文件索引（cache/list，含精确 filename/quality/size/hasCover/hasLyric） */
+  /**
+   * 探测直链**实得档位**：走 lxserver 的代理下载接口 /api/music/download?url=
+   *
+   * 为什么需要它：聚合源对不支持的档位**不报错**，会静默塞一个低档文件，
+   * 而正式下载接口是投递式的、只能靠"等文件出现"的超时才发现（20~60 秒白等，
+   * 而且低档文件已经被下了一遍）。代理接口能让我们**在下载前**看几眼就识破：
+   *   · 取不到 → 立刻 502（实测 7 毫秒）
+   *   · 取到了 → 读前 64 字节：fLaC 头能算出真实位深/采样率；ID3/MPEG 同步字 = MP3
+   *
+   * 只读响应头 + 几十字节就断开，不会真下整首（代理不落盘，断开即中断）。
+   * 探测本身异常（超时/抖动）不拦，交回正常流程，避免误判。
+   */
+  async probeUrl(url: string, interval?: string): Promise<{ ok: boolean; reason?: string; quality?: Quality; size?: number }> {
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 8000)
+    try {
+      const r = await fetch(`${this.c.baseUrl.replace(/\/+$/, '')}/api/music/download?url=${encodeURIComponent(url)}`, {
+        headers: this.headers(),
+        signal: ctrl.signal,
+      })
+      if (!r.ok) {
+        const reason = `${r.status} ${r.statusText}`.trim()
+        ctrl.abort()
+        return { ok: false, reason }
+      }
+      const size = Number(r.headers.get('content-length') ?? 0) || undefined
+      // 读够 64 字节就够判容器（FLAC 的 STREAMINFO 在 18-21 字节）
+      const reader = r.body!.getReader()
+      const chunks: Uint8Array[] = []
+      let got = 0
+      while (got < 64) {
+        const { value, done } = await reader.read()
+        if (done) break
+        if (value) { chunks.push(value); got += value.length }
+      }
+      ctrl.abort()
+      const buf = Buffer.concat(chunks.map((c) => Buffer.from(c)))
+      return { ok: true, size, quality: this.qualityFromBytes(buf, size, interval) }
+    } catch (e) {
+      // 自己发的 8 秒超时 abort / 网络异常 → 不判定为"取不到"，放行给正常流程
+      return { ok: true, reason: `探测异常已忽略: ${(e as Error).message}` }
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
+  /** 从直链开头的字节猜实得档位（下载前预判；下载后仍以本地文件头为准） */
+  private qualityFromBytes(buf: Buffer, size?: number, interval?: string): Quality | undefined {
+    // FLAC: "fLaC" + STREAMINFO → 位深/采样率（与 validator.sniffFlacBits 同一套算法）
+    if (buf.length >= 42 && buf[0] === 0x66 && buf[1] === 0x4c && buf[2] === 0x61 && buf[3] === 0x43) {
+      const sampleRate = ((buf[18] << 12) | (buf[19] << 4) | (buf[20] >> 4)) & 0xfffff
+      const bits = (((buf[20] & 0x01) << 4) | (buf[21] >> 4)) + 1
+      if (bits >= 24 || sampleRate > 48000) return sampleRate > 96000 ? 'hires' : 'flac24bit'
+      return 'flac'
+    }
+    // MP3: ID3 标签 或 MPEG 帧同步字（0xFFEx/0xFFFx）→ 用体积/时长估码率
+    const isMp3 = (buf[0] === 0x49 && buf[1] === 0x44 && buf[2] === 0x33) || (buf[0] === 0xff && (buf[1] & 0xe0) === 0xe0)
+    if (isMp3) {
+      const sec = parseIntervalSec(interval)
+      if (size && sec) {
+        const kbps = Math.round((size * 8) / sec / 1000)
+        if (kbps >= 256) return '320k'
+        if (kbps >= 160) return '192k'
+        return '128k'
+      }
+      return '320k' // 估不出来时按"可能是最高 MP3 档"处理（保守：不误杀）
+    }
+    return undefined
+  }
+
+  /** 文件索引（cache/list，含精确 filename/quality/size/hasCover/hasLyric） */  /** 文件索引（cache/list，含精确 filename/quality/size/hasCover/hasLyric） */
   async listFiles(): Promise<
     {
       songKey: string
@@ -364,4 +434,14 @@ export class LxServerAdapter {
     }
     return null
   }
+}
+
+/** "03:17" / "197" → 秒 */
+function parseIntervalSec(interval?: string): number | undefined {
+  if (!interval) return undefined
+  const t = String(interval).trim()
+  const m = t.match(/^(\d+):(\d+)$/)
+  if (m) return Number(m[1]) * 60 + Number(m[2])
+  const n = Number(t)
+  return Number.isFinite(n) && n > 0 ? n : undefined
 }
