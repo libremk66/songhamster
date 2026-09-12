@@ -92,8 +92,11 @@ export function pagesRouter(getCfg: () => AppConfig, lx: LxServerAdapter, emby: 
   })
 
   // 进度历史：实时进度（页顶，原「任务进度」）+ 按类型分标签的历史
-  r.get('/history', (_req, res) => {
-    res.type('html').send(renderPage('history', base('history', _req)))
+  r.get('/history', (req, res) => {
+    // 支持 ?tab=chart|trash|playlist：初始标签由服务端决定，
+    // 避免"脚本先切、页面自带的 load 又切回来"的竞态（实测踩到）
+    const tab = ['chart', 'trash', 'playlist'].includes(String(req.query.tab)) ? String(req.query.tab) : 'playlist'
+    res.type('html').send(renderPage('history', { ...base('history', req), initialTab: tab }))
   })
 
   // 曲库管理（安全洗版 / 查重清理）

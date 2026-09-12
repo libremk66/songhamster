@@ -371,9 +371,33 @@ export class SyncEngine {
       const result = failCount > 0 || unsatisfiedCount > 0 ? (okCount > 0 ? 'partial' : 'failed') : 'success'
       // 归档目标不存在 → 已降级为"保留文件"：结果照常，但在结果串/批次详情里留痕
       const resultTxt = archiveDegraded ? `${result}·归档降级` : result
+      // 榜单：先把变化统计算出来（要写进批次摘要，故放在 finishBatch 之前）
+      let chartJson: string | null = null
+      if (isChart) {
+        const prev = repo.getLatestChartSnapshot(taskId)
+        const curKeys = songs.map((s) => s.songKey)
+        const curSet = new Set(curKeys)
+        const prevKeys = prev?.songKeys ?? []
+        const prevSet = new Set(prevKeys)
+        const newCount = curKeys.filter((k) => !prevSet.has(k)).length
+        const dropped = prev ? prevKeys.filter((k) => !curSet.has(k)).length : 0
+        repo.saveChartSnapshot({
+          taskId,
+          syncedAt: new Date().toISOString(),
+          totalCount: curKeys.length,
+          newCount,
+          removedCount: dropped,
+          songKeys: curKeys,
+        })
+        chartJson = JSON.stringify({ total: curKeys.length, new: newCount, removed: dropped })
+        if (prev) {
+          logger.info(`[engine] 榜单变化: 本期 ${curKeys.length} 首 | 新上榜 ${newCount} | 跌出 ${dropped}${mirror ? ` | 已按策略处理 ${removedCount} 首` : ''}`)
+        }
+      }
       repo.finishBatch(batchId, {
         finishedAt: new Date().toISOString(),
         result,
+        chartJson,
         okCount,
         failCount,
         unsatisfiedCount,
@@ -395,27 +419,6 @@ export class SyncEngine {
       })
       // 快照：完全同步语义的删除检测依据 = 本次源歌单全集
       repo.setSnapshot(taskId, songs.map((s) => s.songKey))
-      // 榜单任务：存当期快照 + 变化统计（时效性报告：本期新上榜/跌出）
-      if (isChart) {
-        const prev = repo.getLatestChartSnapshot(taskId)
-        const curKeys = songs.map((s) => s.songKey)
-        const curSet = new Set(curKeys)
-        const prevKeys = prev?.songKeys ?? []
-        const prevSet = new Set(prevKeys)
-        const newCount = curKeys.filter((k) => !prevSet.has(k)).length
-        const dropped = prev ? prevKeys.filter((k) => !curSet.has(k)).length : 0
-        repo.saveChartSnapshot({
-          taskId,
-          syncedAt: new Date().toISOString(),
-          totalCount: curKeys.length,
-          newCount,
-          removedCount: dropped,
-          songKeys: curKeys,
-        })
-        if (prev) {
-          logger.info(`[engine] 榜单变化: 本期 ${curKeys.length} 首 | 新上榜 ${newCount} | 跌出 ${dropped}${mirror ? ` | 已按策略处理 ${removedCount} 首` : ''}`)
-        }
-      }
       logger.info(`[engine] task#${taskId} 完成: result=${result} ok=${okCount} fail=${failCount} unsatisfied=${unsatisfiedCount} dup=${dupCount} dedup=${dedupCount} removed=${removedCount}`)
       this.liveSet({ phase: '完成' })
       this.liveEnd(resultTxt)

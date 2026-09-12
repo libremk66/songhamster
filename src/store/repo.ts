@@ -185,6 +185,8 @@ export interface BatchRow {
   dupCount: number
   dedupCount: number
   detail: string | null
+  /** 榜单批次的变化统计 JSON：{ total, new, removed }（歌单任务为 null） */
+  chartJson: string | null
 }
 
 export function createBatch(input: { taskId: number; trigger: string }): number {

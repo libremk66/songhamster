@@ -230,6 +230,7 @@ function migrate(d: Database.Database): void {
   ensureCol('history_batch', 'dedupCount', 'dedupCount INTEGER NOT NULL DEFAULT 0')
   ensureCol('sync_task', 'playlistScope', 'playlistScope TEXT')
   ensureCol('history_item', 'detail', 'detail TEXT') // 每首歌的处理轨迹（JSON 数组）
+  ensureCol('history_batch', 'chartJson', 'chartJson TEXT') // 榜单批次的变化统计（本期/新上榜/跌出）
   ensureCol('sync_task', 'playlistScopeName', 'playlistScopeName TEXT')
   rebuildHistoryBatchIfFk(d)
 }

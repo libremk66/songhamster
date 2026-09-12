@@ -25,6 +25,14 @@
     <strong class="text-sm"><%= fmtLocal(b.startedAt, true) %></strong>
     <span class="text-xs c-sub">歌单：<%= b.taskName %><% if (!b.taskType) { %> · 任务已删除<% } %> · 触发：<%= b.trigger === 'cron' ? '定时' : b.trigger === 'retry' ? '重试' : '手动' %></span>
     <span class="flex-1"></span>
+    <!-- 榜单批次：把"这一期变了什么"摆在标题行 -->
+    <%
+      let cj = null
+      try { cj = b.chartJson ? JSON.parse(b.chartJson) : null } catch { cj = null }
+    %>
+    <% if (cj) { %>
+    <span class="text-xs c-sub" title="本期榜单范围 / 新上榜 / 跌出">🏆 本期 <%= cj.total %> 首 · 🆕 <%= cj.new %> · 🔻 <%= cj.removed %></span>
+    <% } %>
     <span class="text-xs">
       结果：
       <% if (b.result === 'success') { %><b class="st-ok">成功</b>
