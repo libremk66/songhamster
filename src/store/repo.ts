@@ -253,6 +253,199 @@ export function getBatch(id: number): BatchRow | null {
   return (getDb().prepare('SELECT * FROM history_batch WHERE id = ?').get(id) as BatchRow | undefined) ?? null
 }
 
+// ===== 进度历史页查询层（2026-09-13 P2）=====
+
+/** 平铺历史表的筛选条件（标签①） */
+export interface HistoryQuery {
+  /** 歌名/歌手 模糊 */
+  q?: string
+  /** 所属任务名（下拉，精确） */
+  taskName?: string
+  trigger?: string
+  mode?: string
+  quality?: string
+  /** in=入库 / out=移出 */
+  action?: string
+  process?: string
+  status?: string
+  from?: string
+  to?: string
+  /** 文件路径 模糊 */
+  path?: string
+  /** keyset 分页：只取 id 小于它的事件行 */
+  cursor?: number
+  limit?: number
+}
+
+/** 平铺表的一行 = 一次「任务运行 × 歌曲」事件（含批次快照与派生列） */
+export interface HistoryRow {
+  id: number
+  batchId: number
+  taskId: number
+  songKey: string
+  songName: string | null
+  singer: string | null
+  status: string
+  quality: string | null
+  filePath: string | null
+  fileSize: number | null
+  errorReason: string | null
+  detail: string | null
+  action: string | null
+  process: string | null
+  refBefore: string | null
+  refAfter: string | null
+  // 批次侧（快照）
+  startedAt: string
+  taskName: string | null
+  taskType: string | null
+  trigger: string
+  mode: string | null
+  delPolicy: string | null
+  targetPlaylists: string | null
+  /** 本批次的明细行数（批次视图/空批次判定用） */
+  batchRows: number
+  /** 这首歌在**本任务**里是第几次处理（1=首次） */
+  attemptNo: number
+  /** 全库这首歌最早一条事件的 id（"首次 →#N" 跳转用） */
+  firstId: number
+}
+
+export function listHistoryRows(f: HistoryQuery): HistoryRow[] {
+  const where: string[] = []
+  const args: unknown[] = []
+  if (f.q) { where.push('(h.songName LIKE ? OR h.singer LIKE ?)'); args.push(`%${f.q}%`, `%${f.q}%`) }
+  if (f.taskName) { where.push('b.taskName = ?'); args.push(f.taskName) }
+  if (f.trigger) { where.push('b.trigger = ?'); args.push(f.trigger) }
+  if (f.mode) { where.push('b.mode = ?'); args.push(f.mode) }
+  if (f.quality) { where.push('h.quality = ?'); args.push(f.quality) }
+  if (f.action) { where.push('h.action = ?'); args.push(f.action) }
+  if (f.process) { where.push('h.process = ?'); args.push(f.process) }
+  if (f.status) { where.push('h.status = ?'); args.push(f.status) }
+  if (f.from) { where.push('b.startedAt >= ?'); args.push(f.from) }
+  if (f.to) { where.push('b.startedAt <= ?'); args.push(f.to) }
+  if (f.path) { where.push('h.filePath LIKE ?'); args.push(`%${f.path}%`) }
+  if (f.cursor) { where.push('h.id < ?'); args.push(f.cursor) }
+  const limit = Math.min(500, Math.max(1, f.limit ?? 100))
+  const sql = `
+    SELECT h.id, h.batchId, h.taskId, h.songKey, h.songName, h.singer, h.status, h.quality,
+           h.filePath, h.fileSize, h.errorReason, h.detail, h.action, h.process, h.refBefore, h.refAfter,
+           b.startedAt, b.taskName, b.taskType, b.trigger, b.mode, b.delPolicy, b.targetPlaylists,
+           ROW_NUMBER() OVER (PARTITION BY h.taskId, h.songKey ORDER BY h.id) AS attemptNo,
+           MIN(h.id)      OVER (PARTITION BY h.songKey)  AS firstId,
+           COUNT(*)       OVER (PARTITION BY h.batchId)  AS batchRows
+    FROM history_item h JOIN history_batch b ON b.id = h.batchId
+    ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+    ORDER BY h.id DESC LIMIT ?`
+  return getDb().prepare(sql).all(...args, limit) as HistoryRow[]
+}
+
+/** 批次视图（标签①的「批次」切换）：每批次一行 + 跳过名单 */
+export function listBatchRows(f: { taskName?: string; trigger?: string; mode?: string; from?: string; to?: string; cursor?: number; limit?: number }): BatchRow[] {
+  const where: string[] = []
+  const args: unknown[] = []
+  if (f.taskName) { where.push('taskName = ?'); args.push(f.taskName) }
+  if (f.trigger) { where.push('trigger = ?'); args.push(f.trigger) }
+  if (f.mode) { where.push('mode = ?'); args.push(f.mode) }
+  if (f.from) { where.push('startedAt >= ?'); args.push(f.from) }
+  if (f.to) { where.push('startedAt <= ?'); args.push(f.to) }
+  if (f.cursor) { where.push('id < ?'); args.push(f.cursor) }
+  const limit = Math.min(500, Math.max(1, f.limit ?? 100))
+  const sql = `SELECT * FROM history_batch ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY id DESC LIMIT ?`
+  return getDb().prepare(sql).all(...args, limit) as BatchRow[]
+}
+
+/** 下拉框候选值（任务名/音质——process 用代码里的固定枚举，空库也能选） */
+export function historyFacets(): { taskNames: string[]; qualities: string[] } {
+  const db = getDb()
+  const taskNames = (db.prepare('SELECT DISTINCT taskName FROM history_batch WHERE taskName IS NOT NULL ORDER BY taskName').all() as { taskName: string }[]).map((r) => r.taskName)
+  const qualities = (db.prepare('SELECT DISTINCT quality FROM history_item WHERE quality IS NOT NULL ORDER BY quality').all() as { quality: string }[]).map((r) => r.quality)
+  return { taskNames, qualities }
+}
+
+/** 台账增强用：每（任务×歌曲）的事件数与最早事件 id */
+export function historyCountsByTaskSong(): Record<string, { n: number; firstId: number }> {
+  const rows = getDb()
+    .prepare('SELECT taskId, songKey, COUNT(*) AS n, MIN(id) AS firstId FROM history_item GROUP BY taskId, songKey')
+    .all() as { taskId: number; songKey: string; n: number; firstId: number }[]
+  const out: Record<string, { n: number; firstId: number }> = {}
+  for (const r of rows) out[`${r.taskId}|${r.songKey}`] = { n: r.n, firstId: r.firstId }
+  return out
+}
+
+/** 台账增强用：每首歌当前被几个任务引用 */
+export function refCountsBySong(): Record<string, number> {
+  const rows = getDb()
+    .prepare('SELECT songKey, COUNT(DISTINCT taskId) AS n FROM task_song_ref GROUP BY songKey')
+    .all() as { songKey: string; n: number }[]
+  const out: Record<string, number> = {}
+  for (const r of rows) out[r.songKey] = r.n
+  return out
+}
+
+/** 搜索卡：按歌聚合（当前状态 + 文件 + 首次/最近 + 记录数） */
+export interface SongSearchHit {
+  songKey: string
+  name: string
+  singer: string
+  records: number
+  firstId: number
+  firstAt: string | null
+  firstTask: string | null
+  lastAt: string | null
+  states: { taskId: number; taskName: string; status: string; quality: string | null; updatedAt: string }[]
+  file: { filePath: string; size: number | null; quality: string | null; firstDownloadedAt: string | null } | null
+  refs: { taskId: number; taskName: string }[]
+}
+
+export function searchSongs(q: string, limit = 20): SongSearchHit[] {
+  const db = getDb()
+  const like = `%${q}%`
+  const keys = db
+    .prepare(
+      `SELECT h.songKey, COUNT(*) AS n, MIN(h.id) AS firstId, MAX(h.id) AS lastId
+       FROM history_item h WHERE h.songName LIKE ? OR h.singer LIKE ?
+       GROUP BY h.songKey ORDER BY MAX(h.id) DESC LIMIT ?`,
+    )
+    .all(like, like, limit) as { songKey: string; n: number; firstId: number; lastId: number }[]
+  if (!keys.length) return []
+  return keys.map((k) => {
+    const first = db.prepare('SELECT h.songName, h.singer, b.startedAt, b.taskName FROM history_item h JOIN history_batch b ON b.id = h.batchId WHERE h.id = ?').get(k.firstId) as { songName: string | null; singer: string | null; startedAt: string; taskName: string | null } | undefined
+    const last = db.prepare('SELECT startedAt FROM history_batch WHERE id = (SELECT batchId FROM history_item WHERE id = ?)').get(k.lastId) as { startedAt: string } | undefined
+    const states = db
+      .prepare(
+        `SELECT s.taskId, COALESCE(t.lxPlaylistName, '已删除的任务 #' || s.taskId) AS taskName, s.status, s.quality, s.updatedAt
+         FROM current_song_status s LEFT JOIN sync_task t ON t.id = s.taskId
+         WHERE s.songKey = ? ORDER BY s.updatedAt DESC`,
+      )
+      .all(k.songKey) as SongSearchHit['states']
+    const f = db.prepare('SELECT filePath, size, quality, firstDownloadedAt FROM song_files WHERE songKey = ? ORDER BY (size IS NULL), size DESC LIMIT 1').get(k.songKey) as SongSearchHit['file']
+    const refs = (db.prepare('SELECT DISTINCT taskId FROM task_song_ref WHERE songKey = ?').all(k.songKey) as { taskId: number }[])
+      .map((r) => ({ taskId: r.taskId, taskName: getTask(r.taskId)?.lxPlaylistName ?? `已删除的任务 #${r.taskId}` }))
+    return {
+      songKey: k.songKey,
+      name: first?.songName ?? k.songKey,
+      singer: first?.singer ?? '',
+      records: k.n,
+      firstId: k.firstId,
+      firstAt: first?.startedAt ?? null,
+      firstTask: first?.taskName ?? null,
+      lastAt: last?.startedAt ?? null,
+      states,
+      file: f ?? null,
+      refs,
+    }
+  })
+}
+
+/** 搜索卡：命中的歌单（按当前任务名） */
+export function searchTasks(q: string, limit = 10): { taskId: number; taskName: string; taskType: string | null }[] {
+  const db = getDb()
+  return db
+    .prepare('SELECT id AS taskId, lxPlaylistName AS taskName, taskType FROM sync_task WHERE lxPlaylistName LIKE ? LIMIT ?')
+    .all(`%${q}%`, limit) as { taskId: number; taskName: string; taskType: string | null }[]
+}
+
 /**
  * 启动时收尾"没跑完"的批次：finishedAt IS NULL 说明上次运行时进程被中断
  * （崩溃 / 重启 / 部署）。不收尾的话它们在界面上会永远显示成 `null`。

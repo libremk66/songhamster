@@ -18,6 +18,7 @@ import { scanLowQuality, findBestCandidate, upgradeOne, recordUpgrade } from '..
 import { scanDuplicates, planCleanup, type DupeGroup, type DupeItem } from '../core/dupe.js'
 import { moveToTrash, listTrash, restoreFromTrash, purgePath } from '../core/trash.js'
 import { localizeEmbyPath } from '../core/paths.js'
+import * as HMeta from '../core/history-meta.js'
 import { applyDeletion, reportLine } from '../core/delete.js'
 import { probeAudio } from '../core/probe.js'
 import { SERVER_SPECS, specOf } from '../core/server-spec.js'
@@ -888,11 +889,59 @@ export function apiRouter(
     })
   })
 
-  r.get('/progress/table', (_req, res) => {
+  r.get('/progress/table', (req, res) => {
+    const onlyIssue = String(req.query.onlyIssue ?? '') === '1'
     const tasks = repo.listTasks()
+    const counts = repo.historyCountsByTaskSong()
+    const refs = repo.refCountsBySong()
     const statusByTask: Record<number, unknown[]> = {}
-    for (const t of tasks) statusByTask[t.id] = repo.listSongStatus(t.id)
-    res.send(renderBody('partials/progress-table', { tasks, statusByTask, running: engine.isRunning }))
+    for (const t of tasks) {
+      const rows = repo.listSongStatus(t.id)
+      statusByTask[t.id] = onlyIssue ? rows.filter((s) => s.status === 'failed' || s.status === 'unsatisfied') : rows
+    }
+    res.send(renderBody('partials/progress-table', { tasks, statusByTask, counts, refs, running: engine.isRunning, onlyIssue, H: HMeta }))
+  })
+
+  // ===== 进度历史（重构后的查询层，P2）=====
+  const qs = (v: unknown): string | undefined => {
+    const s = String(v ?? '').trim()
+    return s ? s : undefined
+  }
+
+  /** 平铺事件表：一次「任务运行 × 歌曲」一行，支持表头筛选 + keyset 分页 */
+  r.get('/history/rows', (req, res) => {
+    const q = req.query
+    const f: repo.HistoryQuery = {
+      q: qs(q.q), taskName: qs(q.taskName), trigger: qs(q.trigger), mode: qs(q.mode),
+      quality: qs(q.quality), action: qs(q.action), process: qs(q.process), status: qs(q.status),
+      from: qs(q.from), to: qs(q.to), path: qs(q.path),
+      cursor: Number(q.cursor) || undefined,
+      limit: Number(q.limit) || undefined,
+    }
+    const PAGE = Math.min(500, f.limit ?? 100)
+    const rows = repo.listHistoryRows({ ...f, limit: PAGE + 1 })
+    const hasMore = rows.length > PAGE
+    f.limit = PAGE
+    res.send(renderBody('partials/history-rows', { rows: rows.slice(0, PAGE), hasMore, f, H: HMeta }))
+  })
+
+  /** 批次视图：每批次一行（含跳过名单），空批次也在这里出现 */
+  r.get('/history/batches', (req, res) => {
+    const q = req.query
+    const f = { taskName: qs(q.taskName), trigger: qs(q.trigger), mode: qs(q.mode), from: qs(q.from), to: qs(q.to), cursor: Number(q.cursor) || undefined }
+    const PAGE = 100
+    const rows = repo.listBatchRows({ ...f, limit: PAGE + 1 })
+    const hasMore = rows.length > PAGE
+    res.send(renderBody('partials/history-batches', { batches: rows.slice(0, PAGE), hasMore, f, H: HMeta }))
+  })
+
+  /** 搜索卡：命中歌单 + 命中歌曲（按歌聚合：当前状态/文件来源/首次·最近/记录数） */
+  r.get('/history/search', (req, res) => {
+    const q = qs(req.query.q)
+    if (!q) return res.send('')
+    const tasks = repo.searchTasks(q)
+    const songs = repo.searchSongs(q)
+    res.send(renderBody('partials/history-search', { q, tasks, songs, H: HMeta }))
   })
 
   // ===== 历史 =====

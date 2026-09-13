@@ -1,0 +1,52 @@
+<!-- 批次视图：每批次一行（含跳过名单）——空批次也在这里出现 -->
+<div id="hist-batches" class="space-y-2">
+  <% if (!batches.length) { %>
+  <p class="c-sub text-xs py-10 text-center">没有符合条件的运行批次</p>
+  <% } %>
+  <% for (const b of batches) { %>
+  <% const skipped = H.skippedNames(b.skippedJson) %>
+  <div class="rounded-lg border border-base-300 bg-base-100 p-2.5">
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <strong class="text-sm"><%= fmtLocal(b.startedAt, true) %></strong>
+      <span class="text-xs c-sub">
+        <b><%= b.taskName ?? '（任务已删除）' %></b>
+        · <%= b.taskType === 'chart' ? '榜单' : b.taskType === 'adhoc' ? '手动' : '歌单' %>
+        · <%= H.taskAttrText(b) %>
+      </span>
+      <span class="flex-1"></span>
+      <span class="text-xs">
+        结果：
+        <% if (!b.finishedAt) { %><b class="st-warn">进行中…</b>
+        <% } else if (b.result === 'success') { %><b class="st-ok">成功</b>
+        <% } else if (b.result === 'partial') { %><b class="st-warn">部分成功</b>
+        <% } else if (b.result === 'failed') { %><b class="st-bad">失败</b>
+        <% } else { %><%= b.result ?? '—' %><% } %>
+      </span>
+    </div>
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs">
+      <span class="st-ok">✅ 成功 <%= b.okCount %></span>
+      <span class="st-bad">❌ 失败 <%= b.failCount %></span>
+      <span class="st-warn">⏭ 未满足 <%= b.unsatisfiedCount %></span>
+      <span class="st-skip">♻️ 复用/查重 <%= b.dupCount + b.dedupCount %></span>
+      <span class="st-skip">🗑 移除 <%= b.removedCount %></span>
+      <% if (b.skippedCount > 0) { %>
+      <details class="inline-block">
+        <summary class="cursor-pointer select-none st-skip">⏭ 跳过 <%= b.skippedCount %> 首（已同步过，未进处理流程）</summary>
+        <div class="text-xs c-sub mt-1" style="max-width:60rem">
+          <%= skipped.join('、') %><%= b.skippedCount > skipped.length ? ' …（仅列出前 ' + skipped.length + ' 首）' : '' %>
+        </div>
+      </details>
+      <% } %>
+    </div>
+    <% if (b.detail) { %><p class="text-xs c-sub mt-1"><%= b.detail %></p><% } %>
+  </div>
+  <% } %>
+  <% if (hasMore) { %>
+  <div class="text-center py-3">
+    <button type="button" class="btn btn-outline btn-xs"
+            hx-get="/api/history/batches" hx-include="closest form"
+            hx-vals='{"limit":"<%= (f.limit ?? 100) + 100 %>"}'
+            hx-target="#hist-batches" hx-swap="outerHTML">加载更多（再 100 批）</button>
+  </div>
+  <% } %>
+</div>

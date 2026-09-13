@@ -1,0 +1,55 @@
+<!-- 搜索卡：命中歌单 + 命中歌曲（按歌聚合：当前状态 / 文件来源 / 首次·最近 / 记录数） -->
+<div class="space-y-2">
+  <% if (!tasks.length && !songs.length) { %>
+  <p class="c-sub text-xs py-8 text-center">没有找到与「<%= q %>」相关的歌单或歌曲</p>
+  <% } %>
+
+  <% if (tasks.length) { %>
+  <p class="text-xs c-sub">命中歌单（<%= tasks.length %>）</p>
+  <% for (const t of tasks) { %>
+  <div class="rounded-lg border border-base-300 bg-base-100 p-2.5 flex flex-wrap items-center gap-2">
+    <b class="text-sm"><%= t.taskName %></b>
+    <span class="text-xs c-sub"><%= t.taskType === 'chart' ? '榜单' : '歌单' %></span>
+    <span class="flex-1"></span>
+    <button type="button" class="btn btn-outline btn-xs"
+            onclick="histFilterBy({taskName:'<%= t.taskName %>'})">看它的历史记录</button>
+  </div>
+  <% } %>
+  <% } %>
+
+  <% if (songs.length) { %>
+  <p class="text-xs c-sub mt-3">命中歌曲（<%= songs.length %>）</p>
+  <% for (const s of songs) { %>
+  <div class="rounded-lg border border-base-300 bg-base-100 p-2.5">
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <b class="text-sm"><%= s.name %></b>
+      <span class="text-xs c-sub"><%= s.singer %></span>
+      <span class="text-xs c-sub">· 共 <%= s.records %> 条记录</span>
+      <span class="flex-1"></span>
+      <span class="text-xs c-sub">
+        首次 <%= s.firstAt ? fmtLocal(s.firstAt, true) : '—' %>（<%= s.firstTask ?? '未知任务' %>）
+        <% if (s.lastAt && s.lastAt !== s.firstAt) { %> · 最近 <%= fmtLocal(s.lastAt, true) %><% } %>
+      </span>
+    </div>
+    <div class="text-xs mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+      <% if (s.states.length) { %>
+      <span>当前：<% for (const st of s.states) { %><span class="<%= H.statusMeta(st.status).cls %>"><%= st.taskName %>·<%= H.statusMeta(st.status).label %><%= st.quality ? '（' + st.quality + '）' : '' %></span>　<% } %></span>
+      <% } else { %>
+      <span class="c-sub">当前：不在任何歌单的台账里（可能已移出）</span>
+      <% } %>
+    </div>
+    <div class="text-xs c-sub mt-0.5">
+      <% if (s.file) { %>
+      文件：<%= H.fmtSize(s.file.size) %> · <%= s.file.quality ?? '—' %> · 首次下载 <%= s.file.firstDownloadedAt ? fmtLocal(s.file.firstDownloadedAt, true) : '（早于记录，来源不可考）' %>
+      <% } else { %>
+      文件：无登记（未下载过 / 已删除 / 非本工具下载）
+      <% } %>
+      <% if (s.refs.length) { %> · 被引用：<%= s.refs.map((r) => r.taskName).join('、') %><% } %>
+    </div>
+    <div class="mt-1">
+      <button type="button" class="btn btn-outline btn-xs" onclick="histFilterBy({q:'<%= s.name %>'})">看它的全部记录 →</button>
+    </div>
+  </div>
+  <% } %>
+  <% } %>
+</div>

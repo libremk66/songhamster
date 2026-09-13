@@ -1,12 +1,18 @@
+<!-- 各歌单/榜单当前状态（台账：按 任务×歌曲 去重的最新状态） -->
 <% if (running) { %>
 <div class="alert alert-warning text-sm py-2 rounded-lg mb-3">⏳ 有任务正在同步中…</div>
 <% } %>
+<p class="text-xs c-sub mb-2 leading-relaxed">
+  本表是<b>当前状态台账</b>（按「任务 × 歌曲」去重，只反映最新一次结果）；<b>事件流水</b>（每次运行发生了什么）见标签①。
+  已经移出的歌会从这里消失（流水里还查得到）。
+</p>
 <div class="space-y-2">
 <% for (const t of tasks) { %>
+<% const rows = statusByTask[t.id] || [] %>
 <div class="rounded-lg border border-base-300 bg-base-100 shadow-sm overflow-hidden">
   <header class="flex flex-wrap items-center gap-2 px-3 py-2 bg-base-200/50 border-b border-base-200">
     <strong class="text-sm"><%= t.lxPlaylistName %></strong>
-    <span class="text-xs c-sub">（<%= t.syncMode === 'full' ? '完全' : '增量' %> · 上次：<%= t.lastResult ?? '从未' %>）</span>
+    <span class="text-xs c-sub">（<%= t.taskType === 'chart' ? '榜单' : t.taskType === 'adhoc' ? '手动下载' : '歌单' %> · <%= t.mode === 'mirror' ? '镜像' : '增量' %> · 上次：<%= t.lastResult ?? '从未' %>）</span>
     <span class="flex-1"></span>
     <button class="btn btn-primary btn-xs" hx-post="/api/task/<%= t.id %>/run" hx-target="closest header"><svg aria-hidden="true"><use href="#i-play"/></svg>立即同步</button>
   </header>
@@ -14,25 +20,33 @@
     <table class="table table-sm w-full text-sm">
       <thead>
         <tr class="c-sub">
-          <th>歌曲</th><th>歌手</th><th>音质</th><th>状态</th><th>失败原因</th><th>更新时间</th>
+          <th>歌曲</th><th>歌手</th><th>状态</th><th>音质</th><th>最后处理</th><th>记录</th><th>引用</th><th>失败原因</th>
         </tr>
       </thead>
       <tbody>
-        <% const rows = statusByTask[t.id] || [] %>
-        <% if (!rows.length) { %><tr><td colspan="6" class="hint">暂无记录（源歌单可能有歌但未同步过）</td></tr><% } %>
+        <% if (!rows.length) { %><tr><td colspan="8" class="hint"><%= onlyIssue ? '没有失败/未满足的歌 ✓' : '暂无记录（源歌单可能有歌但未同步过）' %></td></tr><% } %>
         <% for (const s of rows) { %>
+        <% const c = counts[t.id + '|' + s.songKey] %>
+        <% const nref = refs[s.songKey] ?? 0 %>
         <tr>
           <td><%= s.songName %></td>
           <td><%= s.singer %></td>
-          <td><%= s.quality ?? '—' %></td>
           <td>
             <% if (s.status === 'success') { %><span class="st-ok">✅ 成功</span>
             <% } else if (s.status === 'unsatisfied') { %><span class="st-warn">⏭ 未满足</span>
             <% } else if (s.status === 'dedup') { %><span class="st-skip">🔍 查重跳过</span>
             <% } else { %><span class="st-bad">❌ <%= s.status %></span><% } %>
           </td>
-          <td><small class="c-sub"><%= s.errorReason ?? '' %></small></td>
+          <td><%= s.quality ?? '—' %></td>
           <td><small class="c-sub"><%= fmtLocal(s.updatedAt, true) %></small></td>
+          <td>
+            <% if (c && c.n) { %>
+            <button type="button" class="btn btn-ghost btn-xs" title="看这首歌的全部历史记录"
+                    onclick="histFilterBy({q:'<%= s.songName %>'})"><%= c.n %> 条</button>
+            <% } else { %><small class="c-sub">—</small><% } %>
+          </td>
+          <td><small class="<%= nref > 1 ? 'st-warn' : 'c-sub' %>"><%= nref ? nref + ' 个任务' : '—' %></small></td>
+          <td><small class="c-sub"><%= s.errorReason ?? '' %></small></td>
         </tr>
         <% } %>
       </tbody>
