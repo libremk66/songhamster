@@ -196,6 +196,10 @@ export interface BatchRow {
   /** JSON：[{key,name}] 本次被 diff 跳过的歌（已同步过，没进处理流程） */
   skippedJson: string | null
   skippedCount: number
+  /** 歌单归属（共享 / 指定用户名） */
+  playlistScopeName: string | null
+  /** 榜单下载范围（前 N 首；0 或 null = 全榜） */
+  maxCount: number | null
 }
 
 /** 引用快照里的一个任务（历史页「引用情况」列展示用） */
@@ -213,6 +217,8 @@ export function createBatch(input: {
     delPolicy?: string | null
     archivePlaylist?: string | null
     targetPlaylists?: string[] | null
+    playlistScopeName?: string | null
+    maxCount?: number | null
   }
 }): number {
   // 名称/类型随批次快照一份：任务可被删而历史保留（删除任务的三个复选框）
@@ -220,8 +226,9 @@ export function createBatch(input: {
   const s = input.snapshot ?? {}
   const info = getDb()
     .prepare(
-      `INSERT INTO history_batch (taskId, taskName, taskType, trigger, startedAt, mode, delPolicy, archivePlaylist, targetPlaylists)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO history_batch (taskId, taskName, taskType, trigger, startedAt, mode, delPolicy, archivePlaylist,
+                                  targetPlaylists, playlistScopeName, maxCount)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       input.taskId,
@@ -233,6 +240,8 @@ export function createBatch(input: {
       s.delPolicy ?? t?.delPolicy ?? null,
       s.archivePlaylist ?? t?.archivePlaylist ?? null,
       s.targetPlaylists?.length ? JSON.stringify(s.targetPlaylists) : null,
+      s.playlistScopeName ?? t?.playlistScopeName ?? null,
+      s.maxCount ?? t?.maxCount ?? null,
     )
   return Number(info.lastInsertRowid)
 }
@@ -303,6 +312,8 @@ export interface HistoryRow {
   mode: string | null
   delPolicy: string | null
   targetPlaylists: string | null
+  playlistScopeName: string | null
+  maxCount: number | null
   /** 本批次的明细行数（批次视图/空批次判定用） */
   batchRows: number
   /** 这首歌在**本任务**里是第几次处理（1=首次） */
@@ -331,6 +342,7 @@ export function listHistoryRows(f: HistoryQuery): HistoryRow[] {
     SELECT h.id, h.batchId, h.taskId, h.songKey, h.songName, h.singer, h.status, h.quality,
            h.filePath, h.fileSize, h.errorReason, h.detail, h.action, h.process, h.refBefore, h.refAfter,
            b.startedAt, b.taskName, b.taskType, b.trigger, b.mode, b.delPolicy, b.targetPlaylists,
+           b.playlistScopeName, b.maxCount,
            ROW_NUMBER() OVER (PARTITION BY h.taskId, h.songKey ORDER BY h.id) AS attemptNo,
            MIN(h.id)      OVER (PARTITION BY h.songKey)  AS firstId,
            COUNT(*)       OVER (PARTITION BY h.batchId)  AS batchRows

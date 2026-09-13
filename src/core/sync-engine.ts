@@ -234,6 +234,19 @@ export class SyncEngine {
     }
   }
 
+  /** 批次快照：这次运行的任务设置（三处建批次共用，避免有的批次缺字段） */
+  private async batchSnapshot(task: NonNullable<ReturnType<typeof repo.getTask>>) {
+    const sem = taskSemantics(task)
+    return {
+      mode: sem.taskMode,
+      delPolicy: sem.delPolicy,
+      archivePlaylist: task.archivePlaylist ?? null,
+      targetPlaylists: await this.targetPlaylistNames(task),
+      playlistScopeName: task.playlistScopeName ?? null,
+      maxCount: task.maxCount ?? null,
+    }
+  }
+
   /** 批次快照用：目标歌单的**名字**（同名歌单直接用歌单名） */
   private async targetPlaylistNames(task: NonNullable<ReturnType<typeof repo.getTask>>): Promise<string[]> {
     const ids = task.embyTargetPlaylistIdsParsed ?? []
@@ -305,13 +318,8 @@ export class SyncEngine {
     const batchId = repo.createBatch({
       taskId,
       trigger,
-      // 任务属性快照：任务以后被改配置/被删除，历史行仍能如实还原"当时是什么模式、发到哪个歌单"
-      snapshot: {
-        mode: taskSemantics(task).taskMode,
-        delPolicy: taskSemantics(task).delPolicy,
-        archivePlaylist: task.archivePlaylist ?? null,
-        targetPlaylists: await this.targetPlaylistNames(task),
-      },
+      // 任务属性快照：任务以后被改配置/被删除，历史行仍能如实还原"当时是什么设置"
+      snapshot: await this.batchSnapshot(task),
     })
     this.emit('batch-start', taskId, batchId)
     this.liveBegin({ taskId, taskName: task.lxPlaylistName, taskType: task.taskType ?? 'playlist', batchId, trigger, total: 0 })
@@ -1025,7 +1033,7 @@ export class SyncEngine {
     const taskId = repo.ensureManualTask()
     const task = repo.getTask(taskId)!
     this.runningTaskId = taskId
-    const batchId = repo.createBatch({ taskId, trigger: 'manual' })
+    const batchId = repo.createBatch({ taskId, trigger: 'manual', snapshot: await this.batchSnapshot(task) })
     this.emit('batch-start', taskId, batchId)
     this.liveBegin({ taskId, taskName: task.lxPlaylistName, taskType: 'adhoc', batchId, trigger: 'manual', total: songs.length })
     let ok = 0
@@ -1121,7 +1129,7 @@ export class SyncEngine {
     if (!song) return 'song-not-in-source'
 
     this.runningTaskId = taskId
-    const batchId = repo.createBatch({ taskId, trigger: 'retry' })
+    const batchId = repo.createBatch({ taskId, trigger: 'retry', snapshot: await this.batchSnapshot(task) })
     try {
       logger.info(`[engine] 重试 ${song.name} (${songKey})`)
       const outcome = await this.downloadOne(taskId, task, song)

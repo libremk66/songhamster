@@ -241,6 +241,8 @@ function migrate(d: Database.Database): void {
   ensureCol('history_batch', 'targetPlaylists', 'targetPlaylists TEXT') // JSON：目标歌单**名**数组
   ensureCol('history_batch', 'skippedJson', 'skippedJson TEXT')         // JSON：[{key,name}] 本次被 diff 跳过的歌
   ensureCol('history_batch', 'skippedCount', 'skippedCount INTEGER NOT NULL DEFAULT 0')
+  ensureCol('history_batch', 'playlistScopeName', 'playlistScopeName TEXT') // 歌单归属（共享/指定用户）
+  ensureCol('history_batch', 'maxCount', 'maxCount INTEGER')                // 榜单下载范围（前 N 首，0=全榜）
   // 事件行结构化：处理过程要能筛选（detail 是自由文本，筛不了）
   ensureCol('history_item', 'action', 'action TEXT')       // in=入库 / out=移出
   ensureCol('history_item', 'process', 'process TEXT')     // 处理过程枚举码（见 processKind 映射）

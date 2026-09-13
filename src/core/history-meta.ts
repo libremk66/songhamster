@@ -58,7 +58,49 @@ export function fmtSize(n?: number | null): string {
   return Math.round(n / 1024) + ' KB'
 }
 
-/** 任务属性那一格的文字：`手动 · 增量 · →《华语》` */
+/** 删除处理（处理1/2/3）的一句话说明 */
+export const DELPOLICY_DESC: Record<string, string> = {
+  keep: '处理1 不删文件',
+  delete: '处理2 删文件',
+  archive: '处理3 归档',
+}
+
+/**
+ * 任务属性：把这次运行的任务设置**逐行**列出（一行一个关键词）。
+ * 全部取自批次快照——任务以后改了配置、被删了，这里仍是"当时"的样子。
+ */
+export function taskAttrs(b: {
+  trigger?: string | null
+  mode?: string | null
+  delPolicy?: string | null
+  archivePlaylist?: string | null
+  targetPlaylists?: string | null
+  playlistScopeName?: string | null
+  taskType?: string | null
+  maxCount?: number | null
+}): string[] {
+  const out: string[] = []
+  out.push('触发　' + (TRIGGER_LABELS[b.trigger ?? ''] ?? b.trigger ?? '—'))
+  let targets: string[] = []
+  try {
+    targets = b.targetPlaylists ? (JSON.parse(b.targetPlaylists) as string[]) : []
+  } catch {
+    targets = []
+  }
+  if (targets.length) out.push('目标　《' + targets.join('》《') + '》')
+  else if (b.taskType === 'adhoc') out.push('目标　不入歌单')
+  if (b.playlistScopeName) out.push('归属　' + b.playlistScopeName)
+  if (b.mode) out.push('方式　' + (MODE_LABELS[b.mode] ?? b.mode))
+  // 只有镜像模式才谈得上"从 LX 移除时怎么处理"
+  if (b.mode === 'mirror' && b.delPolicy) {
+    const desc = DELPOLICY_DESC[b.delPolicy] ?? b.delPolicy
+    out.push('删除　' + desc + (b.delPolicy === 'archive' && b.archivePlaylist ? `（${b.archivePlaylist}）` : ''))
+  }
+  if (b.taskType === 'chart') out.push('范围　' + (b.maxCount && b.maxCount > 0 ? `前 ${b.maxCount} 首` : '全榜'))
+  return out
+}
+
+/** 任务属性那一格的文字：`手动 · 增量 · →《华语》`（批次视图等单行场景用） */
 export function taskAttrText(b: { trigger?: string | null; mode?: string | null; targetPlaylists?: string | null; taskType?: string | null }): string {
   const parts: string[] = []
   parts.push(TRIGGER_LABELS[b.trigger ?? ''] ?? b.trigger ?? '—')

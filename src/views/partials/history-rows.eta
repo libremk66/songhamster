@@ -24,10 +24,26 @@
           </tr>
           <tr class="hist-filters">
             <th>
-              <div class="flex items-center gap-1">
-                <input type="date" name="from" value="<%= raw.from %>" class="input input-bordered input-xs w-32" title="起始日期（本地时区）">
-                <span class="c-sub">~</span>
-                <input type="date" name="to" value="<%= raw.to %>" class="input input-bordered input-xs w-32" title="结束日期（本地时区）">
+              <!-- 日期区间：一个按钮点开日历（不占版面）；两个日期框改动不自动提交，点「应用」才提交 -->
+              <div class="dropdown">
+                <button type="button" class="btn btn-outline btn-xs whitespace-nowrap">
+                  📅 <%= (raw.from || raw.to) ? ((raw.from || '…') + '~' + (raw.to || '…')) : '日期' %>
+                </button>
+                <div class="dropdown-content z-50 mt-1 p-3 rounded-lg border border-base-300 bg-base-100 shadow-lg w-60">
+                  <label class="text-xs c-sub">起始日期</label>
+                  <input type="date" name="from" value="<%= raw.from %>" class="input input-bordered input-xs w-full"
+                         hx-on:change="event.stopPropagation()">
+                  <label class="text-xs c-sub mt-2 block">结束日期</label>
+                  <input type="date" name="to" value="<%= raw.to %>" class="input input-bordered input-xs w-full"
+                         hx-on:change="event.stopPropagation()">
+                  <div class="flex gap-2 mt-3">
+                    <button type="button" id="hist-date-apply" class="btn btn-primary btn-xs flex-1"
+                            hx-get="/api/history/rows" hx-include="#hist-filter"
+                            hx-target="#hist-rows-wrap" hx-swap="outerHTML">应用</button>
+                    <button type="button" class="btn btn-ghost btn-xs" onclick="histClearDates()">清除</button>
+                  </div>
+                  <p class="text-xs c-sub mt-2">按本地时区的自然日筛选</p>
+                </div>
               </div>
             </th>
             <th>
@@ -104,7 +120,9 @@
               <b><%= r.taskName ?? '—' %></b>
               <span class="text-xs c-sub"><%= r.taskType === 'chart' ? '榜单' : r.taskType === 'adhoc' ? '手动' : '歌单' %></span>
             </td>
-            <td class="text-xs c-sub whitespace-nowrap"><%= H.taskAttrText(r) %></td>
+            <td class="text-xs c-sub whitespace-nowrap align-top">
+              <% for (const line of H.taskAttrs(r)) { %><div><%= line %></div><% } %>
+            </td>
             <td>
               <%= r.songName ?? r.songKey %>
               <% if (r.attemptNo > 1) { %><span class="text-xs c-sub" title="这首歌在本任务里的第几次处理">第 <%= r.attemptNo %> 次</span><% } %>

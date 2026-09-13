@@ -6,6 +6,11 @@
   .hist-tab svg { width: 1em; height: 1em; margin-right: .35em; }
   .hist-tab:hover { border-color: var(--sfg); color: var(--sfg-deep); }
   .hist-tab.active { background: var(--sfg-fill); border-color: var(--sfg-fill); color: #fff; font-weight: 650; }
+  /* 子标签（流水/批次）：文字标签 + 选中下划线，比主标签轻 */
+  .hist-subtab { padding: .15rem .2rem; font-size: .8125rem; color: oklch(var(--bc) / .6);
+                 border-bottom: 2px solid transparent; cursor: pointer; }
+  .hist-subtab:hover { color: var(--sfg-deep); }
+  .hist-subtab.active { color: var(--sfg-deep); border-bottom-color: var(--sfg-fill); font-weight: 650; }
   /* 筛选行：紧凑一点，别喧宾夺主 */
   .hist-filters th { padding-top: .15rem; padding-bottom: .35rem; }
   .hist-filters .input, .hist-filters .select { height: 1.5rem; min-height: 1.5rem; font-size: .7rem; }
@@ -46,6 +51,11 @@
 
       <!-- 标签①的工具栏：搜索 + 流水/批次切换（其它标签自动隐藏） -->
       <div id="hist-toolbar" class="<%= initialTab === 'rows' ? '' : 'hidden' %> space-y-2">
+        <!-- 标签①的两个子标签：流水（事件） / 批次（每次运行） -->
+        <div class="flex items-center gap-4 border-b border-base-200 pb-0.5">
+          <button type="button" class="hist-subtab active" id="view-rows" onclick="histView('rows')">流水</button>
+          <button type="button" class="hist-subtab" id="view-batches" onclick="histView('batches')">批次</button>
+        </div>
         <div class="flex flex-wrap items-center gap-2">
           <label class="input input-bordered input-sm flex items-center gap-2 flex-1 min-w-56">
             <svg aria-hidden="true" style="width:1em;height:1em"><use href="#i-listSearch"/></svg>
@@ -54,10 +64,6 @@
                    hx-target="#hist-search" hx-swap="innerHTML"
                    oninput="histSearchToggle(this.value)">
           </label>
-          <div class="join">
-            <button type="button" class="btn btn-sm join-item btn-active" id="view-rows" onclick="histView('rows')">流水</button>
-            <button type="button" class="btn btn-sm join-item" id="view-batches" onclick="histView('batches')">批次</button>
-          </div>
         </div>
         <div id="hist-search"></div>
       </div>
@@ -108,10 +114,10 @@ function histSwitch(tabId, url) {
   if (isRows) histView(histViewMode())            // 回到标签①时按当前视图（流水/批次）加载
   else htmx.ajax('GET', url, { target: '#hist-content', swap: 'innerHTML' })
 }
-function histViewMode() { return document.getElementById('view-batches').classList.contains('btn-active') ? 'batches' : 'rows' }
+function histViewMode() { return document.getElementById('view-batches').classList.contains('active') ? 'batches' : 'rows' }
 function histView(mode) {
-  document.getElementById('view-rows').classList.toggle('btn-active', mode === 'rows')
-  document.getElementById('view-batches').classList.toggle('btn-active', mode === 'batches')
+  document.getElementById('view-rows').classList.toggle('active', mode === 'rows')
+  document.getElementById('view-batches').classList.toggle('active', mode === 'batches')
   htmx.ajax('GET', mode === 'batches' ? '/api/history/batches' : '/api/history/rows', { target: '#hist-content', swap: 'innerHTML' })
 }
 // 搜索框有内容 → 藏起表格只看搜索结果；清空 → 恢复
@@ -132,6 +138,16 @@ function histFilterBy(params) {
   if (box && params.q) box.value = ''
   document.getElementById('hist-search').innerHTML = ''
   window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// 日期区间：清除后走「应用」按钮提交（表单的 change 触发被两个日期框主动挡掉了）
+function histClearDates() {
+  var f = document.getElementById('hist-filter')
+  if (!f) return
+  var a = f.querySelector('input[name=from]'); if (a) a.value = ''
+  var b = f.querySelector('input[name=to]'); if (b) b.value = ''
+  var btn = document.getElementById('hist-date-apply')
+  if (btn) btn.click()
 }
 
 // ===== 删除（三选项）=====
