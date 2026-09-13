@@ -44,7 +44,7 @@
   <% if (hasMore) { %>
   <div class="text-center py-3">
     <button type="button" class="btn btn-outline btn-xs"
-            hx-get="/api/history/batches" hx-include="closest form"
+            hx-get="/api/history/batches"
             hx-vals='{"limit":"<%= (f.limit ?? 100) + 100 %>"}'
             hx-target="#hist-batches" hx-swap="outerHTML">加载更多（再 100 批）</button>
   </div>

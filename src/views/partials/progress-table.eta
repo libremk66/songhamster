@@ -20,11 +20,11 @@
     <table class="table table-sm w-full text-sm">
       <thead>
         <tr class="c-sub">
-          <th>歌曲</th><th>歌手</th><th>状态</th><th>音质</th><th>最后处理</th><th>记录</th><th>引用</th><th>失败原因</th>
+          <th>歌曲</th><th>歌手</th><th>状态</th><th>音质</th><th>最后处理</th><th>记录</th><th>引用</th><th>失败原因</th><th class="text-right">操作</th>
         </tr>
       </thead>
       <tbody>
-        <% if (!rows.length) { %><tr><td colspan="8" class="hint"><%= onlyIssue ? '没有失败/未满足的歌 ✓' : '暂无记录（源歌单可能有歌但未同步过）' %></td></tr><% } %>
+        <% if (!rows.length) { %><tr><td colspan="9" class="hint"><%= onlyIssue ? '没有失败/未满足的歌 ✓' : '暂无记录（源歌单可能有歌但未同步过）' %></td></tr><% } %>
         <% for (const s of rows) { %>
         <% const c = counts[t.id + '|' + s.songKey] %>
         <% const nref = refs[s.songKey] ?? 0 %>
@@ -47,6 +47,11 @@
           </td>
           <td><small class="<%= nref > 1 ? 'st-warn' : 'c-sub' %>"><%= nref ? nref + ' 个任务' : '—' %></small></td>
           <td><small class="c-sub"><%= s.errorReason ?? '' %></small></td>
+          <td class="text-right whitespace-nowrap">
+            <button type="button" class="btn btn-ghost btn-xs text-error" title="删这首歌（文件/歌单/历史）"
+                    data-task="<%= t.id %>" data-song="<%= s.songKey %>" data-name="<%= s.songName ?? '' %>"
+                    onclick="histAskDeleteSong(this)">删除</button>
+          </td>
         </tr>
         <% } %>
       </tbody>

@@ -1,81 +1,195 @@
-<!-- 平铺事件表：一行 = 一次「任务运行 × 歌曲」（2026-09-13 重构） -->
+<!-- 平铺事件表：一行 = 一次「任务运行 × 歌曲」；表头第二行是筛选控件（2026-09-13 重构） -->
 <% const lim = f.limit ?? 100 %>
-<div id="hist-rows">
-  <% if (!rows.length) { %>
-  <p class="c-sub text-xs py-10 text-center">没有符合条件的历史记录</p>
-  <% } else { %>
-  <p class="c-sub text-xs mb-1">显示最近 <b><%= rows.length %></b> 条<%= hasMore ? '（还有更多，可加载或用上面的筛选缩小范围）' : '' %></p>
-  <div class="overflow-x-auto">
-    <table class="table table-xs w-full">
-      <thead>
-        <tr class="c-sub">
-          <th>日期时间</th>
-          <th>所属任务</th>
-          <th>任务属性</th>
-          <th>歌曲名</th>
-          <th>歌手</th>
-          <th>音质</th>
-          <th>操作</th>
-          <th>处理过程</th>
-          <th>结果</th>
-          <th>文件大小</th>
-          <th>文件路径</th>
-          <th>引用情况</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% for (const r of rows) { %>
-        <tr id="hi-<%= r.id %>">
-          <td class="whitespace-nowrap"><%= fmtLocal(r.startedAt, true) %></td>
-          <td class="whitespace-nowrap">
-            <b><%= r.taskName ?? '—' %></b>
-            <span class="text-xs c-sub"><%= r.taskType === 'chart' ? '榜单' : r.taskType === 'adhoc' ? '手动' : '歌单' %></span>
-          </td>
-          <td class="text-xs c-sub whitespace-nowrap"><%= H.taskAttrText(r) %></td>
-          <td>
-            <%= r.songName ?? r.songKey %>
-            <% if (r.attemptNo > 1) { %><span class="text-xs c-sub" title="这首歌在本任务里的第几次处理">第 <%= r.attemptNo %> 次</span><% } %>
-          </td>
-          <td class="whitespace-nowrap"><%= r.singer ?? '' %></td>
-          <td class="whitespace-nowrap"><%= r.quality ?? '—' %></td>
-          <td class="whitespace-nowrap">
-            <% if (r.action === 'out') { %><span class="st-warn">移出</span>
-            <% } else if (r.action === 'in') { %><span class="st-ok">入库</span>
-            <% } else { %><span class="c-sub">—</span><% } %>
-          </td>
-          <td>
-            <span class="badge badge-ghost badge-sm whitespace-nowrap"><%= H.processLabel(r.process) %></span>
-            <% const steps = H.detailSteps(r.detail) %>
-            <% if (steps.length) { %>
-            <details class="mt-0.5">
-              <summary class="cursor-pointer text-xs c-sub select-none">轨迹</summary>
-              <ol class="text-xs c-sub mt-1 space-y-0.5 list-decimal list-inside">
-                <% for (const s of steps) { %><li><%= s %></li><% } %>
-              </ol>
-            </details>
-            <% } %>
-          </td>
-          <td>
-            <% const sm = H.statusMeta(r.status) %>
-            <span class="<%= sm.cls %> whitespace-nowrap"><%= sm.label %></span>
-            <% if (r.errorReason) { %><div class="text-xs c-sub"><%= r.errorReason %></div><% } %>
-          </td>
-          <td class="whitespace-nowrap"><%= H.fmtSize(r.fileSize) %></td>
-          <td class="text-xs" style="max-width:18rem;word-break:break-all"><%= r.filePath ?? '—' %></td>
-          <td class="text-xs"><%= H.refsText(r.refBefore, r.refAfter) %></td>
-        </tr>
+<% const sel = (name, val) => (f[name] === val ? 'selected' : '') %>
+<div id="hist-rows-wrap">
+  <form id="hist-filter" hx-get="/api/history/rows" hx-target="#hist-rows-wrap" hx-swap="outerHTML"
+        hx-trigger="change" hx-include="this" onsubmit="return false">
+    <div class="overflow-x-auto hist-table-wrap">
+      <table class="table table-xs w-full">
+        <thead>
+          <tr class="c-sub">
+            <th>日期时间</th>
+            <th>所属任务</th>
+            <th>任务属性</th>
+            <th>歌曲名</th>
+            <th>歌手</th>
+            <th>音质</th>
+            <th>操作</th>
+            <th>处理过程</th>
+            <th>结果</th>
+            <th>文件大小</th>
+            <th>文件路径</th>
+            <th>引用情况</th>
+            <th class="text-right">行操作</th>
+          </tr>
+          <tr class="hist-filters">
+            <th>
+              <div class="flex items-center gap-1">
+                <input type="date" name="from" value="<%= raw.from %>" class="input input-bordered input-xs w-32" title="起始日期（本地时区）">
+                <span class="c-sub">~</span>
+                <input type="date" name="to" value="<%= raw.to %>" class="input input-bordered input-xs w-32" title="结束日期（本地时区）">
+              </div>
+            </th>
+            <th>
+              <select name="taskName" class="select select-bordered select-xs w-28">
+                <option value="">全部</option>
+                <% for (const n of facets.taskNames) { %><option value="<%= n %>" <%= sel('taskName', n) %>><%= n %></option><% } %>
+              </select>
+            </th>
+            <th>
+              <div class="flex gap-1">
+                <select name="trigger" class="select select-bordered select-xs w-16">
+                  <option value="">触发</option>
+                  <option value="manual" <%= sel('trigger', 'manual') %>>手动</option>
+                  <option value="cron" <%= sel('trigger', 'cron') %>>定时</option>
+                  <option value="retry" <%= sel('trigger', 'retry') %>>重试</option>
+                </select>
+                <select name="mode" class="select select-bordered select-xs w-16">
+                  <option value="">模式</option>
+                  <option value="incremental" <%= sel('mode', 'incremental') %>>增量</option>
+                  <option value="mirror" <%= sel('mode', 'mirror') %>>镜像</option>
+                </select>
+              </div>
+            </th>
+            <th><input name="q" value="<%= f.q ?? '' %>" placeholder="歌名/歌手" class="input input-bordered input-xs w-24"></th>
+            <th></th>
+            <th>
+              <select name="quality" class="select select-bordered select-xs w-20">
+                <option value="">全部</option>
+                <% for (const qq of facets.qualities) { %><option value="<%= qq %>" <%= sel('quality', qq) %>><%= qq %></option><% } %>
+              </select>
+            </th>
+            <th>
+              <select name="action" class="select select-bordered select-xs w-16">
+                <option value="">全部</option>
+                <option value="in" <%= sel('action', 'in') %>>入库</option>
+                <option value="out" <%= sel('action', 'out') %>>移出</option>
+              </select>
+            </th>
+            <th>
+              <select name="process" class="select select-bordered select-xs w-28">
+                <option value="">全部</option>
+                <% for (const g of H.PROCESS_GROUPS) { %>
+                <optgroup label="<%= g.label %>">
+                  <% for (const c of g.codes) { %><option value="<%= c %>" <%= sel('process', c) %>><%= H.processLabel(c) %></option><% } %>
+                </optgroup>
+                <% } %>
+              </select>
+            </th>
+            <th>
+              <select name="status" class="select select-bordered select-xs w-20">
+                <option value="">全部</option>
+                <% for (const st of ['success', 'skipped_dup', 'dedup', 'removed', 'unsatisfied', 'failed']) { %>
+                <option value="<%= st %>" <%= sel('status', st) %>><%= H.statusMeta(st).label %></option>
+                <% } %>
+              </select>
+            </th>
+            <th></th>
+            <th><input name="path" value="<%= f.path ?? '' %>" placeholder="路径包含" class="input input-bordered input-xs w-24"></th>
+            <th></th>
+            <th class="text-right">
+              <button type="button" class="btn btn-ghost btn-xs" title="清空筛选"
+                      hx-get="/api/history/rows" hx-target="#hist-rows-wrap" hx-swap="outerHTML">重置</button>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (!rows.length) { %>
+          <tr><td colspan="13" class="c-sub text-xs py-8 text-center">没有符合条件的历史记录</td></tr>
+          <% } %>
+          <% for (const r of rows) { %>
+          <tr id="hi-<%= r.id %>">
+            <td class="whitespace-nowrap"><%= fmtLocal(r.startedAt, true) %></td>
+            <td class="whitespace-nowrap">
+              <b><%= r.taskName ?? '—' %></b>
+              <span class="text-xs c-sub"><%= r.taskType === 'chart' ? '榜单' : r.taskType === 'adhoc' ? '手动' : '歌单' %></span>
+            </td>
+            <td class="text-xs c-sub whitespace-nowrap"><%= H.taskAttrText(r) %></td>
+            <td>
+              <%= r.songName ?? r.songKey %>
+              <% if (r.attemptNo > 1) { %><span class="text-xs c-sub" title="这首歌在本任务里的第几次处理">第 <%= r.attemptNo %> 次</span><% } %>
+            </td>
+            <td class="whitespace-nowrap"><%= r.singer ?? '' %></td>
+            <td class="whitespace-nowrap"><%= r.quality ?? '—' %></td>
+            <td class="whitespace-nowrap">
+              <% if (r.action === 'out') { %><span class="st-warn">移出</span>
+              <% } else if (r.action === 'in') { %><span class="st-ok">入库</span>
+              <% } else { %><span class="c-sub">—</span><% } %>
+            </td>
+            <td>
+              <span class="badge badge-ghost badge-sm whitespace-nowrap"><%= H.processLabel(r.process) %></span>
+              <% const steps = H.detailSteps(r.detail) %>
+              <% if (steps.length) { %>
+              <details class="mt-0.5">
+                <summary class="cursor-pointer text-xs c-sub select-none">轨迹</summary>
+                <ol class="text-xs c-sub mt-1 space-y-0.5 list-decimal list-inside">
+                  <% for (const s of steps) { %><li><%= s %></li><% } %>
+                </ol>
+              </details>
+              <% } %>
+            </td>
+            <td>
+              <% const sm = H.statusMeta(r.status) %>
+              <span class="<%= sm.cls %> whitespace-nowrap"><%= sm.label %></span>
+              <% if (r.errorReason) { %><div class="text-xs c-sub"><%= r.errorReason %></div><% } %>
+            </td>
+            <td class="whitespace-nowrap"><%= H.fmtSize(r.fileSize) %></td>
+            <td class="text-xs" style="max-width:18rem;word-break:break-all"><%= r.filePath ?? '—' %></td>
+            <td class="text-xs"><%= H.refsText(r.refBefore, r.refAfter) %></td>
+            <td class="text-right whitespace-nowrap">
+              <% if (r.status === 'failed') { %>
+              <button type="button" class="btn btn-outline btn-xs" title="重下这一首并补入库/入歌单"
+                      hx-post="/api/history/item/<%= r.id %>/retry" hx-target="#hist-msg" hx-swap="innerHTML">重试</button>
+              <% } %>
+              <button type="button" class="btn btn-ghost btn-xs text-error" title="删除这条记录涉及的内容（文件/歌单/历史）"
+                      data-item="<%= r.id %>" data-name="<%= r.songName ?? '' %>"
+                      onclick="histAskDeleteOne(this)">删除</button>
+            </td>
+          </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+    <!-- 移动端卡片（桌面隐藏） -->
+    <div class="hist-cards space-y-2">
+      <% if (!rows.length) { %><p class="c-sub text-xs py-8 text-center">没有符合条件的历史记录</p><% } %>
+      <% for (const r of rows) { %>
+      <% const sm2 = H.statusMeta(r.status) %>
+      <% const steps2 = H.detailSteps(r.detail) %>
+      <div class="rounded-lg border border-base-300 p-2 text-xs">
+        <div class="flex items-center gap-2 flex-wrap">
+          <b><%= r.songName ?? r.songKey %></b>
+          <span class="c-sub"><%= r.singer ?? '' %></span>
+          <span class="flex-1"></span>
+          <span class="<%= sm2.cls %>"><%= sm2.label %></span>
+        </div>
+        <div class="c-sub mt-0.5"><%= fmtLocal(r.startedAt, true) %> · <%= r.taskName ?? '—' %> · <%= H.taskAttrText(r) %></div>
+        <div class="mt-0.5">
+          <span class="badge badge-ghost badge-sm"><%= H.processLabel(r.process) %></span>
+          <span class="c-sub"><%= r.quality ?? '—' %> · <%= H.fmtSize(r.fileSize) %></span>
+        </div>
+        <% if (r.errorReason) { %><div class="st-bad mt-0.5"><%= r.errorReason %></div><% } %>
+        <% if (steps2.length) { %>
+        <details class="mt-1"><summary class="cursor-pointer c-sub select-none">轨迹</summary>
+          <ol class="c-sub mt-1 space-y-0.5 list-decimal list-inside"><% for (const s of steps2) { %><li><%= s %></li><% } %></ol>
+        </details>
         <% } %>
-      </tbody>
-    </table>
-  </div>
-  <% if (hasMore) { %>
-  <div class="text-center py-3">
-    <!-- P3 里筛选控件会包在 <form> 里，hx-include="closest form" 一并带上筛选条件 -->
-    <button type="button" class="btn btn-outline btn-xs"
-            hx-get="/api/history/rows" hx-include="closest form"
-            hx-vals='{"limit":"<%= lim + 100 %>"}'
-            hx-target="#hist-rows" hx-swap="outerHTML">加载更多（再 100 条）</button>
-  </div>
-  <% } %>
-  <% } %>
+        <div class="mt-1 flex gap-1">
+          <% if (r.status === 'failed') { %>
+          <button type="button" class="btn btn-outline btn-xs" hx-post="/api/history/item/<%= r.id %>/retry" hx-target="#hist-msg" hx-swap="innerHTML">重试</button>
+          <% } %>
+          <button type="button" class="btn btn-ghost btn-xs text-error" data-item="<%= r.id %>" data-name="<%= r.songName ?? '' %>" onclick="histAskDeleteOne(this)">删除</button>
+        </div>
+      </div>
+      <% } %>
+    </div>
+    <% if (hasMore) { %>
+    <div class="text-center py-3">
+      <button type="button" class="btn btn-outline btn-xs"
+              hx-get="/api/history/rows" hx-include="#hist-filter"
+              hx-vals='{"limit":"<%= lim + 100 %>"}'
+              hx-target="#hist-rows-wrap" hx-swap="outerHTML">加载更多（再 100 条）</button>
+    </div>
+    <% } %>
+  </form>
 </div>

@@ -6,6 +6,17 @@
   .hist-tab svg { width: 1em; height: 1em; margin-right: .35em; }
   .hist-tab:hover { border-color: var(--sfg); color: var(--sfg-deep); }
   .hist-tab.active { background: var(--sfg-fill); border-color: var(--sfg-fill); color: #fff; font-weight: 650; }
+  /* 筛选行：紧凑一点，别喧宾夺主 */
+  .hist-filters th { padding-top: .15rem; padding-bottom: .35rem; }
+  .hist-filters .input, .hist-filters .select { height: 1.5rem; min-height: 1.5rem; font-size: .7rem; }
+  /* 移动端：数据行换成卡片；筛选行保留（列名行隐藏，否则一排表头没意义） */
+  .hist-cards { display: none; }
+  @media (max-width: 767px) {
+    .hist-table-wrap table > thead > tr:first-child,
+    .hist-table-wrap tbody,
+    .hist-table-wrap .hist-more { display: none; }
+    .hist-cards { display: block; }
+  }
 </style>
 <div class="space-y-4">
 
@@ -16,45 +27,67 @@
     </div>
   </header>
 
-  <!-- 顶部：正在跑的任务（原「任务进度」页；跑完的结果落到下方历史里） -->
+  <!-- 顶部：正在跑的任务 -->
   <div id="progress-live" hx-get="/api/progress/live" hx-trigger="load, every 1s" hx-swap="innerHTML">
     <p class="c-sub text-xs py-4 text-center">加载中…</p>
   </div>
 
-  <!-- ===== 历史：按任务类型分标签 ===== -->
+  <!-- ===== 三个标签：全部历史记录 / 各歌单榜单当前状态 / 回收站 ===== -->
   <section class="card tier1 border border-base-300 shadow-sm">
     <div class="card-body gap-2">
       <div class="flex flex-wrap gap-1.5">
-        <button type="button" class="hist-tab <%= initialTab === 'playlist' ? 'active' : '' %>" id="tab-playlist"
-          hx-get="/api/history/partial?type=playlist" hx-target="#hist-content" hx-swap="innerHTML"
-          onclick="switchHistTab('tab-playlist')"><svg aria-hidden="true"><use href="#i-playlist"/></svg>歌单同步任务</button>
-        <button type="button" class="hist-tab <%= initialTab === 'chart' ? 'active' : '' %>" id="tab-chart"
-          hx-get="/api/history/partial?type=chart" hx-target="#hist-content" hx-swap="innerHTML"
-          onclick="switchHistTab('tab-chart')"><svg aria-hidden="true"><use href="#i-listSearch"/></svg>榜单订阅任务</button>
-        <!-- 洗版记录：随洗版功能一起隐藏（曲库管理页同样已隐藏）。恢复时取消注释即可 -->
-        <!-- <button type="button" class="hist-tab" id="tab-upgrade"
-          hx-get="/api/upgrade/history/partial" hx-target="#hist-content" hx-swap="innerHTML"
-          onclick="switchHistTab('tab-upgrade')"><svg aria-hidden="true"><use href="#i-refresh"/></svg>洗版记录</button> -->
+        <button type="button" class="hist-tab <%= initialTab === 'rows' ? 'active' : '' %>" id="tab-rows"
+          onclick="histSwitch('tab-rows','/api/history/rows')"><svg aria-hidden="true"><use href="#i-listSearch"/></svg>全部历史记录</button>
+        <button type="button" class="hist-tab <%= initialTab === 'status' ? 'active' : '' %>" id="tab-status"
+          onclick="histSwitch('tab-status','/api/progress/table')"><svg aria-hidden="true"><use href="#i-playlist"/></svg>各歌单/榜单当前状态</button>
         <button type="button" class="hist-tab ml-auto <%= initialTab === 'trash' ? 'active' : '' %>" id="tab-trash"
-          hx-get="/api/trash/partial" hx-target="#hist-content" hx-swap="innerHTML"
-          onclick="switchHistTab('tab-trash')"><svg aria-hidden="true"><use href="#i-trash"/></svg>回收站</button>
+          onclick="histSwitch('tab-trash','/api/trash/partial')"><svg aria-hidden="true"><use href="#i-trash"/></svg>回收站</button>
       </div>
+
+      <!-- 标签①的工具栏：搜索 + 流水/批次切换（其它标签自动隐藏） -->
+      <div id="hist-toolbar" class="<%= initialTab === 'rows' ? '' : 'hidden' %> space-y-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <label class="input input-bordered input-sm flex items-center gap-2 flex-1 min-w-56">
+            <svg aria-hidden="true" style="width:1em;height:1em"><use href="#i-listSearch"/></svg>
+            <input type="search" name="q" value="" placeholder="搜歌名 / 歌手 / 歌单名 —— 会给出这首歌的完整来历"
+                   class="grow" hx-get="/api/history/search" hx-trigger="input changed delay:350ms, search"
+                   hx-target="#hist-search" hx-swap="innerHTML"
+                   oninput="histSearchToggle(this.value)">
+          </label>
+          <div class="join">
+            <button type="button" class="btn btn-sm join-item btn-active" id="view-rows" onclick="histView('rows')">流水</button>
+            <button type="button" class="btn btn-sm join-item" id="view-batches" onclick="histView('batches')">批次</button>
+          </div>
+        </div>
+        <div id="hist-search"></div>
+      </div>
+
       <div id="hist-msg" class="text-sm"></div>
-      <div id="hist-content" class="trash-host" hx-get="<%= initialTab === 'trash' ? '/api/trash/partial' : '/api/history/partial?type=' + initialTab %>" hx-trigger="load">
+      <div id="hist-content" class="trash-host"
+           hx-get="<%= initialTab === 'status' ? '/api/progress/table' : initialTab === 'trash' ? '/api/trash/partial' : '/api/history/rows' %>"
+           hx-trigger="load">
         <p class="c-sub text-xs py-10 text-center">加载中…</p>
       </div>
     </div>
   </section>
 
-  <!-- 批量删除确认：勾选态在这里复述一遍，避免"手滑点了删除" -->
+  <!-- 删除弹窗：三个复选框（文件/歌单/历史） -->
   <dialog id="hist-del-dlg" class="modal">
     <div class="modal-box max-w-md">
-      <h3 class="text-base font-bold">删除所选记录</h3>
+      <h3 class="text-base font-bold">删除</h3>
       <p id="hist-del-sum" class="text-sm mt-2"></p>
-      <p class="text-xs c-sub mt-2 leading-relaxed">
-        删除历史记录只是清掉这份流水账——<b>不影响以后的同步，也不会重新下载</b>。
-        要让这些歌以后重新下载，请勾选「文件」。
-      </p>
+      <div class="flex flex-col gap-1.5 mt-3 text-sm">
+        <label class="flex items-center gap-2 cursor-pointer" title="移入回收站（可恢复）；仍被其它任务引用的会保留">
+          <input type="checkbox" id="hist-ck-file" class="checkbox checkbox-sm">文件
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer" title="从歌单中移除本任务加入过的歌（歌单本身保留）">
+          <input type="checkbox" id="hist-ck-pl" class="checkbox checkbox-sm">歌单
+        </label>
+        <label class="flex items-start gap-2 cursor-pointer">
+          <input type="checkbox" id="hist-ck-hist" class="checkbox checkbox-sm mt-0.5" checked>
+          <span>历史记录 <span class="text-xs c-sub">（只清这份流水账——<b>不影响以后的同步，也不会重新下载</b>；要让这些歌以后重新下载请勾「文件」）</span></span>
+        </label>
+      </div>
       <div class="modal-action">
         <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('hist-del-dlg').close()">取消</button>
         <button type="button" class="btn btn-error btn-sm" onclick="histDoDelete()"><svg aria-hidden="true"><use href="#i-trash"/></svg>确认删除</button>
@@ -62,60 +95,56 @@
     </div>
   </dialog>
 
-  <!-- 排查用：各歌单每首歌的当前状态（DB 累计，非本次进度）；默认收起、展开才加载 -->
-  <details class="rounded-lg border border-base-300 bg-base-100" hx-get="/api/progress/table" hx-trigger="toggle once" hx-target="#progress-area" hx-swap="innerHTML">
-    <summary class="px-3 py-2 text-xs c-sub cursor-pointer select-none">排查用：各歌单歌曲当前状态（非本次进度）</summary>
-    <div id="progress-area" class="p-2"><p class="c-sub text-xs py-6 text-center">展开后加载…</p></div>
-  </details>
-
 </div>
 
 <script>
-function switchHistTab(id) {
+// ===== 标签切换 =====
+function histSwitch(tabId, url) {
   document.querySelectorAll('.hist-tab').forEach(function (b) { b.classList.remove('active') })
-  document.getElementById(id).classList.add('active')
+  document.getElementById(tabId).classList.add('active')
+  var toolbar = document.getElementById('hist-toolbar')
+  var isRows = tabId === 'tab-rows'
+  toolbar.classList.toggle('hidden', !isRows)
+  if (isRows) histView(histViewMode())            // 回到标签①时按当前视图（流水/批次）加载
+  else htmx.ajax('GET', url, { target: '#hist-content', swap: 'innerHTML' })
 }
-// ?tab=chart|trash 的初始标签由服务端决定（见 pages.ts），这里不再用脚本切换——
-// 否则页面自带的 hx-trigger="load" 会随后把内容覆盖回歌单同步（竞态，实测踩到）
-// ===== 批量删除：两级勾选（批次 / 单曲）+ 三个删除选项 =====
-// 勾选态直接读 DOM，不额外维护一份状态机：批次框 → 它已加载的单曲框；单曲框 → 批次框的半选态
-// 批次 → 它的单曲（已加载的那部分）：整批勾选时单曲跟着勾上并禁用（取消整批即可改）
-function histApplyBatch(bk) {
-  document.querySelectorAll('.hi-ck[data-batch="' + bk.value + '"]').forEach(function (k) {
-    k.checked = bk.checked
-    k.disabled = bk.checked
-  })
+function histViewMode() { return document.getElementById('view-batches').classList.contains('btn-active') ? 'batches' : 'rows' }
+function histView(mode) {
+  document.getElementById('view-rows').classList.toggle('btn-active', mode === 'rows')
+  document.getElementById('view-batches').classList.toggle('btn-active', mode === 'batches')
+  htmx.ajax('GET', mode === 'batches' ? '/api/history/batches' : '/api/history/rows', { target: '#hist-content', swap: 'innerHTML' })
 }
-function histPickBatch(bk) {
-  histApplyBatch(bk)
-  if (!bk.checked) bk.indeterminate = false
-  histSync()
+// 搜索框有内容 → 藏起表格只看搜索结果；清空 → 恢复
+function histSearchToggle(v) {
+  var on = !!v.trim()
+  var content = document.getElementById('hist-content')
+  if (content) content.classList.toggle('hidden', on)
 }
-function histSync() {
-  document.querySelectorAll('.hist-bk').forEach(function (bk) {
-    // 批次已勾选 → 带上后来才展开加载进来的单曲（否则新加载的单曲会被判成"没勾"→批次被反判为未选）
-    if (bk.checked) histApplyBatch(bk)
-    var kids = document.querySelectorAll('.hi-ck[data-batch="' + bk.value + '"]')
-    if (!kids.length) return
-    var on = 0
-    kids.forEach(function (k) { if (k.checked) on++ })
-    bk.indeterminate = on > 0 && on < kids.length
-    if (on === kids.length) bk.checked = true
-    else if (on === 0) bk.checked = false
-  })
-  var n = 0
-  document.querySelectorAll('.hist-bk:checked').forEach(function (bk) { n += Number(bk.getAttribute('data-n') || 0) })
-  document.querySelectorAll('.hi-ck:checked').forEach(function (k) { if (!k.disabled) n++ })
-  document.getElementById('hist-sel-n').textContent = n
-  var bar = document.getElementById('hist-selbar')
-  bar.classList.toggle('hidden', n === 0)
-  bar.classList.toggle('flex', n > 0)
+// 搜索卡 / 台账里的「看它的全部记录」：切回标签①并把条件写进筛选表单
+function histFilterBy(params) {
+  document.querySelectorAll('.hist-tab').forEach(function (b) { b.classList.remove('active') })
+  document.getElementById('tab-rows').classList.add('active')
+  document.getElementById('hist-toolbar').classList.remove('hidden')
+  histView('rows')
+  var qs = new URLSearchParams(params).toString()
+  htmx.ajax('GET', '/api/history/rows?' + qs, { target: '#hist-content', swap: 'innerHTML' })
+  var box = document.querySelector('#hist-toolbar input[type=search]')
+  if (box && params.q) box.value = ''
+  document.getElementById('hist-search').innerHTML = ''
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
-function histSel() {
-  var out = []
-  document.querySelectorAll('.hist-bk:checked').forEach(function (bk) { out.push('b:' + bk.value) })
-  document.querySelectorAll('.hi-ck:checked').forEach(function (k) { if (!k.disabled) out.push('i:' + k.value) })
-  return out
+
+// ===== 删除（三选项）=====
+var histPending = null   // { sel: 'i:12' | 's:3:tx_abc', label: '歌曲名' }
+function histAskDeleteOne(btn) {
+  histPending = { sel: 'i:' + btn.dataset.item, label: btn.dataset.name || '' }
+  document.getElementById('hist-del-sum').innerHTML = '将处理：<b>' + histPending.label + '</b>'
+  document.getElementById('hist-del-dlg').showModal()
+}
+function histAskDeleteSong(btn) {
+  histPending = { sel: 's:' + btn.dataset.task + ':' + btn.dataset.song, label: btn.dataset.name || btn.dataset.song }
+  document.getElementById('hist-del-sum').innerHTML = '将处理：<b>' + histPending.label + '</b>（该任务下这首歌的全部记录）'
+  document.getElementById('hist-del-dlg').showModal()
 }
 function histOpts() {
   return {
@@ -124,23 +153,16 @@ function histOpts() {
     history: document.getElementById('hist-ck-hist').checked
   }
 }
-function histAskDelete() {
-  var o = histOpts()
-  if (!o.file && !o.playlist && !o.history) { document.getElementById('hist-msg').innerHTML = '<span class="bad">❌ 请至少勾选一项要删除的内容</span>'; return }
-  var what = []
-  if (o.file) what.push('把相关文件移入回收站（可恢复，仍被其它任务引用的会保留）')
-  if (o.playlist) what.push('从歌单中移除本任务加入过的歌（歌单本身保留）')
-  if (o.history) what.push('删除这些历史记录')
-  document.getElementById('hist-del-sum').innerHTML = '已选 <b>' + document.getElementById('hist-sel-n').textContent + '</b> 项，将：' + what.join('；') + '。'
-  var d = document.getElementById('hist-del-dlg')
-  if (d.showModal) d.showModal()
-}
 function histDoDelete() {
+  if (!histPending) return
   var o = histOpts()
-  var d = document.getElementById('hist-del-dlg')
-  if (d.open) d.close()
+  if (!o.file && !o.playlist && !o.history) {
+    document.getElementById('hist-msg').innerHTML = '<span class="bad">❌ 请至少勾选一项要删除的内容</span>'
+    return
+  }
+  document.getElementById('hist-del-dlg').close()
   var body = new URLSearchParams()
-  body.set('sel', histSel().join(','))
+  body.set('sel', histPending.sel)
   body.set('file', o.file ? '1' : '0')
   body.set('playlist', o.playlist ? '1' : '0')
   body.set('history', o.history ? '1' : '0')
@@ -148,44 +170,8 @@ function histDoDelete() {
     .then(function (r) { return r.text() })
     .then(function (html) {
       document.getElementById('hist-msg').innerHTML = html
-      histRefresh()
+      histView(histViewMode())
     })
     .catch(function () { document.getElementById('hist-msg').innerHTML = '<span class="bad">❌ 删除请求失败，请重试</span>' })
-}
-// 删完刷新当前标签（回收站标签也在内）
-function histRefresh() {
-  var t = document.querySelector('.hist-tab.active')
-  var url = t && t.getAttribute('hx-get')
-  if (url) htmx.ajax('GET', url, { target: '#hist-content', swap: 'innerHTML' })
-}
-// 批次明细:点展开加载、再点收起(避免重复拉取);图标与文案随状态切换
-function histSetState(btn, open) {
-  var sp = btn.querySelector('.h-txt')
-  var u = btn.querySelector('use')
-  if (sp) sp.textContent = open ? '收起' : '查看明细'
-  if (u) u.setAttribute('href', open ? '#i-chevronUp' : '#i-chevronDown')
-}
-function histToggle(id, btn) {
-  var box = document.getElementById('batch-' + id)
-  if (!box) return
-  if (box.dataset.loaded === '1') {
-    box.innerHTML = ''
-    box.dataset.loaded = ''
-    histSetState(btn, false)
-    return
-  }
-  box.innerHTML = '<span class="c-sub text-xs">加载中…</span>'
-  histSetState(btn, true)
-  fetch('/api/history/batch/' + id)
-    .then(function (r) { return r.text() })
-    .then(function (html) {
-      box.innerHTML = html
-      box.dataset.loaded = '1'
-      histSync() // 新加载的单曲框要与已勾选的批次框对齐（整批已选 → 单曲跟着勾上并禁用）
-    })
-    .catch(function () {
-      box.innerHTML = '<span class="st-bad text-xs">加载失败，请重试</span>'
-      histSetState(btn, false)
-    })
 }
 </script>

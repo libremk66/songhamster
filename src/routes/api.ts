@@ -911,10 +911,13 @@ export function apiRouter(
   /** 平铺事件表：一次「任务运行 × 歌曲」一行，支持表头筛选 + keyset 分页 */
   r.get('/history/rows', (req, res) => {
     const q = req.query
+    // 日期筛选按**本地时区**解释（库里存的是 UTC ISO）：'2026-09-12' → 本地当天 00:00 ~ 23:59:59.999
+    const localStart = (d?: string) => (d && !d.includes('T') ? new Date(`${d}T00:00:00`).toISOString() : d)
+    const localEnd = (d?: string) => (d && !d.includes('T') ? new Date(`${d}T23:59:59.999`).toISOString() : d)
     const f: repo.HistoryQuery = {
       q: qs(q.q), taskName: qs(q.taskName), trigger: qs(q.trigger), mode: qs(q.mode),
       quality: qs(q.quality), action: qs(q.action), process: qs(q.process), status: qs(q.status),
-      from: qs(q.from), to: qs(q.to), path: qs(q.path),
+      from: localStart(qs(q.from)), to: localEnd(qs(q.to)), path: qs(q.path),
       cursor: Number(q.cursor) || undefined,
       limit: Number(q.limit) || undefined,
     }
@@ -922,7 +925,10 @@ export function apiRouter(
     const rows = repo.listHistoryRows({ ...f, limit: PAGE + 1 })
     const hasMore = rows.length > PAGE
     f.limit = PAGE
-    res.send(renderBody('partials/history-rows', { rows: rows.slice(0, PAGE), hasMore, f, H: HMeta }))
+    const facets = repo.historyFacets()
+    // 筛选框回填用原始输入（f.from/to 已转成 UTC ISO，不能再回显给日期控件）
+    const raw = { from: qs(q.from) ?? '', to: qs(q.to) ?? '' }
+    res.send(renderBody('partials/history-rows', { rows: rows.slice(0, PAGE), hasMore, f, raw, facets, H: HMeta }))
   })
 
   /** 批次视图：每批次一行（含跳过名单），空批次也在这里出现 */
@@ -990,10 +996,18 @@ export function apiRouter(
       targets.set(`${it.taskId} ${it.songKey}`, { taskId: it.taskId, songKey: it.songKey })
     }
     for (const tok of tokens) {
-      const [kind, idRaw] = tok.split(':')
-      const id = Number(idRaw)
-      if (!id) continue
-      if (kind === 'b') {
+      const parts = tok.split(':')
+      const kind = parts[0]
+      const id = Number(parts[1])
+      if (kind === 's') {
+        // s:<taskId>:<songKey>：按「任务×歌曲」删（台账里没有具体事件行 id，只能这么指）
+        const songKey = parts.slice(2).join(':')
+        if (!id || !songKey) continue
+        for (const it of dbAll('SELECT id, taskId, songKey FROM history_item WHERE taskId = ? AND songKey = ?', [id, songKey])) addItem(it)
+        targets.set(`${id} ${songKey}`, { taskId: id, songKey })
+      } else if (!id) {
+        continue
+      } else if (kind === 'b') {
         batchIds.push(id)
         for (const it of dbAll('SELECT id, taskId, songKey FROM history_item WHERE batchId = ?', [id])) addItem(it)
       } else {
