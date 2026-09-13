@@ -14,6 +14,26 @@
   /* 筛选行：紧凑一点，别喧宾夺主 */
   .hist-filters th { padding-top: .15rem; padding-bottom: .35rem; }
   .hist-filters .input, .hist-filters .select { height: 1.5rem; min-height: 1.5rem; font-size: .7rem; }
+  /* 事件表：列宽由 colgroup 定，表格不足时撑满、超出时横向滚动 */
+  .hist-table { width: auto; min-width: 100%; }
+  /* <details> 当按钮用：去掉默认三角 */
+  .dropdown > summary { list-style: none; }
+  .dropdown > summary::-webkit-details-marker { display: none; }
+  .dropdown > summary::marker { content: ''; }
+  .hist-table th, .hist-table td { vertical-align: top; }
+  /* 左右滚动按钮：固定在容器两侧，不随内容滚动移动 */
+  .hist-scroll-host { position: relative; }
+  .hist-scroll-btn { position: absolute; top: 50%; transform: translateY(-50%); z-index: 30;
+                     width: 1.6rem; height: 3.6rem; display: none; align-items: center; justify-content: center;
+                     background: oklch(var(--b1) / .95); border: 1px solid oklch(var(--bc) / .22);
+                     border-radius: .45rem; font-size: 1.15rem; line-height: 1; cursor: pointer;
+                     color: oklch(var(--bc) / .7); box-shadow: 0 1px 3px oklch(0 0 0 / .08); }
+  .hist-scroll-btn:hover { color: var(--sfg-deep); border-color: var(--sfg); }
+  .hist-scroll-btn:active { background: var(--sfg-fill); color: #fff; }
+  .hist-scroll-left { left: -0.1rem; }
+  .hist-scroll-right { right: -0.1rem; }
+  @media (min-width: 768px) { .hist-scroll-btn.show { display: flex; } }
+
   /* 移动端：数据行换成卡片；筛选行保留（列名行隐藏，否则一排表头没意义） */
   .hist-cards { display: none; }
   @media (max-width: 767px) {
@@ -139,6 +159,25 @@ function histFilterBy(params) {
   document.getElementById('hist-search').innerHTML = ''
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
+
+// 横向滚动：两侧固定按钮
+function histScroll(dir) {
+  var el = document.getElementById('hist-scroll')
+  if (!el) return
+  el.scrollBy({ left: dir * Math.max(240, el.clientWidth * 0.7), behavior: 'smooth' })
+}
+// 只有当表格真的超出容器时才显示两侧按钮（窄屏走卡片，不显示）
+function histScrollButtons() {
+  var el = document.getElementById('hist-scroll')
+  if (!el) return
+  var host = el.closest('.hist-scroll-host')
+  if (!host) return
+  var need = el.scrollWidth - el.clientWidth > 8
+  host.querySelectorAll('.hist-scroll-btn').forEach(function (b) { b.classList.toggle('show', need) })
+}
+document.body.addEventListener('htmx:afterSwap', histScrollButtons)
+window.addEventListener('resize', histScrollButtons)
+document.addEventListener('DOMContentLoaded', function () { histScrollButtons(); setTimeout(histScrollButtons, 300) })
 
 // 日期区间：清除后走「应用」按钮提交（表单的 change 触发被两个日期框主动挡掉了）
 function histClearDates() {

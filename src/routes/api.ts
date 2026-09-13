@@ -915,7 +915,8 @@ export function apiRouter(
     const localStart = (d?: string) => (d && !d.includes('T') ? new Date(`${d}T00:00:00`).toISOString() : d)
     const localEnd = (d?: string) => (d && !d.includes('T') ? new Date(`${d}T23:59:59.999`).toISOString() : d)
     const f: repo.HistoryQuery = {
-      q: qs(q.q), taskName: qs(q.taskName), trigger: qs(q.trigger), mode: qs(q.mode),
+      q: qs(q.q), song: qs(q.song), singer: qs(q.singer), attr: qs(q.attr),
+      taskName: qs(q.taskName), trigger: qs(q.trigger), mode: qs(q.mode),
       quality: qs(q.quality), action: qs(q.action), process: qs(q.process), status: qs(q.status),
       from: localStart(qs(q.from)), to: localEnd(qs(q.to)), path: qs(q.path),
       cursor: Number(q.cursor) || undefined,

@@ -266,8 +266,14 @@ export function getBatch(id: number): BatchRow | null {
 
 /** 平铺历史表的筛选条件（标签①） */
 export interface HistoryQuery {
-  /** 歌名/歌手 模糊 */
+  /** 歌名 + 歌手 一起模糊（老字段，界面已拆成 song/singer） */
   q?: string
+  /** 歌名 模糊 */
+  song?: string
+  /** 歌手 模糊 */
+  singer?: string
+  /** 任务属性 关键词（中文即可：镜像/处理3/华语/前15首…） */
+  attr?: string
   /** 所属任务名（下拉，精确） */
   taskName?: string
   trigger?: string
@@ -322,10 +328,50 @@ export interface HistoryRow {
   firstId: number
 }
 
+/**
+ * 「任务属性」关键词 → SQL 条件。
+ * 界面上用户看到的是中文（增量/镜像/处理3/前 15 首…），库里存的是码（mirror/archive/…），
+ * 所以这里把关键词翻译成能命中的条件；顺带直接 LIKE 那些本来就是中文的列（目标歌单/归属/归档/任务名）。
+ */
+function attrConditions(kw: string): { sql: string; args: unknown[] }[] {
+  const conds: { sql: string; args: unknown[] }[] = []
+  const hit = (...labels: string[]) => labels.some((l) => l.includes(kw))
+  if (hit('手动')) conds.push({ sql: "b.trigger = 'manual'", args: [] })
+  if (hit('定时', '自动')) conds.push({ sql: "b.trigger = 'cron'", args: [] })
+  if (hit('重试')) conds.push({ sql: "b.trigger = 'retry'", args: [] })
+  if (hit('增量')) conds.push({ sql: "b.mode = 'incremental'", args: [] })
+  if (hit('镜像')) conds.push({ sql: "b.mode = 'mirror'", args: [] })
+  if (hit('处理1', '不删文件')) conds.push({ sql: "b.delPolicy = 'keep'", args: [] })
+  if (hit('处理2', '删文件')) conds.push({ sql: "b.delPolicy = 'delete'", args: [] })
+  if (hit('处理3', '归档')) conds.push({ sql: "b.delPolicy = 'archive'", args: [] })
+  if (hit('榜单', '订阅')) conds.push({ sql: "b.taskType = 'chart'", args: [] })
+  if (hit('歌单同步', '歌单任务')) conds.push({ sql: "b.taskType = 'playlist'", args: [] })
+  if (hit('手动下载')) conds.push({ sql: "b.taskType = 'adhoc'", args: [] })
+  // 本来就是中文/用户名的列，直接模糊匹配
+  for (const col of ['b.taskName', 'b.targetPlaylists', 'b.playlistScopeName', 'b.archivePlaylist']) {
+    conds.push({ sql: `${col} LIKE ?`, args: [`%${kw}%`] })
+  }
+  // 榜单范围：'前 15 首' / '15' → maxCount = 15
+  const n = Number(kw.replace(/[^0-9]/g, ''))
+  if (n > 0) conds.push({ sql: 'b.maxCount = ?', args: [n] })
+  return conds
+}
+
 export function listHistoryRows(f: HistoryQuery): HistoryRow[] {
   const where: string[] = []
   const args: unknown[] = []
   if (f.q) { where.push('(h.songName LIKE ? OR h.singer LIKE ?)'); args.push(`%${f.q}%`, `%${f.q}%`) }
+  if (f.song) { where.push('h.songName LIKE ?'); args.push(`%${f.song}%`) }
+  if (f.singer) { where.push('h.singer LIKE ?'); args.push(`%${f.singer}%`) }
+  if (f.attr) {
+    const conds = attrConditions(f.attr)
+    if (conds.length) {
+      where.push('(' + conds.map((c) => c.sql).join(' OR ') + ')')
+      for (const c of conds) args.push(...c.args)
+    } else {
+      where.push('0 = 1') // 关键词认不出来 → 不匹配（而不是忽略条件返回全部）
+    }
+  }
   if (f.taskName) { where.push('b.taskName = ?'); args.push(f.taskName) }
   if (f.trigger) { where.push('b.trigger = ?'); args.push(f.trigger) }
   if (f.mode) { where.push('b.mode = ?'); args.push(f.mode) }

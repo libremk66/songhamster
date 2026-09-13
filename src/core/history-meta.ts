@@ -80,23 +80,23 @@ export function taskAttrs(b: {
   maxCount?: number | null
 }): string[] {
   const out: string[] = []
-  out.push('触发　' + (TRIGGER_LABELS[b.trigger ?? ''] ?? b.trigger ?? '—'))
+  out.push(TRIGGER_LABELS[b.trigger ?? ''] ?? b.trigger ?? '—')
   let targets: string[] = []
   try {
     targets = b.targetPlaylists ? (JSON.parse(b.targetPlaylists) as string[]) : []
   } catch {
     targets = []
   }
-  if (targets.length) out.push('目标　《' + targets.join('》《') + '》')
-  else if (b.taskType === 'adhoc') out.push('目标　不入歌单')
-  if (b.playlistScopeName) out.push('归属　' + b.playlistScopeName)
-  if (b.mode) out.push('方式　' + (MODE_LABELS[b.mode] ?? b.mode))
+  if (targets.length) out.push('《' + targets.join('》《') + '》')
+  else if (b.taskType === 'adhoc') out.push('不入歌单')
+  if (b.playlistScopeName) out.push(b.playlistScopeName)
+  if (b.mode) out.push(MODE_LABELS[b.mode] ?? b.mode)
   // 只有镜像模式才谈得上"从 LX 移除时怎么处理"
   if (b.mode === 'mirror' && b.delPolicy) {
-    const desc = DELPOLICY_DESC[b.delPolicy] ?? b.delPolicy
-    out.push('删除　' + desc + (b.delPolicy === 'archive' && b.archivePlaylist ? `（${b.archivePlaylist}）` : ''))
+    const p = DELPOLICY_LABELS[b.delPolicy] ?? b.delPolicy
+    out.push(b.delPolicy === 'archive' && b.archivePlaylist ? `${p}（${b.archivePlaylist}）` : p)
   }
-  if (b.taskType === 'chart') out.push('范围　' + (b.maxCount && b.maxCount > 0 ? `前 ${b.maxCount} 首` : '全榜'))
+  if (b.taskType === 'chart') out.push(b.maxCount && b.maxCount > 0 ? `前 ${b.maxCount} 首` : '全榜')
   return out
 }
 
