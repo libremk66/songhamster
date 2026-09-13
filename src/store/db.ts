@@ -232,6 +232,32 @@ function migrate(d: Database.Database): void {
   ensureCol('history_item', 'detail', 'detail TEXT') // 每首歌的处理轨迹（JSON 数组）
   ensureCol('history_batch', 'chartJson', 'chartJson TEXT') // 榜单批次的变化统计（本期/新上榜/跌出）
   ensureCol('sync_task', 'playlistScopeName', 'playlistScopeName TEXT')
+
+  // ── 进度历史页重构（2026-09-13）─────────────────────────────
+  // 批次快照：任务可被删、配置可被改，历史行不能"现查任务"（否则三个月后回头看会说谎）
+  ensureCol('history_batch', 'mode', 'mode TEXT')                       // incremental / mirror
+  ensureCol('history_batch', 'delPolicy', 'delPolicy TEXT')             // keep / delete / archive（=处理1/2/3）
+  ensureCol('history_batch', 'archivePlaylist', 'archivePlaylist TEXT')
+  ensureCol('history_batch', 'targetPlaylists', 'targetPlaylists TEXT') // JSON：目标歌单**名**数组
+  ensureCol('history_batch', 'skippedJson', 'skippedJson TEXT')         // JSON：[{key,name}] 本次被 diff 跳过的歌
+  ensureCol('history_batch', 'skippedCount', 'skippedCount INTEGER NOT NULL DEFAULT 0')
+  // 事件行结构化：处理过程要能筛选（detail 是自由文本，筛不了）
+  ensureCol('history_item', 'action', 'action TEXT')       // in=入库 / out=移出
+  ensureCol('history_item', 'process', 'process TEXT')     // 处理过程枚举码（见 processKind 映射）
+  ensureCol('history_item', 'fileSize', 'fileSize INTEGER')
+  ensureCol('history_item', 'refBefore', 'refBefore TEXT') // JSON：[{taskId,taskName}] 操作前引用该文件的任务
+  ensureCol('history_item', 'refAfter', 'refAfter TEXT')   // 同上，操作后
+  // filePath 列早已存在（建表时就有），只是从没人写过 —— P1 起开始写
+
+  // 查询索引（平铺表格的筛选/分页/按歌聚合）
+  d.exec(`
+    CREATE INDEX IF NOT EXISTS idx_hi_song   ON history_item(songKey, id);
+    CREATE INDEX IF NOT EXISTS idx_hi_task   ON history_item(taskId, songKey);
+    CREATE INDEX IF NOT EXISTS idx_hi_status ON history_item(status);
+    CREATE INDEX IF NOT EXISTS idx_hi_action ON history_item(action);
+    CREATE INDEX IF NOT EXISTS idx_hb_task   ON history_batch(taskId, id);
+  `)
+
   rebuildHistoryBatchIfFk(d)
 }
 

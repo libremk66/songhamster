@@ -187,14 +187,53 @@ export interface BatchRow {
   detail: string | null
   /** 榜单批次的变化统计 JSON：{ total, new, removed }（歌单任务为 null） */
   chartJson: string | null
+  // ── 任务属性快照（2026-09-13 起）：任务可被删、配置可被改，历史行不能"现查任务" ──
+  mode: string | null
+  delPolicy: string | null
+  archivePlaylist: string | null
+  /** JSON：目标歌单**名**数组 */
+  targetPlaylists: string | null
+  /** JSON：[{key,name}] 本次被 diff 跳过的歌（已同步过，没进处理流程） */
+  skippedJson: string | null
+  skippedCount: number
 }
 
-export function createBatch(input: { taskId: number; trigger: string }): number {
+/** 引用快照里的一个任务（历史页「引用情况」列展示用） */
+export interface RefTask {
+  taskId: number
+  taskName: string
+}
+
+export function createBatch(input: {
+  taskId: number
+  trigger: string
+  /** 运行时的任务属性快照（缺省回落到任务当前值） */
+  snapshot?: {
+    mode?: string | null
+    delPolicy?: string | null
+    archivePlaylist?: string | null
+    targetPlaylists?: string[] | null
+  }
+}): number {
   // 名称/类型随批次快照一份：任务可被删而历史保留（删除任务的三个复选框）
   const t = getTask(input.taskId)
+  const s = input.snapshot ?? {}
   const info = getDb()
-    .prepare(`INSERT INTO history_batch (taskId, taskName, taskType, trigger, startedAt) VALUES (?, ?, ?, ?, ?)`)
-    .run(input.taskId, t?.lxPlaylistName ?? null, t?.taskType ?? null, input.trigger, new Date().toISOString())
+    .prepare(
+      `INSERT INTO history_batch (taskId, taskName, taskType, trigger, startedAt, mode, delPolicy, archivePlaylist, targetPlaylists)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      input.taskId,
+      t?.lxPlaylistName ?? null,
+      t?.taskType ?? null,
+      input.trigger,
+      new Date().toISOString(),
+      s.mode ?? t?.mode ?? null,
+      s.delPolicy ?? t?.delPolicy ?? null,
+      s.archivePlaylist ?? t?.archivePlaylist ?? null,
+      s.targetPlaylists?.length ? JSON.stringify(s.targetPlaylists) : null,
+    )
   return Number(info.lastInsertRowid)
 }
 
@@ -246,11 +285,22 @@ export function insertHistoryItem(item: {
   errorReason?: string
   /** 处理轨迹（查库/尝试档位/下载/入库/入歌单…），历史明细据此展示"到底做了什么" */
   detail?: string[]
+  // ── 2026-09-13 起：结构化字段（平铺历史表据此筛选/展示）──
+  /** 任务操作：in=入库 / out=移出。不传时按 status 推导（removed/skipped → out，其余 in） */
+  action?: 'in' | 'out'
+  /** 处理过程枚举码（download_new / reuse_skip / unsatisfied / ingest_fail / remove_p1~p3 / remove_manual / chart_out） */
+  process?: string
+  fileSize?: number
+  /** 操作前/后引用该文件的任务快照 */
+  refBefore?: RefTask[]
+  refAfter?: RefTask[]
 }): void {
+  const action = item.action ?? (item.status === 'removed' || item.status === 'skipped' ? 'out' : 'in')
   getDb()
     .prepare(
-      `INSERT INTO history_item (batchId, taskId, songKey, songName, singer, status, quality, filePath, errorReason, detail)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO history_item (batchId, taskId, songKey, songName, singer, status, quality, filePath, errorReason, detail,
+                                 action, process, fileSize, refBefore, refAfter)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       item.batchId,
@@ -263,6 +313,11 @@ export function insertHistoryItem(item: {
       item.filePath ?? null,
       item.errorReason ?? null,
       item.detail?.length ? JSON.stringify(item.detail) : null,
+      action,
+      item.process ?? null,
+      item.fileSize ?? null,
+      item.refBefore?.length ? JSON.stringify(item.refBefore) : null,
+      item.refAfter?.length ? JSON.stringify(item.refAfter) : null,
     )
 }
 

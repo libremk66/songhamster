@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
 import path from 'node:path'
-import { rmSync, renameSync, existsSync } from 'node:fs'
+import { rmSync, renameSync, existsSync, statSync } from 'node:fs'
 import type { AppConfig, DelPolicy, Quality } from '../config.js'
 import { HIGH_RES_FLAC, QUALITY_ORDER, supportsFileDelete, archiveNameOf } from '../config.js'
 import type { LxSong } from '../adapters/lxserver.js'
@@ -204,6 +204,51 @@ export class SyncEngine {
     this.events.emit(name, ...args)
   }
 
+  // ===== 历史快照助手（2026-09-13 进度历史页重构 P1）=====
+
+  /** 引用快照：当前有哪些任务引用这个文件（历史页「引用情况」列） */
+  private refTasks(fileId?: number | null): repo.RefTask[] {
+    if (!fileId) return []
+    return repo.fileRefTasks(fileId).map((tid) => ({
+      taskId: tid,
+      taskName: repo.getTask(tid)?.lxPlaylistName ?? `已删除的任务 #${tid}`,
+    }))
+  }
+
+  /** 一首歌名下**所有**文件被哪些任务引用（去重；移除时一首歌可能有多份音质文件） */
+  private refTasksOfSong(songKey: string): repo.RefTask[] {
+    const seen = new Map<number, repo.RefTask>()
+    for (const f of repo.listFilesForSong(songKey)) {
+      for (const rt of this.refTasks(f.fileId)) if (!seen.has(rt.taskId)) seen.set(rt.taskId, rt)
+    }
+    return [...seen.values()]
+  }
+
+  /** 文件大小（字节）——落历史时快照一份，文件以后被删/移走也还查得到 */
+  private sizeOf(filePath?: string | null): number | undefined {
+    if (!filePath) return undefined
+    try {
+      return statSync(filePath).size
+    } catch {
+      return undefined
+    }
+  }
+
+  /** 批次快照用：目标歌单的**名字**（同名歌单直接用歌单名） */
+  private async targetPlaylistNames(task: NonNullable<ReturnType<typeof repo.getTask>>): Promise<string[]> {
+    const ids = task.embyTargetPlaylistIdsParsed ?? []
+    if (!ids.length) return task.createSameNamePlaylist ? [task.lxPlaylistName] : []
+    try {
+      const list = await this.emby.listPlaylists(this.scopeOf(task))
+      return ids.map((id) => list.find((p) => p.id === id)?.name).filter((n): n is string => !!n)
+    } catch {
+      return [] // 拿不到名字就不快照（不阻断运行）
+    }
+  }
+
+  /** 跳过名单上限：只存前 N 首的名字（防超大歌单把每批次的 JSON 撑爆），计数永远是准确的 */
+  private static readonly SKIP_LIST_CAP = 500
+
   /** 增量 diff：跳过已 success 的歌 */
   private diffIncremental(taskId: number, songs: LxSong[]): LxSong[] {
     const statuses = repo.listSongStatus(taskId)
@@ -257,7 +302,17 @@ export class SyncEngine {
     this.runningTaskId = taskId
     this.scannedLibs.clear() // 每次运行重置：扫描配额与播放列表缓存都按次算，不跨次
     this.playlistCache.clear()
-    const batchId = repo.createBatch({ taskId, trigger })
+    const batchId = repo.createBatch({
+      taskId,
+      trigger,
+      // 任务属性快照：任务以后被改配置/被删除，历史行仍能如实还原"当时是什么模式、发到哪个歌单"
+      snapshot: {
+        mode: taskSemantics(task).taskMode,
+        delPolicy: taskSemantics(task).delPolicy,
+        archivePlaylist: task.archivePlaylist ?? null,
+        targetPlaylists: await this.targetPlaylistNames(task),
+      },
+    })
     this.emit('batch-start', taskId, batchId)
     this.liveBegin({ taskId, taskName: task.lxPlaylistName, taskType: task.taskType ?? 'playlist', batchId, trigger, total: 0 })
 
@@ -306,7 +361,11 @@ export class SyncEngine {
         toDownload = d.toDownload
         toRemove = d.toRemove
       }
-      logger.info(`[engine] ${isChart ? `榜单 ${task.lxPlaylistName}（范围 ${songs.length} 首）` : `源歌单 ${songs.length} 首`} | 模式=${sem.taskMode}/${sem.delPolicy} | 待下载 ${toDownload.length} | 待移除 ${toRemove.length}`)
+      // 跳过名单：本次源里有、但没进处理流程的歌（增量=已 success 过；镜像=已在快照里）
+      // 历史页据此回答"这次为什么没有它"——不落成事件行（那是噪声），只挂在批次上
+      const dlSet = new Set(toDownload.map((s) => s.songKey))
+      const skippedSongs = songs.filter((s) => !dlSet.has(s.songKey))
+      logger.info(`[engine] ${isChart ? `榜单 ${task.lxPlaylistName}（范围 ${songs.length} 首）` : `源歌单 ${songs.length} 首`} | 模式=${sem.taskMode}/${sem.delPolicy} | 待下载 ${toDownload.length} | 待移除 ${toRemove.length} | 跳过 ${skippedSongs.length}`)
 
       // 镜像:按删除策略处理已删除的歌
       let archiveDegraded: string | null = null
@@ -370,6 +429,9 @@ export class SyncEngine {
           repo.insertHistoryItem({
             batchId, taskId, songKey: song.songKey, songName: song.name, singer: song.singer,
             status: outcome.status, quality: outcome.quality, detail: this.trace, errorReason: outcome.reason,
+            action: 'in',
+            // 没下成：要么音质链全拿不到（未满足），要么各档位试过都失败
+            process: outcome.status === 'unsatisfied' ? 'unsatisfied' : 'download_fail',
           })
           this.emit('song-status', taskId, {
             songKey: song.songKey, songName: song.name, status: outcome.status,
@@ -399,12 +461,27 @@ export class SyncEngine {
             taskId, songKey: r.song.songKey, songName: r.song.name, singer: r.song.singer,
             status: taskStatus, quality: r.quality, errorReason: r.ok ? undefined : (r.reason ?? 'Emby 入库失败'),
           })
+          // 引用快照：在「记归属」前后各取一次 —— 这正是排查"为什么这个文件没被删/为什么复用了"的关键
+          // ⚠️ 新下载的文件是这一刻才出现的，之前必然无人引用（downloadOne 里已经写过归属，直接查会误报"本来就有"）
+          const refBefore = r.status === 'success' ? [] : this.refTasks(r.fileId)
+          if (r.ok && r.fileId) repo.refTaskFile(taskId, r.song.songKey, r.fileId)
           repo.insertHistoryItem({
             batchId, taskId, songKey: r.song.songKey, songName: r.song.name, singer: r.song.singer,
             status: histStatus, quality: r.quality, detail: r.trace,
             errorReason: r.ok ? undefined : (r.reason ?? 'Emby 入库失败'),
+            action: 'in',
+            process: !r.ok
+              ? 'ingest_fail'
+              : r.status === 'dedup'
+                ? 'dedup_skip'
+                : r.status === 'dup'
+                  ? 'reuse_skip'
+                  : 'download_new',
+            filePath: r.filePath,
+            fileSize: this.sizeOf(r.filePath),
+            refBefore,
+            refAfter: this.refTasks(r.fileId),
           })
-          if (r.ok && r.fileId) repo.refTaskFile(taskId, r.song.songKey, r.fileId)
           this.emit('song-status', taskId, {
             songKey: r.song.songKey, songName: r.song.name, status: histStatus,
             quality: r.quality, errorReason: r.ok ? undefined : (r.reason ?? 'Emby 入库失败'),
@@ -444,6 +521,11 @@ export class SyncEngine {
         finishedAt: new Date().toISOString(),
         result,
         chartJson,
+        // 跳过名单（超过上限只存前 N 首的名字，计数永远准确）
+        skippedCount: skippedSongs.length,
+        skippedJson: skippedSongs.length
+          ? JSON.stringify(skippedSongs.slice(0, SyncEngine.SKIP_LIST_CAP).map((s) => ({ key: s.songKey, name: s.name })))
+          : null,
         okCount,
         failCount,
         unsatisfiedCount,
@@ -489,7 +571,15 @@ export class SyncEngine {
     task: ReturnType<typeof repo.getTask> & {},
     song: LxSong,
     opts?: { dirName?: string; absoluteDir?: string; skipIngest?: boolean; deferIngest?: boolean },
-  ): Promise<{ status: 'success' | 'failed' | 'unsatisfied' | 'dup'; quality?: string; reason?: string; filePath?: string; fileId?: number }> {
+  ): Promise<{
+    status: 'success' | 'failed' | 'unsatisfied' | 'dup'
+    quality?: string
+    reason?: string
+    filePath?: string
+    fileId?: number
+    /** 复用旧文件时：**记归属之前**的引用快照（新下载的文件必然是空） */
+    refsBefore?: repo.RefTask[]
+  }> {
     this.sourceHit = false // 本首歌是否请求过音源（节流判定用）
     this.trace = []        // 本首歌的处理轨迹
     const cfg = this.cfg()
@@ -518,6 +608,7 @@ export class SyncEngine {
         }
         // 入库结果如实上报：文件在但入不了库（比如媒体库里已无此条目）应记 failed 以便下次重试，
         // 旧实现无条件记 success，会让这类问题永远不被发现
+        const refsBefore = this.refTasks(existing.id) // 记归属**之前**取，历史页要靠它解释"为什么复用/为什么没删"
         const embyOk = opts?.skipIngest
           ? true
           : await this.ensureInEmby(taskId, task, song, undefined, { expectPath: path.basename(existing.filePath), expectPathFull: existing.filePath })
@@ -530,7 +621,10 @@ export class SyncEngine {
           status: embyOk ? 'success' : 'failed', quality: existing.quality,
           errorReason: embyOk ? undefined : '文件已在库但入库失败',
         })
-        return { status: 'dup', quality: existing.quality, reason: embyOk ? undefined : '文件已在库但入库失败' }
+        return {
+          status: 'dup', quality: existing.quality, reason: embyOk ? undefined : '文件已在库但入库失败',
+          filePath: existing.filePath, fileId: existing.id, refsBefore,
+        }
       }
       logger.info(`[engine] 下载 ${song.name} [${quality}]`)
       this.traceAdd(`解析直链：${quality}`)
@@ -965,6 +1059,15 @@ export class SyncEngine {
           quality: outcome.quality,
           errorReason: outcome.reason,
           detail: this.trace,
+          action: 'in',
+          process: outcome.status === 'success' ? 'download_new'
+            : outcome.status === 'dup' ? 'reuse_skip'
+              : outcome.status === 'unsatisfied' ? 'unsatisfied' : 'download_fail',
+          filePath: outcome.filePath,
+          fileSize: this.sizeOf(outcome.filePath),
+          // success = 文件这次刚落地 → 之前必然无人引用；dup = 复用旧文件，引用照旧
+          refBefore: outcome.refsBefore ?? (outcome.status === 'success' ? [] : this.refTasks(outcome.fileId)),
+          refAfter: this.refTasks(outcome.fileId),
         })
         this.emit('song-status', taskId, {
           songKey: song.songKey, songName: song.name, status: outcome.status,
@@ -1038,6 +1141,14 @@ export class SyncEngine {
         quality: outcome.quality,
         errorReason: outcome.reason,
         detail: this.trace,
+        action: 'in',
+        process: outcome.status === 'success' ? 'download_new'
+          : outcome.status === 'dup' ? (outcome.reason ? 'ingest_fail' : 'reuse_skip')
+            : outcome.status === 'unsatisfied' ? 'unsatisfied' : 'download_fail',
+        filePath: outcome.filePath,
+        fileSize: this.sizeOf(outcome.filePath),
+        refBefore: outcome.refsBefore ?? (outcome.status === 'success' ? [] : this.refTasks(outcome.fileId)),
+        refAfter: this.refTasks(outcome.fileId),
       })
       repo.finishBatch(batchId, {
         finishedAt: new Date().toISOString(),
@@ -1120,9 +1231,18 @@ export class SyncEngine {
         .get(songKey) as { songName: string; singer: string } | undefined
       const songName = prevRow?.songName ?? songKey
       const singer = prevRow?.singer ?? ''
-      const steps: string[] = ['镜像：该歌已从 LX 歌单移除']
+      const steps: string[] = [task.taskType === 'chart' ? '镜像：该歌已跌出榜单' : '镜像：该歌已从 LX 歌单移除']
+      // 引用快照：移除前/后各取一次 —— "文件被其它任务引用则保留"就靠它解释
+      const refBefore = this.refTasksOfSong(songKey)
       const record = (status: 'removed' | 'skipped' | 'failed', reason?: string) => {
-        repo.insertHistoryItem({ batchId, taskId, songKey, songName, singer, status, errorReason: reason, detail: steps })
+        repo.insertHistoryItem({
+          batchId, taskId, songKey, songName, singer, status, errorReason: reason, detail: steps,
+          action: 'out',
+          // 移出做了什么，由删除策略决定（处理1 不删文件 / 处理2 删文件 / 处理3 归档）
+          process: delFile ? 'remove_p2' : archive ? 'remove_p3' : 'remove_p1',
+          refBefore,
+          refAfter: this.refTasksOfSong(songKey),
+        })
       }
 
       // 解析媒体库条目：优先条目缓存；缓存里没有（换过同步目标会被清空）就**按文件路径精确查**
