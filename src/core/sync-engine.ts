@@ -597,6 +597,12 @@ export class SyncEngine {
       const intersect = cfg.download.qualities.filter((q) => song.qualities.includes(q))
       if (intersect.length) qualities = intersect
     }
+    // 让"为什么没试更高档"看得见：源只报它自己那套档位名（tx 报 master，不报 flac24bit/hires），
+    // 名字对不上就不会去试 —— 不写这行，界面上只看到"怎么老是 flac"，完全看不出原因
+    if (qualities.length !== cfg.download.qualities.length) {
+      const missing = cfg.download.qualities.filter((q) => !qualities.includes(q))
+      this.traceAdd(`源可选：${qualities.join(' / ')}（未声明 ${missing.join('、')}）→ 本次只试 ${qualities.join(' / ')}`)
+    }
 
     const dirName = opts?.dirName ?? task.lxPlaylistName
     for (const quality of qualities) {
