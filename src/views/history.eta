@@ -186,6 +186,13 @@ document.body.addEventListener('htmx:afterSwap', histScrollButtons)
 window.addEventListener('resize', histScrollButtons)
 document.addEventListener('DOMContentLoaded', function () { histScrollButtons(); setTimeout(histScrollButtons, 300) })
 
+// 日期框：点哪都弹日历（原生小图标的热区与图标位置有偏移，用户得瞄着点）
+function histPickDate(el) {
+  if (el && typeof el.showPicker === 'function') {
+    try { el.showPicker() } catch (e) { /* 需要用户手势或不支持：忽略，原生行为兜底 */ }
+  }
+}
+
 // 日期区间：清除后走「应用」按钮提交（表单的 change 触发被两个日期框主动挡掉了）
 function histClearDates() {
   var f = document.getElementById('hist-filter')

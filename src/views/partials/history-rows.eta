@@ -156,11 +156,12 @@
       <div class="modal-box max-w-xs">
         <h3 class="text-base font-bold">按日期筛选</h3>
         <label class="text-xs c-sub mt-3 block">起始日期</label>
+        <!-- 点输入框任意位置都弹出日历：原生那个小图标的热区和画出来的位置有偏移，很难瞄准 -->
         <input type="date" name="from" value="<%= raw.from %>" class="input input-bordered input-sm w-full"
-               hx-on:change="event.stopPropagation()">
+               onclick="histPickDate(this)" hx-on:change="event.stopPropagation()">
         <label class="text-xs c-sub mt-2 block">结束日期</label>
         <input type="date" name="to" value="<%= raw.to %>" class="input input-bordered input-sm w-full"
-               hx-on:change="event.stopPropagation()">
+               onclick="histPickDate(this)" hx-on:change="event.stopPropagation()">
         <p class="text-xs c-sub mt-2">按本地时区的自然日筛选（选完点「应用」）</p>
         <div class="modal-action">
           <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('hist-date-dlg').close()">取消</button>
