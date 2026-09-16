@@ -33,10 +33,9 @@
               <th>操作</th><th>处理过程</th><th>结果</th><th>文件大小</th><th>文件路径</th><th>引用情况</th><th class="text-right">行操作</th>
             </tr>
             <tr class="hist-filters">
-              <th class="hist-date-th" title="点开选择起始/结束日期"
-                  onclick="document.getElementById('hist-date-dlg').showModal()">
+              <th class="hist-date-th" title="点开选择起始/结束日期" onclick="histToggleDate()">
                 <!-- 整个表头格都是点击区（不只是图标）：emoji 换 SVG，避免不同浏览器把 emoji 画到框外 -->
-                <span class="btn btn-outline btn-xs w-full whitespace-nowrap hist-date-btn">
+                <span class="btn btn-outline btn-xs w-full whitespace-nowrap hist-date-btn" id="hist-date-btn">
                   <svg aria-hidden="true"><use href="#i-calendar"/></svg>
                   <span><%= (raw.from || raw.to) ? ((raw.from ? fmtD(raw.from) : '…') + '~' + (raw.to ? fmtD(raw.to) : '…')) : '日期' %></span>
                 </span>
@@ -153,28 +152,26 @@
       </div>
     </div>
 
-    <!-- 日期弹层：dialog 在最顶层渲染，不受表格横向滚动影响 -->
-    <dialog id="hist-date-dlg" class="modal">
-      <div class="modal-box max-w-xs">
-        <h3 class="text-base font-bold">按日期筛选</h3>
-        <label class="text-xs c-sub mt-3 block">起始日期</label>
+    <!-- 日期下拉：fixed 定位 + JS 贴到按钮下方 —— 视觉上是下拉，实际渲染在顶层，不会被滚动容器裁掉 -->
+    <div id="hist-date-panel" class="hist-pop" hidden>
+      <div>
+        <h3 class="text-sm font-bold">按日期筛选</h3>
+        <label class="text-xs c-sub mt-2 block">起始日期</label>
         <!-- 点输入框任意位置都弹出日历：原生那个小图标的热区和画出来的位置有偏移，很难瞄准 -->
         <input type="date" name="from" value="<%= raw.from %>" class="input input-bordered input-sm w-full"
                onclick="histPickDate(this)" hx-on:change="event.stopPropagation()">
         <label class="text-xs c-sub mt-2 block">结束日期</label>
         <input type="date" name="to" value="<%= raw.to %>" class="input input-bordered input-sm w-full"
                onclick="histPickDate(this)" hx-on:change="event.stopPropagation()">
-        <p class="text-xs c-sub mt-2">按本地时区的自然日筛选（选完点「应用」）</p>
-        <div class="modal-action">
-          <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('hist-date-dlg').close()">取消</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="histClearDates()">清除</button>
-          <button type="button" id="hist-date-apply" class="btn btn-primary btn-sm"
+        <p class="text-xs c-sub mt-2">按本地时区的自然日筛选</p>
+        <div class="flex justify-end gap-2 mt-3">
+          <button type="button" class="btn btn-ghost btn-xs" onclick="histClearDates()">清除</button>
+          <button type="button" id="hist-date-apply" class="btn btn-primary btn-xs"
                   hx-get="/api/history/rows" hx-include="#hist-filter"
-                  hx-target="#hist-rows-wrap" hx-swap="outerHTML"
-                  onclick="document.getElementById('hist-date-dlg').close()">应用</button>
+                  hx-target="#hist-rows-wrap" hx-swap="outerHTML">应用</button>
         </div>
       </div>
-    </dialog>
+    </div>
 
     <!-- 移动端卡片（桌面隐藏） -->
     <div class="hist-cards space-y-2">

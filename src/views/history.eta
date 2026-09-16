@@ -15,6 +15,10 @@
   /* 可点的歌名（点开看这首歌的完整来历） */
   .hist-song { color: var(--sfg-deep); border-bottom: 1px dashed oklch(var(--bc) / .3); }
   .hist-song:hover { border-bottom-style: solid; }
+  /* 日期下拉：fixed 定位贴在按钮下方；外部点击/Esc 关闭 */
+  .hist-pop { position: fixed; z-index: 60; width: 15rem; padding: .75rem;
+              background: oklch(var(--b1)); border: 1px solid oklch(var(--bc) / .22);
+              border-radius: .5rem; box-shadow: 0 8px 24px oklch(0 0 0 / .18); }
   /* 日期列：整格可点（点击区 = 整个单元格，不只是图标） */
   .hist-date-th { cursor: pointer; }
   .hist-date-btn { pointer-events: none; }   /* 视觉按钮，点击交给 th */
@@ -228,6 +232,36 @@ function histFitHeight() {
 document.body.addEventListener('htmx:afterSwap', function () { histFitHeight(); histScrollButtons() })
 window.addEventListener('resize', histFitHeight)
 document.addEventListener('DOMContentLoaded', function () { histFitHeight(); setTimeout(histFitHeight, 400) })
+
+// 日期下拉：贴在按钮下方弹出（fixed 定位，绕开表格滚动容器的裁剪）
+function histToggleDate() {
+  var panel = document.getElementById('hist-date-panel')
+  var btn = document.getElementById('hist-date-btn')
+  if (!panel || !btn) return
+  if (!panel.hidden) { panel.hidden = true; return }
+  panel.hidden = false
+  var r = btn.getBoundingClientRect()
+  var pw = panel.offsetWidth, ph = panel.offsetHeight
+  var left = Math.min(Math.max(8, r.left), window.innerWidth - pw - 8)
+  var top = r.bottom + 6
+  if (top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 6)  // 下面放不下就翻到上方
+  panel.style.left = left + 'px'
+  panel.style.top = top + 'px'
+}
+// 点面板外面 / 按 Esc 关闭
+document.addEventListener('click', function (e) {
+  var panel = document.getElementById('hist-date-panel')
+  if (!panel || panel.hidden) return
+  // 点在面板内、或点在日期表头格里（那格的点击由 histToggleDate 负责）都不关
+  var inHeader = e.target && e.target.closest && e.target.closest('.hist-date-th')
+  if (panel.contains(e.target) || inHeader) return
+  panel.hidden = true
+})
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Escape') return
+  var panel = document.getElementById('hist-date-panel')
+  if (panel) panel.hidden = true
+})
 
 // 日期框：点哪都弹日历（原生小图标的热区与图标位置有偏移，用户得瞄着点）
 function histPickDate(el) {
