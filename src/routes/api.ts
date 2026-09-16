@@ -1037,7 +1037,9 @@ export function apiRouter(
     const groups = {
       new: items.filter((i) => isNew(i.process)),
       reuse: items.filter((i) => isReuse(i.process)),
-      other: items.filter((i) => !isNew(i.process) && !isReuse(i.process)),
+      // 早期记录：那时还没写 process 字段（不能猜，单独一组如实展示）
+      legacy: items.filter((i) => !i.process),
+      other: items.filter((i) => i.process && !isNew(i.process) && !isReuse(i.process)),
       skipped: repo.batchSkippedDetail(id),
     }
     res.send(renderBody('partials/history-batch-groups', { b, groups, H: HMeta }))

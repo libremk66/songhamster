@@ -6,6 +6,7 @@
       { label: '新入库', hint: '这次真去音源下载的', rows: groups.new },
       { label: '复用入库', hint: '本地已有文件，直接入库', rows: groups.reuse },
       { label: '其他', hint: '失败 / 未满足 / 移出', rows: groups.other },
+      { label: '早期记录', hint: '那时的版本还没记「处理过程」字段（不做猜测）', rows: groups.legacy },
     ]
   %>
   <% for (const g of G) { %>
@@ -54,7 +55,7 @@
   </details>
   <% } %>
 
-  <% if (!groups.new.length && !groups.reuse.length && !groups.other.length && !groups.skipped.length) { %>
+  <% if (!groups.new.length && !groups.reuse.length && !groups.other.length && !groups.legacy.length && !groups.skipped.length) { %>
   <p class="c-sub text-xs py-3 text-center">这一批没有任何记录（可能是空跑或被中断）</p>
   <% } %>
 </div>
