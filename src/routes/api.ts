@@ -1217,19 +1217,24 @@ export function apiRouter(
   })
 
   // ===== 批量下载保护 =====
-  /** 表单 → 通知配置（保存与"发送测试"共用一份解析，避免两处走样） */
+  /**
+   * 表单 → 通知配置（保存与"发送测试"共用一份解析，避免两处走样）。
+   * 注意：**不含 enabled** —— 启用状态由「保存启用 / 停用」按钮的 enable/disable 参数决定，
+   * 总开关则由"有没有任何一个渠道启用"自动推导（界面上不再有全局开关）。
+   */
   const notifyFromBody = (b: Record<string, unknown>): NotifyConfig => {
     const eventsOf = (type: string) =>
       NOTIFY_EVENTS.map((e) => e.key).filter((k) => bool(b[`${type}_ev_${k}`]))
     const s = (k: string) => String(b[k] ?? '').trim()
+    const prev = cfg.notify.channels
     return {
-      enabled: bool(b.enabled),
+      enabled: cfg.notify.enabled,
       channels: {
-        feishu: { enabled: bool(b.feishu_enabled), events: eventsOf('feishu'), webhook: s('feishu_webhook'), secret: s('feishu_secret') },
-        bark: { enabled: bool(b.bark_enabled), events: eventsOf('bark'), server: s('bark_server') || 'https://api.day.app', key: s('bark_key') },
-        serverchan: { enabled: bool(b.serverchan_enabled), events: eventsOf('serverchan'), sendKey: s('serverchan_key') },
+        feishu: { enabled: prev.feishu.enabled, events: eventsOf('feishu'), webhook: s('feishu_webhook'), secret: s('feishu_secret') },
+        bark: { enabled: prev.bark.enabled, events: eventsOf('bark'), server: s('bark_server') || 'https://api.day.app', key: s('bark_key') },
+        serverchan: { enabled: prev.serverchan.enabled, events: eventsOf('serverchan'), sendKey: s('serverchan_key') },
         webhook: {
-          enabled: bool(b.webhook_enabled),
+          enabled: prev.webhook.enabled,
           events: eventsOf('webhook'),
           url: s('webhook_url'),
           method: s('webhook_method') === 'GET' ? 'GET' : 'POST',
@@ -1243,13 +1248,21 @@ export function apiRouter(
   r.post('/config/notify', (req, res) => {
     const b = (req.body ?? {}) as Record<string, unknown>
     const next = notifyFromBody(b)
+    // 「保存启用」/「停用」按钮通过 enable/disable 参数指定目标渠道；不传则保持原状态
+    const en = String(b.enable ?? '')
+    const dis = String(b.disable ?? '')
+    if (en && en in next.channels) next.channels[en as NotifyChannelType].enabled = true
+    if (dis && dis in next.channels) next.channels[dis as NotifyChannelType].enabled = false
+    // 总开关 = 有任一渠道启用（界面不再有全局开关）
+    next.enabled = Object.values(next.channels).some((c) => c.enabled)
     cfg.notify = { ...cfg.notify, ...next }
     saveConfig(cfg)
     const on = Object.entries(next.channels)
       .filter(([, c]) => c.enabled)
       .map(([t]) => CHANNEL_LABEL[t as NotifyChannelType])
-    logger.info(`[config] 通知：总开关=${next.enabled ? '开' : '关'}${on.length ? ` 渠道=${on.join('/')}` : '（未启用渠道）'}`)
-    res.send(ok('通知设置已保存'))
+    const msg = next.enabled ? `通知已开启（启用中：${on.join('、')}）` : '通知已全部停用'
+    logger.info(`[config] ${msg}`)
+    res.send(ok(msg))
   })
 
   /** 发送测试：用表单里**当前填写**的值发（不必先保存） */

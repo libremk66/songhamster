@@ -61,77 +61,124 @@
   </form>
 
 <!-- ===== 通知 ===== -->
-  <form method="post" action="/api/config/notify" hx-post="/api/config/notify" hx-target="#notify-msg"
-        class="card bg-base-100 border border-base-300 shadow-sm">
-    <div class="card-body gap-3">
+  <style>
+    /* 渠道子标签（与进度历史页的子标签同款胶囊样式） */
+    .nt-tab { display: inline-flex; align-items: center; gap: .35rem; padding: .25rem .8rem; font-size: .8125rem;
+              cursor: pointer; background: oklch(var(--b1)); color: oklch(var(--bc) / .75);
+              border: 1px solid oklch(var(--bc) / .22); border-radius: 999px; transition: color .15s, border-color .15s, background .15s; }
+    .nt-tab:hover { border-color: var(--sfg); color: var(--sfg-deep); }
+    .nt-tab.active { background: var(--sfg-fill); border-color: var(--sfg-fill); color: #fff; font-weight: 650; }
+    .nt-dot { width: .45rem; height: .45rem; border-radius: 999px; background: oklch(var(--bc) / .3); flex-shrink: 0; }
+    .nt-dot.on { background: #22c55e; }
+  </style>
+  <section class="card bg-base-100 border border-base-300 shadow-sm">
+    <div class="card-body gap-2">
       <h3 class="card-title text-base">通知</h3>
-      <label class="flex items-center gap-2 cursor-pointer">
-        <input type="checkbox" name="enabled" value="1" <%= cfg.notify.enabled ? 'checked' : '' %> class="checkbox checkbox-sm">
-        <span class="text-sm">启用通知（同步跑完或出错时推送一条）</span>
-      </label>
-      <p class="text-xs c-sub leading-relaxed">每个渠道自己选「订阅哪些事件」——比如"失败推手机、成功只发群里"。<b>通知发送失败只记日志，不影响同步</b>；点「发送测试」用当前填写的内容试发（不必先保存）。</p>
+      <p class="text-xs c-sub leading-relaxed">同步跑完或出错时推一条。<b>每个渠道单独选订阅哪些事件</b>（比如"失败推手机、成功只发群里"）；<b>发送失败只记日志，不影响同步</b>。</p>
 
       <% const ch = cfg.notify.channels %>
-      <!-- 飞书 -->
-      <div class="rounded-lg border border-base-300 p-2.5 space-y-1.5">
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" name="feishu_enabled" value="1" <%= ch.feishu.enabled ? 'checked' : '' %> class="checkbox checkbox-sm">
-          <b class="text-sm">飞书</b><span class="text-xs c-sub">群机器人 Webhook（群设置 → 添加机器人 → 自定义机器人）</span>
-        </label>
-        <input name="feishu_webhook" value="<%= ch.feishu.webhook %>" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/…" class="input input-bordered input-sm w-full font-mono text-xs">
-        <input name="feishu_secret" value="<%= ch.feishu.secret %>" placeholder="签名密钥（机器人开了「签名校验」才填）" class="input input-bordered input-sm w-full font-mono text-xs">
-        <%~ include('partials/notify-events.eta', { type: 'feishu', events: ch.feishu.events }) %>
-        <button type="button" class="btn btn-ghost btn-xs" hx-post="/api/notify/test/feishu" hx-include="closest form" hx-target="#notify-msg" hx-swap="innerHTML">发送测试</button>
+      <% const NT = [
+        { key: 'feishu', label: '飞书', on: ch.feishu.enabled },
+        { key: 'bark', label: 'Bark', on: ch.bark.enabled },
+        { key: 'serverchan', label: 'Server酱', on: ch.serverchan.enabled },
+        { key: 'webhook', label: '自定义 Webhook', on: ch.webhook.enabled },
+      ] %>
+
+      <div class="flex flex-wrap gap-1.5">
+        <% for (const t of NT) { %>
+        <button type="button" class="nt-tab <%= t.key === 'feishu' ? 'active' : '' %>" id="nt-tab-<%= t.key %>" onclick="ntSwitch('<%= t.key %>')">
+          <span class="nt-dot <%= t.on ? 'on' : '' %>"></span><%= t.label %>
+        </button>
+        <% } %>
       </div>
 
-      <!-- Bark -->
-      <div class="rounded-lg border border-base-300 p-2.5 space-y-1.5">
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" name="bark_enabled" value="1" <%= ch.bark.enabled ? 'checked' : '' %> class="checkbox checkbox-sm">
-          <b class="text-sm">Bark</b><span class="text-xs c-sub">iPhone 推送</span>
-        </label>
-        <input name="bark_server" value="<%= ch.bark.server %>" placeholder="https://api.day.app" class="input input-bordered input-sm w-full font-mono text-xs">
-        <input name="bark_key" value="<%= ch.bark.key %>" placeholder="你的 Bark Key" class="input input-bordered input-sm w-full font-mono text-xs">
-        <%~ include('partials/notify-events.eta', { type: 'bark', events: ch.bark.events }) %>
-        <button type="button" class="btn btn-ghost btn-xs" hx-post="/api/notify/test/bark" hx-include="closest form" hx-target="#notify-msg" hx-swap="innerHTML">发送测试</button>
-      </div>
-
-      <!-- Server酱 -->
-      <div class="rounded-lg border border-base-300 p-2.5 space-y-1.5">
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" name="serverchan_enabled" value="1" <%= ch.serverchan.enabled ? 'checked' : '' %> class="checkbox checkbox-sm">
-          <b class="text-sm">Server酱</b><span class="text-xs c-sub">推送到微信</span>
-        </label>
-        <input name="serverchan_key" value="<%= ch.serverchan.sendKey %>" placeholder="SendKey（sct.ftqq.com 获取）" class="input input-bordered input-sm w-full font-mono text-xs">
-        <%~ include('partials/notify-events.eta', { type: 'serverchan', events: ch.serverchan.events }) %>
-        <button type="button" class="btn btn-ghost btn-xs" hx-post="/api/notify/test/serverchan" hx-include="closest form" hx-target="#notify-msg" hx-swap="innerHTML">发送测试</button>
-      </div>
-
-      <!-- 自定义 Webhook -->
-      <div class="rounded-lg border border-base-300 p-2.5 space-y-1.5">
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" name="webhook_enabled" value="1" <%= ch.webhook.enabled ? 'checked' : '' %> class="checkbox checkbox-sm">
-          <b class="text-sm">自定义 Webhook</b><span class="text-xs c-sub">接你自己的服务</span>
-        </label>
-        <div class="flex gap-2">
-          <select name="webhook_method" class="select select-bordered select-sm w-24">
-            <option value="POST" <%= ch.webhook.method === 'POST' ? 'selected' : '' %>>POST</option>
-            <option value="GET" <%= ch.webhook.method === 'GET' ? 'selected' : '' %>>GET</option>
-          </select>
-          <input name="webhook_url" value="<%= ch.webhook.url %>" placeholder="https://…（GET 时可用 {title} {text} 占位）" class="input input-bordered input-sm w-full font-mono text-xs">
+      <form method="post" action="/api/config/notify" hx-post="/api/config/notify" hx-target="#notify-msg" class="space-y-2 mt-1">
+        <!-- 飞书 -->
+        <div id="nt-pane-feishu" class="nt-pane space-y-1.5">
+          <p class="text-xs c-sub">群的「设置 → 群机器人 → 添加机器人 → 自定义机器人」，把 Webhook 地址粘过来</p>
+          <input name="feishu_webhook" value="<%= ch.feishu.webhook %>" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/…" class="input input-bordered input-sm w-full font-mono text-xs">
+          <input name="feishu_secret" value="<%= ch.feishu.secret %>" placeholder="签名密钥（机器人开了「签名校验」才填）" class="input input-bordered input-sm w-full font-mono text-xs">
+          <%~ include('partials/notify-events.eta', { type: 'feishu', events: ch.feishu.events }) %>
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" class="btn btn-primary btn-sm" hx-post="/api/config/notify" hx-vals='{"enable":"feishu"}' hx-include="closest form" hx-target="#notify-msg"
+                    hx-on::after-request="if(event.detail.successful) ntSetDot('feishu', true)">保存启用</button>
+            <button type="button" class="btn btn-ghost btn-sm" hx-post="/api/config/notify" hx-vals='{"disable":"feishu"}' hx-include="closest form" hx-target="#notify-msg"
+                    hx-on::after-request="if(event.detail.successful) ntSetDot('feishu', false)">停用</button>
+            <button type="button" class="btn btn-outline btn-sm" hx-post="/api/notify/test/feishu" hx-include="closest form" hx-target="#notify-msg">发送测试</button>
+          </div>
         </div>
-        <input name="webhook_headers" value="<%= ch.webhook.headers %>" placeholder='自定义请求头 JSON，如 {"Authorization":"Bearer xxx"}' class="input input-bordered input-sm w-full font-mono text-xs">
-        <input name="webhook_body" value="<%= ch.webhook.bodyTemplate %>" placeholder='POST 的 body 模板（可用 {title} {text}），留空发 {"title":…,"text":…}' class="input input-bordered input-sm w-full font-mono text-xs">
-        <%~ include('partials/notify-events.eta', { type: 'webhook', events: ch.webhook.events }) %>
-        <button type="button" class="btn btn-ghost btn-xs" hx-post="/api/notify/test/webhook" hx-include="closest form" hx-target="#notify-msg" hx-swap="innerHTML">发送测试</button>
-      </div>
 
-      <div class="card-actions flex flex-wrap items-center gap-2 border-t border-base-200 pt-3">
-        <button type="submit" class="btn btn-primary">保存通知设置</button>
-        <span id="notify-msg" class="text-sm"></span>
-      </div>
+        <!-- Bark -->
+        <div id="nt-pane-bark" class="nt-pane hidden space-y-1.5">
+          <p class="text-xs c-sub">iPhone 装 Bark，把推送地址里的 Key 填进来（服务器地址一般不用改）</p>
+          <input name="bark_server" value="<%= ch.bark.server %>" placeholder="https://api.day.app" class="input input-bordered input-sm w-full font-mono text-xs">
+          <input name="bark_key" value="<%= ch.bark.key %>" placeholder="你的 Bark Key" class="input input-bordered input-sm w-full font-mono text-xs">
+          <%~ include('partials/notify-events.eta', { type: 'bark', events: ch.bark.events }) %>
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" class="btn btn-primary btn-sm" hx-post="/api/config/notify" hx-vals='{"enable":"bark"}' hx-include="closest form" hx-target="#notify-msg"
+                    hx-on::after-request="if(event.detail.successful) ntSetDot('bark', true)">保存启用</button>
+            <button type="button" class="btn btn-ghost btn-sm" hx-post="/api/config/notify" hx-vals='{"disable":"bark"}' hx-include="closest form" hx-target="#notify-msg"
+                    hx-on::after-request="if(event.detail.successful) ntSetDot('bark', false)">停用</button>
+            <button type="button" class="btn btn-outline btn-sm" hx-post="/api/notify/test/bark" hx-include="closest form" hx-target="#notify-msg">发送测试</button>
+          </div>
+        </div>
+
+        <!-- Server酱 -->
+        <div id="nt-pane-serverchan" class="nt-pane hidden space-y-1.5">
+          <p class="text-xs c-sub">到 sct.ftqq.com 登录后复制 SendKey</p>
+          <input name="serverchan_key" value="<%= ch.serverchan.sendKey %>" placeholder="SendKey" class="input input-bordered input-sm w-full font-mono text-xs">
+          <%~ include('partials/notify-events.eta', { type: 'serverchan', events: ch.serverchan.events }) %>
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" class="btn btn-primary btn-sm" hx-post="/api/config/notify" hx-vals='{"enable":"serverchan"}' hx-include="closest form" hx-target="#notify-msg"
+                    hx-on::after-request="if(event.detail.successful) ntSetDot('serverchan', true)">保存启用</button>
+            <button type="button" class="btn btn-ghost btn-sm" hx-post="/api/config/notify" hx-vals='{"disable":"serverchan"}' hx-include="closest form" hx-target="#notify-msg"
+                    hx-on::after-request="if(event.detail.successful) ntSetDot('serverchan', false)">停用</button>
+            <button type="button" class="btn btn-outline btn-sm" hx-post="/api/notify/test/serverchan" hx-include="closest form" hx-target="#notify-msg">发送测试</button>
+          </div>
+        </div>
+
+        <!-- 自定义 Webhook -->
+        <div id="nt-pane-webhook" class="nt-pane hidden space-y-1.5">
+          <p class="text-xs c-sub">接到你自己的服务：GET 时可用 <code>{title}</code> <code>{text}</code> 占位；POST 留空 body 则发 <code>{"title":…,"text":…}</code></p>
+          <div class="flex gap-2">
+            <select name="webhook_method" class="select select-bordered select-sm w-24">
+              <option value="POST" <%= ch.webhook.method === 'POST' ? 'selected' : '' %>>POST</option>
+              <option value="GET" <%= ch.webhook.method === 'GET' ? 'selected' : '' %>>GET</option>
+            </select>
+            <input name="webhook_url" value="<%= ch.webhook.url %>" placeholder="https://…" class="input input-bordered input-sm w-full font-mono text-xs">
+          </div>
+          <input name="webhook_headers" value="<%= ch.webhook.headers %>" placeholder='自定义请求头 JSON，如 {"Authorization":"Bearer xxx"}' class="input input-bordered input-sm w-full font-mono text-xs">
+          <input name="webhook_body" value="<%= ch.webhook.bodyTemplate %>" placeholder="POST 的 body 模板（可用 {title} {text}）" class="input input-bordered input-sm w-full font-mono text-xs">
+          <%~ include('partials/notify-events.eta', { type: 'webhook', events: ch.webhook.events }) %>
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" class="btn btn-primary btn-sm" hx-post="/api/config/notify" hx-vals='{"enable":"webhook"}' hx-include="closest form" hx-target="#notify-msg"
+                    hx-on::after-request="if(event.detail.successful) ntSetDot('webhook', true)">保存启用</button>
+            <button type="button" class="btn btn-ghost btn-sm" hx-post="/api/config/notify" hx-vals='{"disable":"webhook"}' hx-include="closest form" hx-target="#notify-msg"
+                    hx-on::after-request="if(event.detail.successful) ntSetDot('webhook', false)">停用</button>
+            <button type="button" class="btn btn-outline btn-sm" hx-post="/api/notify/test/webhook" hx-include="closest form" hx-target="#notify-msg">发送测试</button>
+          </div>
+        </div>
+
+        <div id="notify-msg" class="text-sm"></div>
+      </form>
+
+      <script>
+        // 渠道子标签切换（只显示当前渠道，别一屏全铺开）
+        function ntSetDot(key, on) {
+          var dot = document.querySelector('#nt-tab-' + key + ' .nt-dot')
+          if (dot) dot.classList.toggle('on', !!on)
+        }
+        function ntSwitch(key) {
+          ['feishu', 'bark', 'serverchan', 'webhook'].forEach(function (k) {
+            var tab = document.getElementById('nt-tab-' + k)
+            var pane = document.getElementById('nt-pane-' + k)
+            if (tab) tab.classList.toggle('active', k === key)
+            if (pane) pane.classList.toggle('hidden', k !== key)
+          })
+        }
+      </script>
     </div>
-  </form>
+  </section>
 
 <% if (false) { /* 高级设置：暂时不开发，先隐藏；要恢复就把本行改成 if (true) */ %>
   <!-- ===== 高级设置 ===== -->
