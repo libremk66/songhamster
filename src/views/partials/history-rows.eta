@@ -13,17 +13,17 @@
       <div class="hist-table-wrap" id="hist-scroll">
         <table class="table table-xs w-full hist-table">
           <colgroup>
-            <col class="w-36"><!-- 日期时间 -->
+            <col class="w-32"><!-- 日期时间 -->
             <col class="w-40"><!-- 所属任务 -->
             <col class="w-40"><!-- 任务属性 -->
             <col class="w-44"><!-- 歌曲名 -->
             <col class="w-32"><!-- 歌手 -->
-            <col class="w-20"><!-- 音质 -->
-            <col class="w-20"><!-- 操作 -->
+            <col class="w-24"><!-- 音质 -->
+            <col class="w-24"><!-- 操作 -->
             <col class="w-36"><!-- 处理过程 -->
-            <col class="w-32"><!-- 结果 -->
-            <col class="w-24"><!-- 文件大小 -->
-            <col class="w-72"><!-- 文件路径 -->
+            <col class="w-36"><!-- 结果 -->
+            <col class="w-28"><!-- 文件大小 -->
+            <col class="w-64"><!-- 文件路径 -->
             <col class="w-36"><!-- 引用情况 -->
             <col class="w-28"><!-- 行操作 -->
           </colgroup>
@@ -84,8 +84,9 @@
               <th><input name="path" value="<%= f.path ?? '' %>" placeholder="路径关键词" class="input input-bordered input-xs w-full"></th>
               <th></th>
               <th class="text-right">
-                <button type="button" class="btn btn-ghost btn-xs" title="清空筛选"
-                        hx-get="/api/history/rows" hx-target="#hist-rows-wrap" hx-swap="outerHTML">重置</button>
+                <button type="button" class="btn btn-outline btn-xs whitespace-nowrap" title="清空所有筛选条件"
+                        hx-get="/api/history/rows" hx-params="none"
+                        hx-target="#hist-rows-wrap" hx-swap="outerHTML">清除筛选</button>
               </th>
             </tr>
           </thead>

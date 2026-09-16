@@ -29,6 +29,8 @@
   /* 筛选行：紧凑一点，别喧宾夺主 */
   .hist-filters th { padding-top: .15rem; padding-bottom: .35rem; }
   .hist-filters .input, .hist-filters .select { height: 1.5rem; min-height: 1.5rem; font-size: .7rem; }
+  /* 本页放宽：全站 .page 上限 1280px，宽表在这太挤 —— 用 :has() 只对含历史表的页面放开 */
+  .page:has(#hist-rows-wrap), .page:has(#hist-batches) { max-width: none; }
   /* 事件表：列宽由 colgroup 定，表格不足时撑满、超出时横向滚动 */
   .hist-table { width: auto; min-width: 100%; }
   /* 表头 + 分页条固定，中间列表滚动（参考 MoviePilot 的媒体列表）：
