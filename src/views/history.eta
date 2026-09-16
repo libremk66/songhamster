@@ -6,11 +6,15 @@
   .hist-tab svg { width: 1em; height: 1em; margin-right: .35em; }
   .hist-tab:hover { border-color: var(--sfg); color: var(--sfg-deep); }
   .hist-tab.active { background: var(--sfg-fill); border-color: var(--sfg-fill); color: #fff; font-weight: 650; }
-  /* 子标签（流水/批次）：文字标签 + 选中下划线，比主标签轻 */
-  .hist-subtab { padding: .15rem .2rem; font-size: .8125rem; color: oklch(var(--bc) / .6);
-                 border-bottom: 2px solid transparent; cursor: pointer; }
-  .hist-subtab:hover { color: var(--sfg-deep); }
-  .hist-subtab.active { color: var(--sfg-deep); border-bottom-color: var(--sfg-fill); font-weight: 650; }
+  /* 子标签（流水/批次）：风格与主标签统一（同款胶囊，尺寸小一号） */
+  .hist-subtab { display: inline-flex; align-items: center; gap: .3rem; padding: .2rem .75rem; font-size: .8125rem;
+                 cursor: pointer; background: oklch(var(--b1)); color: oklch(var(--bc) / .75);
+                 border: 1px solid oklch(var(--bc) / .22); border-radius: 999px; transition: color .15s, border-color .15s, background .15s; }
+  .hist-subtab:hover { border-color: var(--sfg); color: var(--sfg-deep); }
+  .hist-subtab.active { background: var(--sfg-fill); border-color: var(--sfg-fill); color: #fff; font-weight: 650; }
+  /* 表头永远单行；单元格内容该换行就换行，不挤成一条 */
+  .hist-table th { white-space: nowrap; }
+  .hist-wrap { white-space: normal; word-break: break-word; overflow-wrap: anywhere; }
   /* 筛选行：紧凑一点，别喧宾夺主 */
   .hist-filters th { padding-top: .15rem; padding-bottom: .35rem; }
   .hist-filters .input, .hist-filters .select { height: 1.5rem; min-height: 1.5rem; font-size: .7rem; }
@@ -38,8 +42,7 @@
   .hist-cards { display: none; }
   @media (max-width: 767px) {
     .hist-table-wrap table > thead > tr:first-child,
-    .hist-table-wrap tbody,
-    .hist-table-wrap .hist-more { display: none; }
+    .hist-table-wrap tbody { display: none; }
     .hist-cards { display: block; }
   }
 </style>

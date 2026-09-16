@@ -922,24 +922,30 @@ export function apiRouter(
       cursor: Number(q.cursor) || undefined,
       limit: Number(q.limit) || undefined,
     }
-    const PAGE = Math.min(500, f.limit ?? 100)
-    const rows = repo.listHistoryRows({ ...f, limit: PAGE + 1 })
-    const hasMore = rows.length > PAGE
-    f.limit = PAGE
+    const PAGE_SIZE = 25
+    const total = repo.countHistoryRows(f)
+    const pages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+    const page = Math.min(pages, Math.max(1, Number(q.page) || 1))
+    f.limit = PAGE_SIZE
+    f.offset = (page - 1) * PAGE_SIZE
+    const rows = repo.listHistoryRows(f)
     const facets = repo.historyFacets()
     // 筛选框回填用原始输入（f.from/to 已转成 UTC ISO，不能再回显给日期控件）
     const raw = { from: qs(q.from) ?? '', to: qs(q.to) ?? '' }
-    res.send(renderBody('partials/history-rows', { rows: rows.slice(0, PAGE), hasMore, f, raw, facets, H: HMeta }))
+    res.send(renderBody('partials/history-rows', { rows, page, pages, total, pageSize: PAGE_SIZE, f, raw, facets, H: HMeta }))
   })
 
   /** 批次视图：每批次一行（含跳过名单），空批次也在这里出现 */
   r.get('/history/batches', (req, res) => {
     const q = req.query
     const f = { taskName: qs(q.taskName), trigger: qs(q.trigger), mode: qs(q.mode), from: qs(q.from), to: qs(q.to), cursor: Number(q.cursor) || undefined }
-    const PAGE = 100
-    const rows = repo.listBatchRows({ ...f, limit: PAGE + 1 })
-    const hasMore = rows.length > PAGE
-    res.send(renderBody('partials/history-batches', { batches: rows.slice(0, PAGE), hasMore, f, H: HMeta }))
+    const PAGE_SIZE = 25
+    const all = repo.listBatchRows({ ...f, limit: 1000, offset: 0 })
+    const total = all.length
+    const pages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+    const page = Math.min(pages, Math.max(1, Number(q.page) || 1))
+    const rows = all.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+    res.send(renderBody('partials/history-batches', { batches: rows, page, pages, total, pageSize: PAGE_SIZE, f, H: HMeta }))
   })
 
   /** 搜索卡：命中歌单 + 命中歌曲（按歌聚合：当前状态/文件来源/首次·最近/记录数） */

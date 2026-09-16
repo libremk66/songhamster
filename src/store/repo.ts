@@ -287,9 +287,11 @@ export interface HistoryQuery {
   to?: string
   /** 文件路径 模糊 */
   path?: string
-  /** keyset 分页：只取 id 小于它的事件行 */
+  /** keyset 分页：只取 id 小于它的事件行（旧方式，已改用 offset 翻页） */
   cursor?: number
   limit?: number
+  /** 偏移分页（翻页用） */
+  offset?: number
 }
 
 /** 平铺表的一行 = 一次「任务运行 × 歌曲」事件（含批次快照与派生列） */
@@ -383,7 +385,8 @@ export function listHistoryRows(f: HistoryQuery): HistoryRow[] {
   if (f.to) { where.push('b.startedAt <= ?'); args.push(f.to) }
   if (f.path) { where.push('h.filePath LIKE ?'); args.push(`%${f.path}%`) }
   if (f.cursor) { where.push('h.id < ?'); args.push(f.cursor) }
-  const limit = Math.min(500, Math.max(1, f.limit ?? 100))
+  const limit = Math.min(500, Math.max(1, f.limit ?? 25))
+  const offset = Math.max(0, f.offset ?? 0)
   const sql = `
     SELECT h.id, h.batchId, h.taskId, h.songKey, h.songName, h.singer, h.status, h.quality,
            h.filePath, h.fileSize, h.errorReason, h.detail, h.action, h.process, h.refBefore, h.refAfter,
@@ -394,12 +397,44 @@ export function listHistoryRows(f: HistoryQuery): HistoryRow[] {
            COUNT(*)       OVER (PARTITION BY h.batchId)  AS batchRows
     FROM history_item h JOIN history_batch b ON b.id = h.batchId
     ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
-    ORDER BY h.id DESC LIMIT ?`
-  return getDb().prepare(sql).all(...args, limit) as HistoryRow[]
+    ORDER BY h.id DESC LIMIT ? OFFSET ?`
+  return getDb().prepare(sql).all(...args, limit, offset) as HistoryRow[]
+}
+
+/** 同一套筛选条件下的总条数（翻页用） */
+export function countHistoryRows(f: HistoryQuery): number {
+  const where: string[] = []
+  const args: unknown[] = []
+  if (f.q) { where.push('(h.songName LIKE ? OR h.singer LIKE ?)'); args.push(`%${f.q}%`, `%${f.q}%`) }
+  if (f.song) { where.push('h.songName LIKE ?'); args.push(`%${f.song}%`) }
+  if (f.singer) { where.push('h.singer LIKE ?'); args.push(`%${f.singer}%`) }
+  if (f.attr) {
+    const conds = attrConditions(f.attr)
+    if (conds.length) {
+      where.push('(' + conds.map((c) => c.sql).join(' OR ') + ')')
+      for (const c of conds) args.push(...c.args)
+    } else {
+      where.push('0 = 1')
+    }
+  }
+  if (f.taskName) { where.push('b.taskName = ?'); args.push(f.taskName) }
+  if (f.trigger) { where.push('b.trigger = ?'); args.push(f.trigger) }
+  if (f.mode) { where.push('b.mode = ?'); args.push(f.mode) }
+  if (f.quality) { where.push('h.quality = ?'); args.push(f.quality) }
+  if (f.action) { where.push('h.action = ?'); args.push(f.action) }
+  if (f.process) { where.push('h.process = ?'); args.push(f.process) }
+  if (f.status) { where.push('h.status = ?'); args.push(f.status) }
+  if (f.from) { where.push('b.startedAt >= ?'); args.push(f.from) }
+  if (f.to) { where.push('b.startedAt <= ?'); args.push(f.to) }
+  if (f.path) { where.push('h.filePath LIKE ?'); args.push(`%${f.path}%`) }
+  const row = getDb()
+    .prepare(`SELECT COUNT(*) AS n FROM history_item h JOIN history_batch b ON b.id = h.batchId ${where.length ? 'WHERE ' + where.join(' AND ') : ''}`)
+    .get(...args) as { n: number }
+  return row.n
 }
 
 /** 批次视图（标签①的「批次」切换）：每批次一行 + 跳过名单 */
-export function listBatchRows(f: { taskName?: string; trigger?: string; mode?: string; from?: string; to?: string; cursor?: number; limit?: number }): BatchRow[] {
+export function listBatchRows(f: { taskName?: string; trigger?: string; mode?: string; from?: string; to?: string; cursor?: number; limit?: number; offset?: number }): BatchRow[] {
   const where: string[] = []
   const args: unknown[] = []
   if (f.taskName) { where.push('taskName = ?'); args.push(f.taskName) }
@@ -408,9 +443,10 @@ export function listBatchRows(f: { taskName?: string; trigger?: string; mode?: s
   if (f.from) { where.push('startedAt >= ?'); args.push(f.from) }
   if (f.to) { where.push('startedAt <= ?'); args.push(f.to) }
   if (f.cursor) { where.push('id < ?'); args.push(f.cursor) }
-  const limit = Math.min(500, Math.max(1, f.limit ?? 100))
-  const sql = `SELECT * FROM history_batch ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY id DESC LIMIT ?`
-  return getDb().prepare(sql).all(...args, limit) as BatchRow[]
+  const limit = Math.min(500, Math.max(1, f.limit ?? 25))
+  const offset = Math.max(0, f.offset ?? 0)
+  const sql = `SELECT * FROM history_batch ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY id DESC LIMIT ? OFFSET ?`
+  return getDb().prepare(sql).all(...args, limit, offset) as BatchRow[]
 }
 
 /** 下拉框候选值（任务名/音质——process 用代码里的固定枚举，空库也能选） */
