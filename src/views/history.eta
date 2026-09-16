@@ -12,6 +12,9 @@
                  border: 1px solid oklch(var(--bc) / .22); border-radius: 999px; transition: color .15s, border-color .15s, background .15s; }
   .hist-subtab:hover { border-color: var(--sfg); color: var(--sfg-deep); }
   .hist-subtab.active { background: var(--sfg-fill); border-color: var(--sfg-fill); color: #fff; font-weight: 650; }
+  /* 可点的歌名（点开看这首歌的完整来历） */
+  .hist-song { color: var(--sfg-deep); border-bottom: 1px dashed oklch(var(--bc) / .3); }
+  .hist-song:hover { border-bottom-style: solid; }
   /* 日期列：整格可点（点击区 = 整个单元格，不只是图标） */
   .hist-date-th { cursor: pointer; }
   .hist-date-btn { pointer-events: none; }   /* 视觉按钮，点击交给 th */
@@ -92,16 +95,9 @@
           <button type="button" class="hist-subtab active" id="view-rows" onclick="histView('rows')">流水</button>
           <button type="button" class="hist-subtab" id="view-batches" onclick="histView('batches')">批次</button>
         </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <label class="input input-bordered input-sm flex items-center gap-2 flex-1 min-w-56">
-            <svg aria-hidden="true" style="width:1em;height:1em"><use href="#i-listSearch"/></svg>
-            <input type="search" name="q" value="" placeholder="搜歌名 / 歌手 / 歌单名 —— 会给出这首歌的完整来历"
-                   class="grow" hx-get="/api/history/search" hx-trigger="input changed delay:350ms, search"
-                   hx-target="#hist-search" hx-swap="innerHTML"
-                   oninput="histSearchToggle(this.value)">
-          </label>
+        <div class="text-xs c-sub">
+          搜索/筛选都在下面表头那一行里；<b>点歌曲名</b>可以看这首歌的完整来历（当前状态、文件来源、首次·最近、引用）
         </div>
-        <div id="hist-search"></div>
       </div>
 
       <div id="hist-msg" class="text-sm"></div>
@@ -112,6 +108,17 @@
       </div>
     </div>
   </section>
+
+  <!-- 歌曲来历弹层：点表格里的歌名打开（复用搜索卡接口） -->
+  <dialog id="hist-song-dlg" class="modal">
+    <div class="modal-box max-w-2xl">
+      <h3 class="text-base font-bold" id="hist-song-title">歌曲来历</h3>
+      <div id="hist-song-body" class="mt-2"></div>
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('hist-song-dlg').close()">关闭</button>
+      </div>
+    </div>
+  </dialog>
 
   <!-- 删除弹窗：三个复选框（文件/歌单/历史） -->
   <dialog id="hist-del-dlg" class="modal">
@@ -156,11 +163,25 @@ function histView(mode) {
   document.getElementById('view-batches').classList.toggle('active', mode === 'batches')
   htmx.ajax('GET', mode === 'batches' ? '/api/history/batches' : '/api/history/rows', { target: '#hist-content', swap: 'innerHTML' })
 }
-// 搜索框有内容 → 藏起表格只看搜索结果；清空 → 恢复
-function histSearchToggle(v) {
-  var on = !!v.trim()
-  var content = document.getElementById('hist-content')
-  if (content) content.classList.toggle('hidden', on)
+// 点歌名 → 弹出"这首歌的来历"（复用 /api/history/search 的卡片）
+function histShowSong(name) {
+  var dlg = document.getElementById('hist-song-dlg')
+  var body = document.getElementById('hist-song-body')
+  if (!dlg || !body) return
+  document.getElementById('hist-song-title').textContent = '歌曲来历：' + name
+  body.innerHTML = '<p class="c-sub text-xs py-6 text-center">加载中…</p>'
+  dlg.showModal()
+  fetch('/api/history/search?q=' + encodeURIComponent(name))
+    .then(function (r) { return r.text() })
+    .then(function (html) { body.innerHTML = html })
+    .catch(function () { body.innerHTML = '<p class="st-bad text-xs">加载失败，请重试</p>' })
+}
+// 卡片里的「看它的全部记录」：关掉弹层 + 切到流水并按歌名筛选
+function histSongToRecords(btn) {
+  var name = btn.getAttribute('data-song') || ''
+  var dlg = document.getElementById('hist-song-dlg')
+  if (dlg && dlg.open) dlg.close()
+  histFilterBy({ song: name })
 }
 // 搜索卡 / 台账里的「看它的全部记录」：切回标签①并把条件写进筛选表单
 function histFilterBy(params) {
@@ -170,9 +191,6 @@ function histFilterBy(params) {
   histView('rows')
   var qs = new URLSearchParams(params).toString()
   htmx.ajax('GET', '/api/history/rows?' + qs, { target: '#hist-content', swap: 'innerHTML' })
-  var box = document.querySelector('#hist-toolbar input[type=search]')
-  if (box && params.q) box.value = ''
-  document.getElementById('hist-search').innerHTML = ''
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 

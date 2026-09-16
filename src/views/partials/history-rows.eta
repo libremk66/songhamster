@@ -105,7 +105,9 @@
                 <% for (const line of H.taskAttrs(r)) { %><div class="hist-wrap"><%= line %></div><% } %>
               </td>
               <td class="hist-wrap">
-                <%= r.songName ?? r.songKey %>
+                <span class="hist-song cursor-pointer" data-song="<%= r.songName ?? r.songKey %>"
+                      title="点一下看这首歌的完整来历"
+                      onclick="histShowSong(this.getAttribute('data-song'))"><%= r.songName ?? r.songKey %></span>
                 <% if (r.attemptNo > 1) { %><span class="text-xs c-sub">（第 <%= r.attemptNo %> 次）</span><% } %>
               </td>
               <td class="hist-wrap"><%= r.singer ?? '' %></td>
@@ -182,7 +184,8 @@
       <% const steps2 = H.detailSteps(r.detail) %>
       <div class="rounded-lg border border-base-300 p-2 text-xs">
         <div class="flex items-center gap-2 flex-wrap">
-          <b><%= r.songName ?? r.songKey %></b>
+          <b class="hist-song" data-song="<%= r.songName ?? r.songKey %>"
+             onclick="histShowSong(this.getAttribute('data-song'))"><%= r.songName ?? r.songKey %></b>
           <span class="c-sub"><%= r.singer ?? '' %></span>
           <span class="flex-1"></span>
           <span class="<%= sm2.cls %>"><%= sm2.label %></span>

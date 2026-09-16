@@ -87,7 +87,9 @@ export function taskAttrs(b: {
   } catch {
     targets = []
   }
-  if (targets.length) out.push('《' + targets.join('》《') + '》')
+  // 目标歌单与任务名相同（同名歌单，最常见）→ 不重复显示；只有指向别的歌单时才有信息量
+  const sameAsTask = targets.length === 1 && targets[0] === (b as { taskName?: string | null }).taskName
+  if (targets.length && !sameAsTask) out.push('→《' + targets.join('》《') + '》')
   else if (b.taskType === 'adhoc') out.push('不入歌单')
   if (b.playlistScopeName) out.push(b.playlistScopeName)
   if (b.mode) out.push(MODE_LABELS[b.mode] ?? b.mode)
