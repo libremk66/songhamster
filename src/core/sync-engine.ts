@@ -12,6 +12,7 @@ import * as repo from '../store/repo.js'
 import { getDb, taskSemantics } from '../store/db.js'
 import { moveToTrash } from './trash.js'
 import { logger } from './logger.js'
+import { buildSyncMessage, sendNotify, PROCESS_LABELS_FOR_NOTIFY } from './notify.js'
 
 /** checkRun 拦截原因 → 给用户看的话（路由回复 / 日志共用一份，避免两处走样） */
 export const RUN_BLOCKED: Record<'paused' | 'busy' | 'not-found' | 'disabled', string> = {
@@ -204,6 +205,59 @@ export class SyncEngine {
     this.events.emit(name, ...args)
   }
 
+  // ===== 通知（跑完/出错时推一条；失败只记日志，绝不影响同步）=====
+
+  /** 运行结束发通知：明细现查该批次的事件行，按处理过程分组 */
+  private notifyRunEnd(
+    batchId: number,
+    task: NonNullable<ReturnType<typeof repo.getTask>>,
+    info: { trigger: string; result: string; okCount: number; dupCount: number; dedupCount: number; skippedCount: number; removedCount: number; elapsedSec: number },
+  ): void {
+    const cfg = this.cfg()
+    if (!cfg.notify?.enabled) return
+    void (async () => {
+      try {
+        const items = repo.listBatchItems(batchId)
+        const pick = (proc: string) =>
+          items
+            .filter((i) => i.process === proc)
+            .map((i) => ({ name: i.songName ?? i.songKey, singer: i.singer ?? '', reason: i.errorReason ?? '' }))
+        const msg = buildSyncMessage({
+          taskName: task.lxPlaylistName,
+          taskType: task.taskType ?? 'playlist',
+          ...info,
+          ingestFailed: pick('ingest_fail'),
+          downloadFailed: pick('download_fail'),
+          unsatisfied: pick('unsatisfied'),
+          removed: items
+            .filter((i) => i.action === 'out')
+            .map((i) => ({ name: i.songName ?? i.songKey, singer: i.singer ?? '', note: PROCESS_LABELS_FOR_NOTIFY[i.process ?? ''] ?? '' })),
+        })
+        await sendNotify(cfg.notify, msg)
+      } catch (e) {
+        logger.warn(`[notify] 组装/发送通知失败：${(e as Error).message}`)
+      }
+    })()
+  }
+
+  /** 任务异常中断：单独发一条（这类最需要人看到） */
+  private notifyTaskError(task: NonNullable<ReturnType<typeof repo.getTask>>, errorText: string): void {
+    const cfg = this.cfg()
+    if (!cfg.notify?.enabled) return
+    void sendNotify(
+      cfg.notify,
+      buildSyncMessage({
+        taskName: task.lxPlaylistName,
+        taskType: task.taskType ?? 'playlist',
+        trigger: 'manual',
+        result: 'error',
+        okCount: 0, dupCount: 0, dedupCount: 0, skippedCount: 0, removedCount: 0, elapsedSec: 0,
+        ingestFailed: [], downloadFailed: [], unsatisfied: [], removed: [],
+        errorText,
+      }),
+    ).catch((e) => logger.warn(`[notify] 异常通知发送失败：${(e as Error).message}`))
+  }
+
   // ===== 历史快照助手（2026-09-13 进度历史页重构 P1）=====
 
   /** 引用快照：当前有哪些任务引用这个文件（历史页「引用情况」列） */
@@ -324,6 +378,7 @@ export class SyncEngine {
     this.emit('batch-start', taskId, batchId)
     this.liveBegin({ taskId, taskName: task.lxPlaylistName, taskType: task.taskType ?? 'playlist', batchId, trigger, total: 0 })
 
+    const t0 = Date.now()
     let okCount = 0
     let failCount = 0
     let unsatisfiedCount = 0
@@ -553,6 +608,17 @@ export class SyncEngine {
         lastRunAt: new Date().toISOString(),
         lastResult: resultTxt,
       })
+      // 通知：不 await（发送最长 8 秒/渠道，不该拖住收尾）
+      this.notifyRunEnd(batchId, task, {
+        trigger,
+        result,
+        okCount,
+        dupCount,
+        dedupCount,
+        skippedCount: skippedSongs.length,
+        removedCount,
+        elapsedSec: Math.round((Date.now() - t0) / 1000),
+      })
       // 快照：完全同步语义的删除检测依据 = 本次源歌单全集
       // ⚠️ 本次**没移除成功**的歌要留在快照里 —— 否则它们从此不再出现在"待移除"里，静默漏掉
       repo.setSnapshot(taskId, [...new Set([...songs.map((s) => s.songKey), ...failedRemovals])])
@@ -564,6 +630,7 @@ export class SyncEngine {
     } catch (e) {
       const err = (e as Error).message
       logger.error(`[engine] task#${taskId} 异常: ${err}`)
+      this.notifyTaskError(task, err)
       repo.finishBatch(batchId, { finishedAt: new Date().toISOString(), result: 'failed', detail: err })
       this.liveEnd('failed', err)
       this.emit('batch-finish', taskId, batchId, 'failed')

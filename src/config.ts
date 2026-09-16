@@ -1,5 +1,7 @@
 import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import type { NotifyConfig } from './core/notify.js'
+import { NOTIFY_EVENTS } from './core/notify-events.js'
 import YAML from 'yaml'
 import Database from 'better-sqlite3'
 
@@ -314,9 +316,10 @@ export interface AppConfig {
     /** 项目主页（侧栏"帮助"链接） */
     githubUrl: string
   }
-  notify: {
-    enabled: boolean
-    feishuWebhook: string
+  /** 通知配置：渠道 + 每个渠道订阅哪些事件（详见 core/notify.ts） */
+  notify: NotifyConfig & {
+    /** @deprecated 老字段（v0.4 及以前只有单飞书 webhook）——加载时自动接管进 channels.feishu */
+    feishuWebhook?: string
   }
   server: {
     port: number
@@ -355,6 +358,11 @@ export interface UpgradeConfig {
   outputDir: string
 }
 
+/** 通知默认订阅哪些事件（用户可在界面改） */
+function defaultNotifyEvents(): NotifyConfig['channels']['feishu']['events'] {
+  return NOTIFY_EVENTS.filter((e) => e.defaultOn).map((e) => e.key)
+}
+
 export const DEFAULT_CONFIG: AppConfig = {
   lxserver: { baseUrl: 'http://127.0.0.1:19527', apiKey: '', username: 'king', downloadRoot: '' },
   emby: { baseUrl: 'http://127.0.0.1:8096', apiKey: '', libraryRoot: '' },
@@ -391,7 +399,15 @@ export const DEFAULT_CONFIG: AppConfig = {
     listen: defaultListen(),
     githubUrl: '',
   },
-  notify: { enabled: false, feishuWebhook: '' },
+  notify: {
+    enabled: false,
+    channels: {
+      feishu: { enabled: false, events: defaultNotifyEvents(), webhook: '', secret: '' },
+      bark: { enabled: false, events: defaultNotifyEvents(), server: 'https://api.day.app', key: '' },
+      serverchan: { enabled: false, events: defaultNotifyEvents(), sendKey: '' },
+      webhook: { enabled: false, events: defaultNotifyEvents(), url: '', method: 'POST', headers: '', bodyTemplate: '' },
+    },
+  },
   server: { port: Number(process.env.PORT || 8935) },
   auth: { enabled: false, username: '', passwordHash: '' },
   upgrade: {
@@ -491,11 +507,26 @@ export function loadConfig(): AppConfig {
         ? mergeListen(fileCfg.general.listen)
         : deriveListenFromAutoadd({ ...DEFAULT_CONFIG.general.autoadd, ...fileCfg?.general?.autoadd }),
     },
-    notify: { ...DEFAULT_CONFIG.notify, ...fileCfg?.notify },
+    notify: {
+      ...DEFAULT_CONFIG.notify,
+      ...fileCfg?.notify,
+      channels: {
+        feishu: { ...DEFAULT_CONFIG.notify.channels.feishu, ...fileCfg?.notify?.channels?.feishu },
+        bark: { ...DEFAULT_CONFIG.notify.channels.bark, ...fileCfg?.notify?.channels?.bark },
+        serverchan: { ...DEFAULT_CONFIG.notify.channels.serverchan, ...fileCfg?.notify?.channels?.serverchan },
+        webhook: { ...DEFAULT_CONFIG.notify.channels.webhook, ...fileCfg?.notify?.channels?.webhook },
+      },
+    },
     server: { ...DEFAULT_CONFIG.server, ...fileCfg?.server },
     auth: { ...DEFAULT_CONFIG.auth, ...fileCfg?.auth },
     upgrade: { ...DEFAULT_CONFIG.upgrade, ...fileCfg?.upgrade },
     advanced: { ...DEFAULT_CONFIG.advanced, ...fileCfg?.advanced },
+  }
+  // 老配置的 notify.feishuWebhook（v0.4 唯一的通知字段）→ 接管进 channels.feishu
+  const legacyFeishu = (fileCfg?.notify as { feishuWebhook?: string } | undefined)?.feishuWebhook
+  if (legacyFeishu && !merged.notify.channels.feishu.webhook) {
+    merged.notify.channels.feishu.webhook = legacyFeishu
+    merged.notify.channels.feishu.enabled = true
   }
   // 老配置文件里可能还留着已废弃的下载选项（曾存在但从未生效）——加载时清掉，
   // 免得它们继续躺在 config.yaml 里冒充"可调参数"。

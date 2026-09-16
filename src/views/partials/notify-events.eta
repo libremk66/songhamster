@@ -1,0 +1,9 @@
+<!-- 通知事件勾选组（4 个渠道共用）：入参 type = 渠道键，events = 已订阅的事件 -->
+<div class="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+  <% for (const e of notifyEvents) { %>
+  <label class="flex items-center gap-1.5 cursor-pointer" title="<%= e.hint %>">
+    <input type="checkbox" name="<%= type %>_ev_<%= e.key %>" value="1" <%= events.includes(e.key) ? 'checked' : '' %> class="checkbox checkbox-xs">
+    <span><%= e.label %></span>
+  </label>
+  <% } %>
+</div>
