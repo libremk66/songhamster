@@ -24,6 +24,15 @@
   .hist-filters .input, .hist-filters .select { height: 1.5rem; min-height: 1.5rem; font-size: .7rem; }
   /* 事件表：列宽由 colgroup 定，表格不足时撑满、超出时横向滚动 */
   .hist-table { width: auto; min-width: 100%; }
+  /* 表头 + 分页条固定，中间列表滚动（参考 MoviePilot 的媒体列表）：
+     表格外层是滚动容器，sticky 只对它生效，所以改用「表单固定高度 + 内部滚动」，
+     表头 sticky 在这个内部滚动容器里就正常了，分页条作为 flex 尾部自然固定 */
+  .hist-fixed { display: flex; flex-direction: column; }
+  #hist-scroll { overflow: auto; height: calc(100vh - 26rem); min-height: 16rem; }
+  .hist-table thead { position: sticky; top: 0; z-index: 6; }
+  .hist-table thead th { background: oklch(var(--b1)); box-shadow: inset 0 -1px 0 oklch(var(--bc) / .15); }
+  .hist-pager { border-top: 1px solid oklch(var(--bc) / .1); }
+  @media (max-width: 767px) { #hist-scroll { height: auto; max-height: none; } }
   /* <details> 当按钮用：去掉默认三角 */
   .dropdown > summary { list-style: none; }
   .dropdown > summary::-webkit-details-marker { display: none; }
@@ -185,6 +194,22 @@ function histScrollButtons() {
 document.body.addEventListener('htmx:afterSwap', histScrollButtons)
 window.addEventListener('resize', histScrollButtons)
 document.addEventListener('DOMContentLoaded', function () { histScrollButtons(); setTimeout(histScrollButtons, 300) })
+
+// 固定高度：让表头+分页条不动、只有列表滚动（精确算一下可用高度，CSS 里给的是兜底值）
+function histFitHeight() {
+  var box = document.getElementById('hist-scroll')
+  var wrap = document.getElementById('hist-rows-wrap')
+  if (!box || !wrap) return
+  if (window.innerWidth < 768) { box.style.height = ''; return }   // 移动端走卡片，不固定
+  var pager = wrap.querySelector('.hist-pager')
+  var ph = pager ? pager.getBoundingClientRect().height : 0
+  var top = box.getBoundingClientRect().top
+  var h = Math.max(240, Math.round(window.innerHeight - top - ph - 16))
+  box.style.height = h + 'px'
+}
+document.body.addEventListener('htmx:afterSwap', function () { histFitHeight(); histScrollButtons() })
+window.addEventListener('resize', histFitHeight)
+document.addEventListener('DOMContentLoaded', function () { histFitHeight(); setTimeout(histFitHeight, 400) })
 
 // 日期框：点哪都弹日历（原生小图标的热区与图标位置有偏移，用户得瞄着点）
 function histPickDate(el) {

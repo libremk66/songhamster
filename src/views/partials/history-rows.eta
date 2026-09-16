@@ -4,13 +4,13 @@
 <% const pFrom = Math.max(1, page - win) %>
 <% const pTo = Math.min(pages, page + win) %>
 <div id="hist-rows-wrap">
-  <form id="hist-filter" hx-get="/api/history/rows" hx-target="#hist-rows-wrap" hx-swap="outerHTML"
+  <form id="hist-filter" class="hist-fixed" hx-get="/api/history/rows" hx-target="#hist-rows-wrap" hx-swap="outerHTML"
         hx-trigger="change" hx-include="this" onsubmit="return false">
     <div class="hist-scroll-host">
       <button type="button" class="hist-scroll-btn hist-scroll-left" title="向左滚动" onclick="histScroll(-1)">‹</button>
       <button type="button" class="hist-scroll-btn hist-scroll-right" title="向右滚动" onclick="histScroll(1)">›</button>
 
-      <div class="overflow-x-auto hist-table-wrap" id="hist-scroll">
+      <div class="hist-table-wrap" id="hist-scroll">
         <table class="table table-xs w-full hist-table">
           <colgroup>
             <col class="w-36"><!-- 日期时间 -->
@@ -209,8 +209,8 @@
       <% } %>
     </div>
 
-    <!-- 翻页：每页 25 条 -->
-    <div class="flex flex-wrap items-center justify-center gap-1 py-3 text-xs">
+    <!-- 翻页：每页 25 条；固定在列表下方（不随内部滚动移动） -->
+    <div class="hist-pager flex flex-wrap items-center justify-center gap-1 py-3 text-xs">
       <span class="c-sub mr-2">共 <%= total %> 条 · 第 <%= page %>/<%= pages %> 页</span>
       <% const mk = (p, label, dis) => { %>
       <button type="button" class="btn btn-xs <%= p === page ? 'btn-active' : 'btn-outline' %>" <%= dis ? 'disabled' : '' %>
