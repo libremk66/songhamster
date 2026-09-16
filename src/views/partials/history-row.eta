@@ -1,0 +1,53 @@
+<!-- 事件表的一行（流水/批次共用）：入参 r = 一条事件行 -->
+          <tr id="hi-<%= r.id %>">
+            <td class="whitespace-nowrap"><%= fmtLocal(r.startedAt, true) %></td>
+            <td>
+              <span class="text-xs c-sub"><%= r.taskType === 'chart' ? '榜单' : r.taskType === 'adhoc' ? '手动下载' : '歌单' %></span>
+              <div class="hist-wrap"><b><%= r.taskName ?? '—' %></b></div>
+            </td>
+            <td class="text-xs c-sub">
+              <% for (const line of H.taskAttrs(r)) { %><div class="hist-wrap"><%= line %></div><% } %>
+            </td>
+            <td class="hist-wrap">
+              <span class="hist-song cursor-pointer" data-song="<%= r.songName ?? r.songKey %>"
+                    title="点一下看这首歌的完整来历"
+                    onclick="histShowSong(this.getAttribute('data-song'))"><%= r.songName ?? r.songKey %></span>
+              <% if (r.attemptNo > 1) { %><span class="text-xs c-sub">（第 <%= r.attemptNo %> 次）</span><% } %>
+            </td>
+            <td class="hist-wrap"><%= r.singer ?? '' %></td>
+            <td class="whitespace-nowrap"><%= r.quality ?? '—' %></td>
+            <td class="whitespace-nowrap">
+              <% if (r.action === 'out') { %><span class="st-warn">移出</span>
+              <% } else if (r.action === 'in') { %><span class="st-ok">入库</span>
+              <% } else { %><span class="c-sub">—</span><% } %>
+            </td>
+            <td>
+              <span class="badge badge-ghost badge-sm hist-wrap"><%= H.processLabel(r.process) %></span>
+              <% const steps = H.detailSteps(r.detail) %>
+              <% if (steps.length) { %>
+              <details class="mt-0.5">
+                <summary class="cursor-pointer text-xs c-sub select-none">轨迹</summary>
+                <ol class="text-xs c-sub mt-1 space-y-0.5 list-decimal list-inside">
+                  <% for (const s of steps) { %><li class="hist-wrap"><%= s %></li><% } %>
+                </ol>
+              </details>
+              <% } %>
+            </td>
+            <td>
+              <% const sm = H.statusMeta(r.status) %>
+              <span class="<%= sm.cls %> hist-wrap"><%= sm.label %></span>
+              <% if (r.errorReason) { %><div class="text-xs c-sub hist-wrap"><%= r.errorReason %></div><% } %>
+            </td>
+            <td class="whitespace-nowrap"><%= H.fmtSize(r.fileSize) %></td>
+            <td class="text-xs hist-wrap"><%= r.filePath ?? '—' %></td>
+            <td class="text-xs hist-wrap"><%= H.refsText(r.refBefore, r.refAfter) %></td>
+            <td class="text-right whitespace-nowrap">
+              <% if (r.status === 'failed') { %>
+              <button type="button" class="btn btn-outline btn-xs" title="重下这一首并补入库/入歌单"
+                      hx-post="/api/history/item/<%= r.id %>/retry" hx-target="#hist-msg" hx-swap="innerHTML">重试</button>
+              <% } %>
+              <button type="button" class="btn btn-ghost btn-xs text-error" title="删除这条记录涉及的内容（文件/歌单/历史）"
+                      data-item="<%= r.id %>" data-name="<%= r.songName ?? '' %>"
+                      onclick="histAskDeleteOne(this)">删除</button>
+            </td>
+          </tr>

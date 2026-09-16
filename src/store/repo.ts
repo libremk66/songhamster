@@ -477,6 +477,66 @@ export function refCountsBySong(): Record<string, number> {
   return out
 }
 
+/** 某个批次的事件行（形状与平铺表一致 → 批次视图复用同一套行渲染） */
+export function listBatchItems(batchId: number): HistoryRow[] {
+  const sql = `
+    SELECT h.id, h.batchId, h.taskId, h.songKey, h.songName, h.singer, h.status, h.quality,
+           h.filePath, h.fileSize, h.errorReason, h.detail, h.action, h.process, h.refBefore, h.refAfter,
+           b.startedAt, b.taskName, b.taskType, b.trigger, b.mode, b.delPolicy, b.targetPlaylists,
+           b.playlistScopeName, b.maxCount,
+           1 AS attemptNo, h.id AS firstId, 0 AS batchRows
+    FROM history_item h JOIN history_batch b ON b.id = h.batchId
+    WHERE h.batchId = ? ORDER BY h.id`
+  return getDb().prepare(sql).all(batchId) as HistoryRow[]
+}
+
+/** 被 diff 跳过的歌：没有事件行，所以要"现查"它的来历（当前状态/上次处理/记录数/引用） */
+export interface SkippedDetail {
+  songKey: string
+  name: string
+  singer: string
+  status: string | null
+  quality: string | null
+  updatedAt: string | null
+  records: number
+  refs: number
+}
+
+export function batchSkippedDetail(batchId: number): SkippedDetail[] {
+  const b = getBatch(batchId)
+  if (!b) return []
+  let arr: { key?: string; name?: string }[] = []
+  try {
+    arr = JSON.parse(b.skippedJson || '[]') as { key?: string; name?: string }[]
+  } catch {
+    arr = []
+  }
+  const keys = arr.map((a) => String(a.key ?? '')).filter(Boolean)
+  if (!keys.length) return []
+  const ph = keys.map(() => '?').join(',')
+  const db = getDb()
+  const st = db.prepare(`SELECT songKey, singer, status, quality, updatedAt FROM current_song_status WHERE taskId = ? AND songKey IN (${ph})`).all(b.taskId, ...keys) as { songKey: string; singer: string; status: string; quality: string | null; updatedAt: string }[]
+  const cnt = db.prepare(`SELECT songKey, COUNT(*) AS n FROM history_item WHERE taskId = ? AND songKey IN (${ph}) GROUP BY songKey`).all(b.taskId, ...keys) as { songKey: string; n: number }[]
+  const rf = db.prepare(`SELECT songKey, COUNT(DISTINCT taskId) AS n FROM task_song_ref WHERE songKey IN (${ph}) GROUP BY songKey`).all(...keys) as { songKey: string; n: number }[]
+  const stMap = new Map(st.map((x) => [x.songKey, x]))
+  const cntMap = new Map(cnt.map((x) => [x.songKey, x.n]))
+  const rfMap = new Map(rf.map((x) => [x.songKey, x.n]))
+  return arr.filter((a) => a.key).map((a) => {
+    const key = String(a.key)
+    const s = stMap.get(key)
+    return {
+      songKey: key,
+      name: String(a.name ?? s?.songKey ?? key),
+      singer: s?.singer ?? '',
+      status: s?.status ?? null,
+      quality: s?.quality ?? null,
+      updatedAt: s?.updatedAt ?? null,
+      records: cntMap.get(key) ?? 0,
+      refs: rfMap.get(key) ?? 0,
+    }
+  })
+}
+
 /** 搜索卡：按歌聚合（当前状态 + 文件 + 首次/最近 + 记录数） */
 export interface SongSearchHit {
   songKey: string

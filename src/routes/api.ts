@@ -1026,9 +1026,21 @@ export function apiRouter(
     res.send(rep.errors.length ? err(line) : ok(line))
   })
 
-  r.get('/history/batch/:id', (req, res) => {
-    const items = dbAll('SELECT * FROM history_item WHERE batchId = ? ORDER BY id', [Number(req.params.id)])
-    res.send(renderBody('partials/history-items', { items }))
+  /** 批次展开：按「新入库 / 复用 / 其他 / 跳过」分组（前三个复用流水那套行渲染，跳过用来历摘要） */
+  r.get('/history/batch/:id/rows', (req, res) => {
+    const id = Number(req.params.id)
+    const b = repo.getBatch(id)
+    if (!b) return res.send('<p class="c-sub text-xs py-3 text-center">批次不存在（可能已被删除）</p>')
+    const items = repo.listBatchItems(id)
+    const isNew = (p: string | null) => p === 'download_new'
+    const isReuse = (p: string | null) => p === 'reuse_skip' || p === 'dedup_skip'
+    const groups = {
+      new: items.filter((i) => isNew(i.process)),
+      reuse: items.filter((i) => isReuse(i.process)),
+      other: items.filter((i) => !isNew(i.process) && !isReuse(i.process)),
+      skipped: repo.batchSkippedDetail(id),
+    }
+    res.send(renderBody('partials/history-batch-groups', { b, groups, H: HMeta }))
   })
 
   r.post('/history/item/:id/retry', async (req, res) => {

@@ -12,26 +12,7 @@
 
       <div class="hist-table-wrap" id="hist-scroll">
         <table class="table table-xs w-full hist-table">
-          <colgroup>
-            <col class="w-32"><!-- 日期时间 -->
-            <col class="w-40"><!-- 所属任务 -->
-            <col class="w-40"><!-- 任务属性 -->
-            <col class="w-44"><!-- 歌曲名 -->
-            <col class="w-32"><!-- 歌手 -->
-            <col class="w-24"><!-- 音质 -->
-            <col class="w-24"><!-- 操作 -->
-            <col class="w-36"><!-- 处理过程 -->
-            <col class="w-36"><!-- 结果 -->
-            <col class="w-28"><!-- 文件大小 -->
-            <col class="w-64"><!-- 文件路径 -->
-            <col class="w-36"><!-- 引用情况 -->
-            <col class="w-28"><!-- 行操作 -->
-          </colgroup>
-          <thead>
-            <tr class="c-sub">
-              <th>日期时间</th><th>所属任务</th><th>任务属性</th><th>歌曲名</th><th>歌手</th><th>音质</th>
-              <th>操作</th><th>处理过程</th><th>结果</th><th>文件大小</th><th>文件路径</th><th>引用情况</th><th class="text-right">行操作</th>
-            </tr>
+          <%~ include('partials/history-thead.eta') %>
             <tr class="hist-filters">
               <th class="hist-date-th" title="点开选择起始/结束日期" onclick="histToggleDate()">
                 <!-- 整个表头格都是点击区（不只是图标）：emoji 换 SVG，避免不同浏览器把 emoji 画到框外 -->
@@ -94,60 +75,7 @@
             <% if (!rows.length) { %>
             <tr><td colspan="13" class="c-sub text-xs py-8 text-center">没有符合条件的历史记录</td></tr>
             <% } %>
-            <% for (const r of rows) { %>
-            <tr id="hi-<%= r.id %>">
-              <td class="whitespace-nowrap"><%= fmtLocal(r.startedAt, true) %></td>
-              <td>
-                <span class="text-xs c-sub"><%= r.taskType === 'chart' ? '榜单' : r.taskType === 'adhoc' ? '手动下载' : '歌单' %></span>
-                <div class="hist-wrap"><b><%= r.taskName ?? '—' %></b></div>
-              </td>
-              <td class="text-xs c-sub">
-                <% for (const line of H.taskAttrs(r)) { %><div class="hist-wrap"><%= line %></div><% } %>
-              </td>
-              <td class="hist-wrap">
-                <span class="hist-song cursor-pointer" data-song="<%= r.songName ?? r.songKey %>"
-                      title="点一下看这首歌的完整来历"
-                      onclick="histShowSong(this.getAttribute('data-song'))"><%= r.songName ?? r.songKey %></span>
-                <% if (r.attemptNo > 1) { %><span class="text-xs c-sub">（第 <%= r.attemptNo %> 次）</span><% } %>
-              </td>
-              <td class="hist-wrap"><%= r.singer ?? '' %></td>
-              <td class="whitespace-nowrap"><%= r.quality ?? '—' %></td>
-              <td class="whitespace-nowrap">
-                <% if (r.action === 'out') { %><span class="st-warn">移出</span>
-                <% } else if (r.action === 'in') { %><span class="st-ok">入库</span>
-                <% } else { %><span class="c-sub">—</span><% } %>
-              </td>
-              <td>
-                <span class="badge badge-ghost badge-sm hist-wrap"><%= H.processLabel(r.process) %></span>
-                <% const steps = H.detailSteps(r.detail) %>
-                <% if (steps.length) { %>
-                <details class="mt-0.5">
-                  <summary class="cursor-pointer text-xs c-sub select-none">轨迹</summary>
-                  <ol class="text-xs c-sub mt-1 space-y-0.5 list-decimal list-inside">
-                    <% for (const s of steps) { %><li class="hist-wrap"><%= s %></li><% } %>
-                  </ol>
-                </details>
-                <% } %>
-              </td>
-              <td>
-                <% const sm = H.statusMeta(r.status) %>
-                <span class="<%= sm.cls %> hist-wrap"><%= sm.label %></span>
-                <% if (r.errorReason) { %><div class="text-xs c-sub hist-wrap"><%= r.errorReason %></div><% } %>
-              </td>
-              <td class="whitespace-nowrap"><%= H.fmtSize(r.fileSize) %></td>
-              <td class="text-xs hist-wrap"><%= r.filePath ?? '—' %></td>
-              <td class="text-xs hist-wrap"><%= H.refsText(r.refBefore, r.refAfter) %></td>
-              <td class="text-right whitespace-nowrap">
-                <% if (r.status === 'failed') { %>
-                <button type="button" class="btn btn-outline btn-xs" title="重下这一首并补入库/入歌单"
-                        hx-post="/api/history/item/<%= r.id %>/retry" hx-target="#hist-msg" hx-swap="innerHTML">重试</button>
-                <% } %>
-                <button type="button" class="btn btn-ghost btn-xs text-error" title="删除这条记录涉及的内容（文件/歌单/历史）"
-                        data-item="<%= r.id %>" data-name="<%= r.songName ?? '' %>"
-                        onclick="histAskDeleteOne(this)">删除</button>
-              </td>
-            </tr>
-            <% } %>
+            <% for (const r of rows) { %><%~ include('partials/history-row.eta', { r }) %><% } %>
           </tbody>
         </table>
       </div>

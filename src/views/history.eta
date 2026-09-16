@@ -169,6 +169,30 @@ function histView(mode) {
   document.getElementById('view-batches').classList.toggle('active', mode === 'batches')
   htmx.ajax('GET', mode === 'batches' ? '/api/history/batches' : '/api/history/rows', { target: '#hist-content', swap: 'innerHTML' })
 }
+// 批次展开/收起：懒加载分组内容（新入库/复用/其他/跳过）
+function histToggleBatch(id, btn) {
+  var box = document.getElementById('batch-' + id)
+  if (!box) return
+  var txt = btn ? btn.querySelector('.h-txt') : null
+  var ico = btn ? btn.querySelector('use') : null
+  var setState = function (open) {
+    if (txt) txt.textContent = open ? '收起' : '展开'
+    if (ico) ico.setAttribute('href', open ? '#i-chevronUp' : '#i-chevronDown')
+  }
+  if (box.dataset.loaded === '1') {
+    box.innerHTML = ''
+    box.dataset.loaded = ''
+    setState(false)
+    return
+  }
+  box.innerHTML = '<p class="c-sub text-xs py-3 text-center">加载中…</p>'
+  setState(true)
+  fetch('/api/history/batch/' + id + '/rows')
+    .then(function (r) { return r.text() })
+    .then(function (html) { box.innerHTML = html; box.dataset.loaded = '1' })
+    .catch(function () { box.innerHTML = '<p class="st-bad text-xs py-3 text-center">加载失败，请重试</p>'; setState(false) })
+}
+
 // 点歌名 → 弹出"这首歌的来历"（复用 /api/history/search 的卡片）
 function histShowSong(name) {
   var dlg = document.getElementById('hist-song-dlg')

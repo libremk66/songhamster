@@ -1,0 +1,60 @@
+<!-- 批次展开后的分组：新入库 / 复用 / 其他（失败·未满足·移出）/ 跳过
+     前三个有事件行 → 直接用流水那套表头+行；跳过没有事件行 → 用"来历摘要"逐个还原 -->
+<div class="space-y-2 mt-2">
+  <%
+    const G = [
+      { label: '新入库', hint: '这次真去音源下载的', rows: groups.new },
+      { label: '复用入库', hint: '本地已有文件，直接入库', rows: groups.reuse },
+      { label: '其他', hint: '失败 / 未满足 / 移出', rows: groups.other },
+    ]
+  %>
+  <% for (const g of G) { %>
+  <% if (g.rows.length) { %>
+  <details class="rounded-lg border border-base-300" open>
+    <summary class="cursor-pointer px-3 py-1.5 text-sm font-semibold select-none">
+      <%= g.label %>（<%= g.rows.length %>）<span class="c-sub font-normal">— <%= g.hint %></span>
+    </summary>
+    <div class="overflow-x-auto">
+      <table class="table table-xs w-full hist-table">
+        <thead><%~ include('partials/history-thead.eta') %></thead>
+        <tbody>
+          <% for (const r of g.rows) { %><%~ include('partials/history-row.eta', { r }) %><% } %>
+        </tbody>
+      </table>
+    </div>
+  </details>
+  <% } %>
+  <% } %>
+
+  <% if (groups.skipped.length) { %>
+  <details class="rounded-lg border border-base-300">
+    <summary class="cursor-pointer px-3 py-1.5 text-sm font-semibold select-none">
+      已同步跳过（<%= groups.skipped.length %>）
+      <span class="c-sub font-normal">— 本次没进流程（上次已同步），下面是它们各自的来历</span>
+    </summary>
+    <div class="p-2 space-y-1">
+      <% for (const s of groups.skipped) { %>
+      <% const sm = s.status ? H.statusMeta(s.status) : null %>
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs px-2 py-1.5 rounded border border-base-200">
+        <span class="hist-song cursor-pointer font-semibold" data-song="<%= s.name %>"
+              title="点一下看这首歌的完整来历"
+              onclick="histShowSong(this.getAttribute('data-song'))"><%= s.name %></span>
+        <% if (s.singer) { %><span class="c-sub"><%= s.singer %></span><% } %>
+        <% if (sm) { %><span class="<%= sm.cls %>"><%= sm.label %><%= s.quality ? '（' + s.quality + '）' : '' %></span>
+        <% } else { %><span class="c-sub">无状态记录</span><% } %>
+        <span class="c-sub">最后处理 <%= s.updatedAt ? fmtLocal(s.updatedAt, true) : '—' %></span>
+        <span class="c-sub">共 <%= s.records %> 条记录</span>
+        <% if (s.refs > 1) { %><span class="st-warn">被 <%= s.refs %> 个任务引用</span><% } %>
+        <span class="flex-1"></span>
+        <button type="button" class="btn btn-ghost btn-xs" data-song="<%= s.name %>"
+                onclick="histSongToRecords(this)">看它的全部记录 →</button>
+      </div>
+      <% } %>
+    </div>
+  </details>
+  <% } %>
+
+  <% if (!groups.new.length && !groups.reuse.length && !groups.other.length && !groups.skipped.length) { %>
+  <p class="c-sub text-xs py-3 text-center">这一批没有任何记录（可能是空跑或被中断）</p>
+  <% } %>
+</div>
