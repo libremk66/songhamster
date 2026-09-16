@@ -12,6 +12,10 @@
                  border: 1px solid oklch(var(--bc) / .22); border-radius: 999px; transition: color .15s, border-color .15s, background .15s; }
   .hist-subtab:hover { border-color: var(--sfg); color: var(--sfg-deep); }
   .hist-subtab.active { background: var(--sfg-fill); border-color: var(--sfg-fill); color: #fff; font-weight: 650; }
+  /* 日期列：整格可点（点击区 = 整个单元格，不只是图标） */
+  .hist-date-th { cursor: pointer; }
+  .hist-date-btn { pointer-events: none; }   /* 视觉按钮，点击交给 th */
+  .hist-date-btn svg { width: .95em; height: .95em; }
   /* 表头永远单行；单元格内容该换行就换行，不挤成一条 */
   .hist-table th { white-space: nowrap; }
   .hist-wrap { white-space: normal; word-break: break-word; overflow-wrap: anywhere; }

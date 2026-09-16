@@ -20,6 +20,7 @@ const MAP = {
   sync: 'refresh', shield: 'shield-check', heart: 'heart', settings: 'settings',
   arrowRight: 'arrow-right', database: 'database', playlist: 'playlist', x: 'x', restore: 'arrow-back-up',
   server: 'server', adjustments: 'adjustments', fileText: 'file-text', chartLine: 'chart-line',
+  calendar: 'calendar',
   github: 'brand-github',
 }
 

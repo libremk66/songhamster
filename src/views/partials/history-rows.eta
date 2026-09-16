@@ -33,12 +33,13 @@
               <th>操作</th><th>处理过程</th><th>结果</th><th>文件大小</th><th>文件路径</th><th>引用情况</th><th class="text-right">行操作</th>
             </tr>
             <tr class="hist-filters">
-              <th>
-                <!-- 日期：一个按钮，点开弹层选起止日期（弹层在顶层渲染，不会被横向滚动裁掉） -->
-                <button type="button" class="btn btn-outline btn-xs w-full whitespace-nowrap"
-                        onclick="document.getElementById('hist-date-dlg').showModal()">
-                  📅 <%= (raw.from || raw.to) ? ((raw.from ? fmtD(raw.from) : '…') + '~' + (raw.to ? fmtD(raw.to) : '…')) : '日期' %>
-                </button>
+              <th class="hist-date-th" title="点开选择起始/结束日期"
+                  onclick="document.getElementById('hist-date-dlg').showModal()">
+                <!-- 整个表头格都是点击区（不只是图标）：emoji 换 SVG，避免不同浏览器把 emoji 画到框外 -->
+                <span class="btn btn-outline btn-xs w-full whitespace-nowrap hist-date-btn">
+                  <svg aria-hidden="true"><use href="#i-calendar"/></svg>
+                  <span><%= (raw.from || raw.to) ? ((raw.from ? fmtD(raw.from) : '…') + '~' + (raw.to ? fmtD(raw.to) : '…')) : '日期' %></span>
+                </span>
               </th>
               <th>
                 <select name="taskName" class="select select-bordered select-xs w-full">
