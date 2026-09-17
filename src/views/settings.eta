@@ -79,16 +79,25 @@
       <% const ch = cfg.notify.channels %>
       <% const NT = [
         { key: 'feishu', label: '飞书', on: ch.feishu.enabled },
+        { key: 'wecom', label: '企业微信', on: ch.wecom.enabled },
+        { key: 'dingtalk', label: '钉钉', on: ch.dingtalk.enabled },
         { key: 'bark', label: 'Bark', on: ch.bark.enabled },
         { key: 'serverchan', label: 'Server酱', on: ch.serverchan.enabled },
+        { key: 'telegram', label: 'Telegram', on: ch.telegram.enabled },
         { key: 'webhook', label: '自定义 Webhook', on: ch.webhook.enabled },
       ] %>
+      <% const byKey = Object.fromEntries(NT.map((x) => [x.key, x])) %>
 
-      <div class="flex flex-wrap gap-1.5">
-        <% for (const t of NT) { %>
-        <button type="button" class="nt-tab <%= t.key === 'feishu' ? 'active' : '' %>" id="nt-tab-<%= t.key %>" onclick="ntSwitch('<%= t.key %>')">
-          <span class="nt-dot <%= t.on ? 'on' : '' %>"></span><%= t.label %>
-        </button>
+      <div class="space-y-1">
+        <% for (const g of ntGroups) { %>
+        <div class="flex flex-wrap items-center gap-1.5">
+          <span class="text-xs c-sub w-14 flex-shrink-0"><%= g.label %></span>
+          <% for (const k of g.types) { const t = byKey[k]; if (!t) continue; %>
+          <button type="button" class="nt-tab <%= t.key === 'feishu' ? 'active' : '' %>" id="nt-tab-<%= t.key %>" onclick="ntSwitch('<%= t.key %>')">
+            <span class="nt-dot <%= t.on ? 'on' : '' %>"></span><%= t.label %>
+          </button>
+          <% } %>
+        </div>
         <% } %>
       </div>
 
@@ -105,6 +114,35 @@
             <button type="button" class="btn btn-ghost btn-sm" hx-post="/api/config/notify" hx-vals='{"disable":"feishu"}' hx-include="closest form" hx-target="#notify-msg"
                     hx-on::after-request="if(event.detail.successful) ntSetDot('feishu', false)">停用</button>
             <button type="button" class="btn btn-outline btn-sm" hx-post="/api/notify/test/feishu" hx-include="closest form" hx-target="#notify-msg">发送测试</button>
+          </div>
+        </div>
+
+        <!-- 企业微信 -->
+        <div id="nt-pane-wecom" class="nt-pane hidden space-y-1.5">
+          <p class="text-xs c-sub">企业微信群 → 群机器人 → 添加机器人 → 复制 Webhook 地址（内容上限 2048 字节，超长会自动截断）</p>
+          <input name="wecom_webhook" value="<%= ch.wecom.webhook %>" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=…" class="input input-bordered input-sm w-full font-mono text-xs">
+          <%~ include('partials/notify-events.eta', { type: 'wecom', events: ch.wecom.events }) %>
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" class="btn btn-primary btn-sm" hx-post="/api/config/notify" hx-vals='{"enable":"wecom"}' hx-include="closest form" hx-target="#notify-msg"
+                    hx-on::after-request="if(event.detail.successful) ntSetDot('wecom', true)">保存启用</button>
+            <button type="button" class="btn btn-ghost btn-sm" hx-post="/api/config/notify" hx-vals='{"disable":"wecom"}' hx-include="closest form" hx-target="#notify-msg"
+                    hx-on::after-request="if(event.detail.successful) ntSetDot('wecom', false)">停用</button>
+            <button type="button" class="btn btn-outline btn-sm" hx-post="/api/notify/test/wecom" hx-include="closest form" hx-target="#notify-msg">发送测试</button>
+          </div>
+        </div>
+
+        <!-- 钉钉 -->
+        <div id="nt-pane-dingtalk" class="nt-pane hidden space-y-1.5">
+          <p class="text-xs c-sub">钉钉群 → 群设置 → 智能群助手 → 添加机器人 → 自定义；安全设置选了「加签」就把密钥也填上</p>
+          <input name="dingtalk_webhook" value="<%= ch.dingtalk.webhook %>" placeholder="https://oapi.dingtalk.com/robot/send?access_token=…" class="input input-bordered input-sm w-full font-mono text-xs">
+          <input name="dingtalk_secret" value="<%= ch.dingtalk.secret %>" placeholder="加签密钥（安全设置选了「加签」才填）" class="input input-bordered input-sm w-full font-mono text-xs">
+          <%~ include('partials/notify-events.eta', { type: 'dingtalk', events: ch.dingtalk.events }) %>
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" class="btn btn-primary btn-sm" hx-post="/api/config/notify" hx-vals='{"enable":"dingtalk"}' hx-include="closest form" hx-target="#notify-msg"
+                    hx-on::after-request="if(event.detail.successful) ntSetDot('dingtalk', true)">保存启用</button>
+            <button type="button" class="btn btn-ghost btn-sm" hx-post="/api/config/notify" hx-vals='{"disable":"dingtalk"}' hx-include="closest form" hx-target="#notify-msg"
+                    hx-on::after-request="if(event.detail.successful) ntSetDot('dingtalk', false)">停用</button>
+            <button type="button" class="btn btn-outline btn-sm" hx-post="/api/notify/test/dingtalk" hx-include="closest form" hx-target="#notify-msg">发送测试</button>
           </div>
         </div>
 
@@ -134,6 +172,22 @@
             <button type="button" class="btn btn-ghost btn-sm" hx-post="/api/config/notify" hx-vals='{"disable":"serverchan"}' hx-include="closest form" hx-target="#notify-msg"
                     hx-on::after-request="if(event.detail.successful) ntSetDot('serverchan', false)">停用</button>
             <button type="button" class="btn btn-outline btn-sm" hx-post="/api/notify/test/serverchan" hx-include="closest form" hx-target="#notify-msg">发送测试</button>
+          </div>
+        </div>
+
+        <!-- Telegram -->
+        <div id="nt-pane-telegram" class="nt-pane hidden space-y-1.5">
+          <p class="text-xs c-sub">@BotFather 建机器人拿 Token；chat_id 可给机器人发条消息后从 getUpdates 里看。国内直连不通时把 API 地址换成自建反代</p>
+          <input name="telegram_token" value="<%= ch.telegram.token %>" placeholder="Bot Token，如 123456:ABC-DEF…" class="input input-bordered input-sm w-full font-mono text-xs">
+          <input name="telegram_chat" value="<%= ch.telegram.chatId %>" placeholder="chat_id，如 123456789 或 -1001234567890" class="input input-bordered input-sm w-full font-mono text-xs">
+          <input name="telegram_base" value="<%= ch.telegram.apiBase %>" placeholder="https://api.telegram.org" class="input input-bordered input-sm w-full font-mono text-xs">
+          <%~ include('partials/notify-events.eta', { type: 'telegram', events: ch.telegram.events }) %>
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" class="btn btn-primary btn-sm" hx-post="/api/config/notify" hx-vals='{"enable":"telegram"}' hx-include="closest form" hx-target="#notify-msg"
+                    hx-on::after-request="if(event.detail.successful) ntSetDot('telegram', true)">保存启用</button>
+            <button type="button" class="btn btn-ghost btn-sm" hx-post="/api/config/notify" hx-vals='{"disable":"telegram"}' hx-include="closest form" hx-target="#notify-msg"
+                    hx-on::after-request="if(event.detail.successful) ntSetDot('telegram', false)">停用</button>
+            <button type="button" class="btn btn-outline btn-sm" hx-post="/api/notify/test/telegram" hx-include="closest form" hx-target="#notify-msg">发送测试</button>
           </div>
         </div>
 
@@ -169,7 +223,7 @@
           if (dot) dot.classList.toggle('on', !!on)
         }
         function ntSwitch(key) {
-          ['feishu', 'bark', 'serverchan', 'webhook'].forEach(function (k) {
+          ['feishu', 'wecom', 'dingtalk', 'bark', 'serverchan', 'telegram', 'webhook'].forEach(function (k) {
             var tab = document.getElementById('nt-tab-' + k)
             var pane = document.getElementById('nt-pane-' + k)
             if (tab) tab.classList.toggle('active', k === key)

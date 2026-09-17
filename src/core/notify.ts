@@ -20,7 +20,7 @@ export const PROCESS_LABELS_FOR_NOTIFY = PROCESS_LABELS
 export type { NotifyEvent } from './notify-events.js'
 export { NOTIFY_EVENTS, EVENT_LABEL } from './notify-events.js'
 
-export type NotifyChannelType = 'feishu' | 'bark' | 'serverchan' | 'webhook'
+export type NotifyChannelType = 'feishu' | 'wecom' | 'dingtalk' | 'bark' | 'serverchan' | 'telegram' | 'webhook'
 
 export interface NotifyChannelBase {
   enabled: boolean
@@ -34,6 +34,15 @@ export interface FeishuChannel extends NotifyChannelBase {
   /** 可选：签名校验密钥（机器人开了"签名校验"才需要） */
   secret: string
 }
+/** 企业微信 群机器人（内容上限 2048 字节，超了会自动截断） */
+export interface WecomChannel extends NotifyChannelBase {
+  webhook: string
+}
+/** 钉钉 群机器人（开了「加签」就填密钥） */
+export interface DingtalkChannel extends NotifyChannelBase {
+  webhook: string
+  secret: string
+}
 export interface BarkChannel extends NotifyChannelBase {
   /** Bark 服务器，默认官方 https://api.day.app */
   server: string
@@ -41,6 +50,14 @@ export interface BarkChannel extends NotifyChannelBase {
 }
 export interface ServerChanChannel extends NotifyChannelBase {
   sendKey: string
+}
+export interface TelegramChannel extends NotifyChannelBase {
+  /** Bot Token（@BotFather 给的） */
+  token: string
+  /** 聊天 ID（私聊/群组都行） */
+  chatId: string
+  /** API 地址，默认官方；国内直连不通时填自建反代（如 https://tg.你的域名） */
+  apiBase: string
 }
 export interface WebhookChannel extends NotifyChannelBase {
   url: string
@@ -56,8 +73,11 @@ export interface NotifyConfig {
   enabled: boolean
   channels: {
     feishu: FeishuChannel
+    wecom: WecomChannel
+    dingtalk: DingtalkChannel
     bark: BarkChannel
     serverchan: ServerChanChannel
+    telegram: TelegramChannel
     webhook: WebhookChannel
   }
 }
@@ -108,6 +128,14 @@ function feishuSign(secret: string, timestamp: number): string {
   return createHmac('sha256', `${timestamp}\n${secret}`).update('').digest('base64')
 }
 
+/** 按字节截断（企业微信 text 有 2048 字节上限），不切断多字节字符 */
+function clip(s: string, maxBytes: number): string {
+  if (Buffer.byteLength(s, 'utf8') <= maxBytes) return s
+  let out = s
+  while (Buffer.byteLength(out, 'utf8') > maxBytes - 20) out = out.slice(0, -1)
+  return out + '\n…（内容过长已截断，完整明细见网页版进度历史）'
+}
+
 function replaceVars(tpl: string, msg: { title: string; text: string }): string {
   return tpl.replace(/\{title\}/g, msg.title).replace(/\{text\}/g, msg.text)
 }
@@ -131,6 +159,50 @@ export async function sendToChannel(type: NotifyChannelType, cfg: NotifyConfig['
         body.sign = feishuSign(c.secret, ts)
       }
       const r = await post(c.webhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      return { channel: label, ...r }
+    }
+
+    if (type === 'wecom') {
+      const c = cfg.wecom
+      if (!c.webhook) return { channel: label, ok: false, error: '未填 Webhook 地址' }
+      // 企业微信 text 内容上限 2048 字节，超了直接报错 → 先截断再发
+      const r = await post(c.webhook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ msgtype: 'text', text: { content: clip(`${msg.title}\n${msg.text}`, 1900) } }),
+      })
+      return { channel: label, ...r }
+    }
+
+    if (type === 'dingtalk') {
+      const c = cfg.dingtalk
+      if (!c.webhook) return { channel: label, ok: false, error: '未填 Webhook 地址' }
+      let url = c.webhook
+      if (c.secret) {
+        // 钉钉加签：sign = urlEncode(base64(HMAC-SHA256(key=secret, data=timestamp + "\n" + secret)))
+        const ts = Date.now()
+        const strToSign = `${ts}\n${c.secret}`
+        const sign = encodeURIComponent(createHmac('sha256', c.secret).update(strToSign).digest('base64'))
+        url += `${url.includes('?') ? '&' : '?'}timestamp=${ts}&sign=${sign}`
+      }
+      const r = await post(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ msgtype: 'text', text: { content: `${msg.title}\n${msg.text}` } }),
+      })
+      return { channel: label, ...r }
+    }
+
+    if (type === 'telegram') {
+      const c = cfg.telegram
+      if (!c.token) return { channel: label, ok: false, error: '未填 Bot Token' }
+      if (!c.chatId) return { channel: label, ok: false, error: '未填 chat_id' }
+      const base = (c.apiBase || 'https://api.telegram.org').replace(/\/+$/, '')
+      const r = await post(`${base}/bot${c.token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: c.chatId, text: `${msg.title}\n${msg.text}`, disable_web_page_preview: true }),
+      })
       return { channel: label, ...r }
     }
 
@@ -186,10 +258,20 @@ export async function sendToChannel(type: NotifyChannelType, cfg: NotifyConfig['
 
 export const CHANNEL_LABEL: Record<NotifyChannelType, string> = {
   feishu: '飞书',
+  wecom: '企业微信',
+  dingtalk: '钉钉',
   bark: 'Bark',
   serverchan: 'Server酱',
+  telegram: 'Telegram',
   webhook: '自定义 Webhook',
 }
+
+/** 界面上的渠道分组（标签多了要归归类） */
+export const CHANNEL_GROUPS: { label: string; types: NotifyChannelType[] }[] = [
+  { label: '群机器人', types: ['feishu', 'wecom', 'dingtalk'] },
+  { label: '手机推送', types: ['bark', 'serverchan', 'telegram'] },
+  { label: '通用', types: ['webhook'] },
+]
 
 /** 发一条通知到所有渠道（逐个，失败不影响别的渠道，也绝不影响同步） */
 export async function sendNotify(cfg: NotifyConfig | undefined, msg: NotifyMessage): Promise<SendResult[]> {

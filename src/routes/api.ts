@@ -1231,8 +1231,17 @@ export function apiRouter(
       enabled: cfg.notify.enabled,
       channels: {
         feishu: { enabled: prev.feishu.enabled, events: eventsOf('feishu'), webhook: s('feishu_webhook'), secret: s('feishu_secret') },
+        wecom: { enabled: prev.wecom.enabled, events: eventsOf('wecom'), webhook: s('wecom_webhook') },
+        dingtalk: { enabled: prev.dingtalk.enabled, events: eventsOf('dingtalk'), webhook: s('dingtalk_webhook'), secret: s('dingtalk_secret') },
         bark: { enabled: prev.bark.enabled, events: eventsOf('bark'), server: s('bark_server') || 'https://api.day.app', key: s('bark_key') },
         serverchan: { enabled: prev.serverchan.enabled, events: eventsOf('serverchan'), sendKey: s('serverchan_key') },
+        telegram: {
+          enabled: prev.telegram.enabled,
+          events: eventsOf('telegram'),
+          token: s('telegram_token'),
+          chatId: s('telegram_chat'),
+          apiBase: s('telegram_base') || 'https://api.telegram.org',
+        },
         webhook: {
           enabled: prev.webhook.enabled,
           events: eventsOf('webhook'),

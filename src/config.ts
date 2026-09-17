@@ -403,8 +403,11 @@ export const DEFAULT_CONFIG: AppConfig = {
     enabled: false,
     channels: {
       feishu: { enabled: false, events: defaultNotifyEvents(), webhook: '', secret: '' },
+      wecom: { enabled: false, events: defaultNotifyEvents(), webhook: '' },
+      dingtalk: { enabled: false, events: defaultNotifyEvents(), webhook: '', secret: '' },
       bark: { enabled: false, events: defaultNotifyEvents(), server: 'https://api.day.app', key: '' },
       serverchan: { enabled: false, events: defaultNotifyEvents(), sendKey: '' },
+      telegram: { enabled: false, events: defaultNotifyEvents(), token: '', chatId: '', apiBase: 'https://api.telegram.org' },
       webhook: { enabled: false, events: defaultNotifyEvents(), url: '', method: 'POST', headers: '', bodyTemplate: '' },
     },
   },
@@ -512,8 +515,11 @@ export function loadConfig(): AppConfig {
       ...fileCfg?.notify,
       channels: {
         feishu: { ...DEFAULT_CONFIG.notify.channels.feishu, ...fileCfg?.notify?.channels?.feishu },
+        wecom: { ...DEFAULT_CONFIG.notify.channels.wecom, ...fileCfg?.notify?.channels?.wecom },
+        dingtalk: { ...DEFAULT_CONFIG.notify.channels.dingtalk, ...fileCfg?.notify?.channels?.dingtalk },
         bark: { ...DEFAULT_CONFIG.notify.channels.bark, ...fileCfg?.notify?.channels?.bark },
         serverchan: { ...DEFAULT_CONFIG.notify.channels.serverchan, ...fileCfg?.notify?.channels?.serverchan },
+        telegram: { ...DEFAULT_CONFIG.notify.channels.telegram, ...fileCfg?.notify?.channels?.telegram },
         webhook: { ...DEFAULT_CONFIG.notify.channels.webhook, ...fileCfg?.notify?.channels?.webhook },
       },
     },

@@ -1,7 +1,7 @@
 import { Router, type Request } from 'express'
 import type { AppConfig } from '../config.js'
 import { QUALITY_ORDER, QUALITY_LABELS, TARGET_LABEL, supportsFileDelete } from '../config.js'
-import { NOTIFY_EVENTS } from '../core/notify.js'
+import { NOTIFY_EVENTS, CHANNEL_GROUPS } from '../core/notify.js'
 import { LxServerAdapter } from '../adapters/lxserver.js'
 import type { MediaServerAdapter } from '../adapters/media-server.js'
 import { renderPage, VERSION } from '../views/render.js'
@@ -122,7 +122,7 @@ export function pagesRouter(getCfg: () => AppConfig, lx: LxServerAdapter, emby: 
   })
 
   r.get('/settings', (_req, res) => {
-    res.type('html').send(renderPage('settings', { ...base('settings', _req), qOrder: QUALITY_ORDER, qLabels: QUALITY_LABELS, notifyEvents: NOTIFY_EVENTS }))
+    res.type('html').send(renderPage('settings', { ...base('settings', _req), qOrder: QUALITY_ORDER, qLabels: QUALITY_LABELS, notifyEvents: NOTIFY_EVENTS, ntGroups: CHANNEL_GROUPS }))
   })
 
   return r
