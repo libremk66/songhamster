@@ -24,6 +24,14 @@ sudo bash scripts/release-docker.sh
 # 5) 验证：从 Docker Hub API 看两个架构是否都上去了（不需要 sudo）
 curl -s "https://hub.docker.com/v2/repositories/libremk66/songhamster/tags?page_size=25" \
   | python3 -c "import json,sys;[print(t['name'], sorted({i['architecture'] for i in t.get('images',[])})) for t in json.load(sys.stdin)['results']]"
+
+# 6) 打 tag + 发 Release（⚠️ tag 必须打在**构建镜像的那个提交**上，见第六节）
+git tag -a v0.5.0 594eef0 -m "v0.5.0 — 一句话要点"   # 提交号 = 构建镜像时的 HEAD
+git push origin v0.5.0                                # 推送要带 token（同第 3 步）
+#    正文直接复用 CHANGELOG 对应段落：网页 Draft a new release，或走 API：
+#    curl -X POST -H "Authorization: token $TOKEN" --data @/tmp/release.json \
+#      https://api.github.com/repos/libremk66/songhamster/releases
+#    （body 字段放 CHANGELOG 段落即可；draft/prerelease 都填 false）
 ```
 
 脚本最后会**冒烟验证**：拉远端镜像起临时容器打 `/healthz`，通了才打印 🎉。
@@ -70,8 +78,24 @@ curl -s "https://hub.docker.com/v2/repositories/libremk66/songhamster/tags?page_
 新镜像第一次起来时会自动迁移老库（例如 0.4.0 给 `history_batch` 去外键、补任务名快照）。
 无损、且只在检测到旧结构时才执行；介意的话先备份 `data/songhamster.db`（含 `-wal`/`-shm`）。
 
-## 六、Docker Hub 之外的渠道：暂不发 GitHub Release
+## 六、GitHub Release：发版即打 tag（2026-09-17 起）
 
-- 交付物就是**镜像**，GitHub 仓库当源码与文档的载体
-- 版本号在 `package.json`，运行时可在界面侧栏和 `/healthz` 看到
-- 哪天想发 Release（给外人用、想要"最新版本"标）再说：tag + Release 说明直接复用 `CHANGELOG.md` 对应段落即可
+交付物是**镜像**，但 GitHub 上也要有对应的 **tag + Release** —— 否则会出现"Docker Hub 有 0.5.0、
+仓库里一个版本都没有"的对不上账：别人看仓库以为项目没版本，自己回退也没有锚点。
+
+**规矩（三条）**
+
+1. **tag 打在构建镜像的那个提交上** —— 不是"当前 HEAD"：构建完又提交了别的东西的话，
+   `git checkout v0.5.0` 拿到的代码就和镜像里的不一致了
+   （实操上最省心的顺序：**先提交完 → 再构建镜像 → 立刻打 tag**）
+2. **已发布的 tag 不许移动**（跟"不许偷换已发布镜像"同理）；要改就发 `x.y.z+1`
+3. **Release 正文复用 `CHANGELOG.md` 对应段落**，别另写一份
+
+**什么时候发**
+
+- ✅ 推了新的 `x.y.z` 镜像 → 顺手打（成本 1 分钟）
+- ✅ 有别人开始用（哪怕只有一个朋友）→ "版本可追溯"立刻刚需
+- ✅ **破坏性变更**（配置结构变 / 数据库迁移）→ release notes 是唯一能写清楚的地方，最刚需
+- ❌ 一天推十次的开发期、纯内部重构、改错别字 —— 不必
+
+**别等"很稳定"**：那个条件永远等不到。用上面这些可判定的触发条件代替。
