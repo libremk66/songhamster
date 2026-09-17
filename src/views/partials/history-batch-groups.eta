@@ -31,7 +31,7 @@
   <details class="rounded-lg border border-base-300">
     <summary class="cursor-pointer px-3 py-1.5 text-sm font-semibold select-none">
       已同步跳过（<%= groups.skipped.length %>）
-      <span class="c-sub font-normal">— 本次没进流程（上次已同步），下面是它们各自的来历</span>
+      <span class="c-sub font-normal">— 本次没进流程（上次已同步），下面是它们各自的来历；<b>引用为当前值</b>（跳过不产生事件行，没有当时的快照）</span>
     </summary>
     <div class="p-2 space-y-1">
       <% for (const s of groups.skipped) { %>
@@ -45,9 +45,9 @@
         <% } else { %><span class="c-sub">无状态记录</span><% } %>
         <span class="c-sub">最后处理 <%= s.updatedAt ? fmtLocal(s.updatedAt, true) : '—' %></span>
         <span class="c-sub">共 <%= s.records %> 条记录</span>
-        <% if (s.refs > 1) { %><span class="st-warn" title="这个文件被多个任务共用——删它的时候会被引用保护拦住">被 <%= s.refs %> 个任务引用：<%= s.refNames.join('、') %></span>
-        <% } else if (s.refs === 1) { %><span class="c-sub">引用：<%= s.refNames[0] %></span>
-        <% } else { %><span class="st-bad" title="没登记引用——可能是老记录，或文件登记被清过">无引用记录</span><% } %>
+        <% if (s.refs > 1) { %><span class="st-warn" title="这个文件被多个任务共用——删它的时候会被引用保护拦住">当前引用 <%= s.refs %> 个任务：<%= s.refNames.join('、') %></span>
+        <% } else if (s.refs === 1) { %><span class="c-sub" title="跳过没有事件行，这里是现查的当前值（不是当时的快照）">当前引用：<%= s.refNames[0] %></span>
+        <% } else { %><span class="st-bad" title="没登记引用——可能是老记录，或文件登记被清过">当前无引用记录</span><% } %>
         <span class="flex-1"></span>
         <button type="button" class="btn btn-ghost btn-xs" data-song="<%= s.name %>"
                 onclick="histSongToRecords(this)">看它的全部记录 →</button>
