@@ -45,7 +45,9 @@
         <% } else { %><span class="c-sub">无状态记录</span><% } %>
         <span class="c-sub">最后处理 <%= s.updatedAt ? fmtLocal(s.updatedAt, true) : '—' %></span>
         <span class="c-sub">共 <%= s.records %> 条记录</span>
-        <% if (s.refs > 1) { %><span class="st-warn">被 <%= s.refs %> 个任务引用</span><% } %>
+        <% if (s.refs > 1) { %><span class="st-warn" title="这个文件被多个任务共用——删它的时候会被引用保护拦住">被 <%= s.refs %> 个任务引用：<%= s.refNames.join('、') %></span>
+        <% } else if (s.refs === 1) { %><span class="c-sub">引用：<%= s.refNames[0] %></span>
+        <% } else { %><span class="st-bad" title="没登记引用——可能是老记录，或文件登记被清过">无引用记录</span><% } %>
         <span class="flex-1"></span>
         <button type="button" class="btn btn-ghost btn-xs" data-song="<%= s.name %>"
                 onclick="histSongToRecords(this)">看它的全部记录 →</button>

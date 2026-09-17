@@ -500,6 +500,8 @@ export interface SkippedDetail {
   updatedAt: string | null
   records: number
   refs: number
+  /** 引用该文件的任务名（跳过卡片里直接写出来，别只给个数字） */
+  refNames: string[]
 }
 
 export function batchSkippedDetail(batchId: number): SkippedDetail[] {
@@ -517,10 +519,15 @@ export function batchSkippedDetail(batchId: number): SkippedDetail[] {
   const db = getDb()
   const st = db.prepare(`SELECT songKey, singer, status, quality, updatedAt FROM current_song_status WHERE taskId = ? AND songKey IN (${ph})`).all(b.taskId, ...keys) as { songKey: string; singer: string; status: string; quality: string | null; updatedAt: string }[]
   const cnt = db.prepare(`SELECT songKey, COUNT(*) AS n FROM history_item WHERE taskId = ? AND songKey IN (${ph}) GROUP BY songKey`).all(b.taskId, ...keys) as { songKey: string; n: number }[]
-  const rf = db.prepare(`SELECT songKey, COUNT(DISTINCT taskId) AS n FROM task_song_ref WHERE songKey IN (${ph}) GROUP BY songKey`).all(...keys) as { songKey: string; n: number }[]
+  const rf = db.prepare(`SELECT DISTINCT songKey, taskId FROM task_song_ref WHERE songKey IN (${ph})`).all(...keys) as { songKey: string; taskId: number }[]
   const stMap = new Map(st.map((x) => [x.songKey, x]))
   const cntMap = new Map(cnt.map((x) => [x.songKey, x.n]))
-  const rfMap = new Map(rf.map((x) => [x.songKey, x.n]))
+  const rfMap = new Map<string, number[]>()
+  for (const r of rf) {
+    if (!rfMap.has(r.songKey)) rfMap.set(r.songKey, [])
+    rfMap.get(r.songKey)!.push(r.taskId)
+  }
+  const nameOf = (id: number) => getTask(id)?.lxPlaylistName ?? `已删除的任务 #${id}`
   return arr.filter((a) => a.key).map((a) => {
     const key = String(a.key)
     const s = stMap.get(key)
@@ -532,7 +539,8 @@ export function batchSkippedDetail(batchId: number): SkippedDetail[] {
       quality: s?.quality ?? null,
       updatedAt: s?.updatedAt ?? null,
       records: cntMap.get(key) ?? 0,
-      refs: rfMap.get(key) ?? 0,
+      refs: (rfMap.get(key) ?? []).length,
+      refNames: (rfMap.get(key) ?? []).map(nameOf),
     }
   })
 }
